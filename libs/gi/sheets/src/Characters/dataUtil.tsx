@@ -367,11 +367,40 @@ export function healNodeTalent(
     additional
   )
 }
+/**
+ * The arguments each character sheet passed to `dataObjForCharacterSheet`,
+ * recorded so that custom characters can rebuild a template character's data
+ * under their own key (with their own base stats, element and weapon type).
+ */
+const characterSheetArgs: Record<
+  string,
+  { display: { [key: string]: DisplaySub }; additional: Data[] }
+> = {}
+
+/**
+ * Rebuilds the data of `templateKey`'s sheet for the custom character `key`.
+ * The template's sheet module must already be loaded.
+ */
+export function dataObjForCustomCharacter(
+  key: CharacterKey,
+  templateKey: CharacterKey
+): Data {
+  const args = characterSheetArgs[templateKey]
+  if (!args)
+    throw new Error(
+      `Character sheet for ${templateKey} is not loaded, cannot build ${key}`
+    )
+  return dataObjForCharacterSheet(key, { ...args.display }, ...args.additional)
+}
+
 export function dataObjForCharacterSheet(
   key: CharacterKey,
   display: { [key: string]: DisplaySub },
   ...additional: Data[]
 ): Data {
+  // `display` is modified below, so record a copy of the original.
+  if (!characterSheetArgs[key])
+    characterSheetArgs[key] = { display: { ...display }, additional }
   function curve(base: number, lvlCurve: CharacterGrowCurveKey): NumNode {
     return prod(
       base,

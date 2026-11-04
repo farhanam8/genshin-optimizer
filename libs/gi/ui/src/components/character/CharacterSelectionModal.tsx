@@ -28,7 +28,6 @@ import {
   getCharMaxLevel,
 } from '@genshin-optimizer/gi/consts'
 import type { LoadoutDatum } from '@genshin-optimizer/gi/db'
-import { commandSearchInputProps } from '../../util/commandPaletteSearch'
 import {
   useCharacter,
   useCharMeta,
@@ -36,6 +35,7 @@ import {
   useDBMeta,
 } from '@genshin-optimizer/gi/db-ui'
 import { getCharEle, getCharStat } from '@genshin-optimizer/gi/stats'
+import AddIcon from '@mui/icons-material/Add'
 import CloseIcon from '@mui/icons-material/Close'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
@@ -43,6 +43,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import type { TooltipProps } from '@mui/material'
 import {
   Box,
+  Button,
   CardActionArea,
   CardContent,
   Divider,
@@ -70,16 +71,17 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DataContext, SillyContext } from '../../context'
+import { commandSearchInputProps } from '../../util/commandPaletteSearch'
 import { iconAsset } from '../../util/iconAsset'
 import { ElementToggle, WeaponToggle } from '../toggles'
 import { CharacterCard } from './CharacterCard'
 import type { CharacterSortKey } from './CharacterSort'
-import { useCharacterNameSearchFieldsCache } from './characterNameSearchFields'
 import {
   characterFilterConfigs,
   characterSortConfigs,
   characterSortMap,
 } from './CharacterSort'
+import { useCharacterNameSearchFieldsCache } from './characterNameSearchFields'
 import { CharacterName } from './Trans'
 
 export function CharacterSingleSelectionModal({
@@ -89,6 +91,7 @@ export function CharacterSingleSelectionModal({
   selectedIndex = -1,
   loadoutData = [undefined, undefined, undefined, undefined],
   newFirst = false,
+  onCreateCustom,
 }: {
   show: boolean
   onHide: () => void
@@ -96,6 +99,8 @@ export function CharacterSingleSelectionModal({
   selectedIndex?: number
   loadoutData?: (LoadoutDatum | undefined)[]
   newFirst?: boolean
+  /** When set, shows a button to create a custom character */
+  onCreateCustom?: () => void
 }) {
   const { silly } = useContext(SillyContext)
   const database = useDatabase()
@@ -220,6 +225,13 @@ export function CharacterSingleSelectionModal({
       filterSortProps={filterSortProps}
       onDeferredSearchChange={onDeferredSearchChange}
       onClose={onClose}
+      onCreateCustom={
+        onCreateCustom &&
+        (() => {
+          onHide()
+          onCreateCustom()
+        })
+      }
     >
       <CardContent sx={{ flex: '1', overflow: 'auto' }}>
         <Grid container spacing={1} columns={{ xs: 2, sm: 3, md: 4, lg: 5 }}>
@@ -460,6 +472,7 @@ type CharacterSelectionModalBaseProps = {
   filterSortProps: CharacterSelectionFilterSortProps
   onDeferredSearchChange: (search: string) => void
   onClose: () => void
+  onCreateCustom?: () => void
   children: React.ReactNode
 }
 const sortKeys = Object.keys(characterSortMap)
@@ -470,6 +483,7 @@ function CharacterSelectionModalBase({
   filterSortProps,
   onDeferredSearchChange,
   onClose,
+  onCreateCustom,
   children,
 }: CharacterSelectionModalBaseProps) {
   const { t } = useTranslation([
@@ -613,6 +627,15 @@ function CharacterSelectionModalBase({
               }
             />
           </Box>
+          {onCreateCustom && (
+            <Button
+              color="info"
+              startIcon={<AddIcon />}
+              onClick={onCreateCustom}
+            >
+              {t('customChar.button')}
+            </Button>
+          )}
         </CardContent>
         <Divider />
         <DataContext.Provider value={teamDataContextValue}>

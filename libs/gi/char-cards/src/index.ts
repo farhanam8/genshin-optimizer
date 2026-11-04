@@ -1,4 +1,5 @@
 import type { CharacterKey, GenderKey } from '@genshin-optimizer/gi/consts'
+import { customCharacterDefs } from '@genshin-optimizer/gi/consts'
 import Aino from './Character_Aino_Card.webp'
 import Albedo from './Character_Albedo_Card.png'
 import Alhaitham from './Character_Alhaitham_Card.jpg'
@@ -248,6 +249,12 @@ const charCards = {
   Zhongli,
   Zibai,
 } as const
+
+// Custom characters reuse the card of their template character.
+for (const { key, template } of customCharacterDefs) {
+  const cards = charCards as Record<string, string>
+  cards[key] = cards[template]
+}
 
 export function charCard(charKey: CharacterKey, gender: GenderKey) {
   switch (charKey) {

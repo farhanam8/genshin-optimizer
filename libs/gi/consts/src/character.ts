@@ -3,6 +3,7 @@ import {
   ascensionMaxLevel,
   validateLevelAsc,
 } from './common'
+import { readCustomCharacterDefs } from './customCharacter'
 import type { AdditiveReactionKey } from './go'
 import type { AmplifyingReactionKey } from './reaction'
 
@@ -212,6 +213,29 @@ export const nonTravelerCharacterKeys = [
   'Zibai',
 ] as const
 export type NonTravelerCharacterKey = (typeof nonTravelerCharacterKeys)[number]
+
+/**
+ * User-defined custom characters (see `./customCharacter`).
+ * Their keys are appended to `nonTravelerCharacterKeys` at load time, so that
+ * every derived key list (`allCharacterKeys`, `allLocationCharacterKeys`, ...)
+ * and the database schemas built from them accept these keys.
+ * They are intentionally not part of the `CharacterKey` type.
+ */
+export const customCharacterDefs = readCustomCharacterDefs().filter(
+  ({ key, template }) =>
+    !(nonTravelerCharacterKeys as readonly string[]).includes(key) &&
+    (nonTravelerCharacterKeys as readonly string[]).includes(template)
+)
+;(nonTravelerCharacterKeys as unknown as string[]).push(
+  ...customCharacterDefs.map(({ key }) => key)
+)
+
+export function isCustomCharacterKey(key: string): boolean {
+  return customCharacterDefs.some((def) => def.key === key)
+}
+export function getCustomCharacterDef(key: string) {
+  return customCharacterDefs.find((def) => def.key === key)
+}
 
 export const travelerElements = [
   'anemo',

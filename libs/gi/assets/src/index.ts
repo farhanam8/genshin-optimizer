@@ -5,10 +5,19 @@ import type {
   GenderKey,
   WeaponKey,
 } from '@genshin-optimizer/gi/consts'
-import { charKeyToLocGenderedCharKey } from '@genshin-optimizer/gi/consts'
+import {
+  charKeyToLocGenderedCharKey,
+  customCharacterDefs,
+} from '@genshin-optimizer/gi/consts'
 import artifacts from './gen/artifacts'
 import chars from './gen/chars'
 import weapons from './gen/weapons'
+
+// Custom characters reuse the images of their template character.
+for (const { key, template } of customCharacterDefs) {
+  const charAssets = chars as Record<string, unknown>
+  charAssets[key] = charAssets[template]
+}
 
 export * from './assets'
 

@@ -34,6 +34,7 @@ import {
   CharacterEditor,
   CharacterRarityToggle,
   CharacterSingleSelectionModal,
+  CustomCharacterModal,
   characterFilterConfigs,
   characterSortConfigs,
   characterSortMap,
@@ -102,6 +103,7 @@ export default function PageCharacter() {
   const brPt = useMediaQueryUp()
 
   const [newCharacter, setnewCharacter] = useState(false)
+  const [customCharacter, setCustomCharacter] = useState(false)
   if (useIsMount()) ReactGA.send({ hitType: 'pageview', page: '/characters' })
 
   // character favorite updater
@@ -227,8 +229,13 @@ export default function PageCharacter() {
           show={newCharacter}
           onHide={() => setnewCharacter(false)}
           onSelect={editCharacter}
+          onCreateCustom={() => setCustomCharacter(true)}
         />
       </Suspense>
+      <CustomCharacterModal
+        show={customCharacter}
+        onHide={() => setCustomCharacter(false)}
+      />
       <CardThemed>
         <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           <Grid container spacing={1}>

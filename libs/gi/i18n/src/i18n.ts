@@ -1,3 +1,4 @@
+import { customCharacterDefs } from '@genshin-optimizer/gi/consts'
 import i18n from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import Backend from 'i18next-http-backend'
@@ -57,13 +58,26 @@ i18n
 
     backend: {
       // Path to load localization data from.
-      loadPath: './assets/locales/{{lng}}/{{ns}}.json',
+      // Custom characters load the text files of their template character.
+      loadPath: (_lngs: string[], namespaces: string[]) =>
+        `./assets/locales/{{lng}}/${namespaces
+          .map(customCharacterNamespace)
+          .join('+')}.json`,
     },
     interpolation: {
       escapeValue: false, //react does interlopation already
       skipOnVariables: false, // Enables passing nested interpolation
     },
   })
+// Show custom characters' own names, everywhere a character name is looked up.
+i18n.store.on('added', (lng: string, ns: string) => {
+  for (const { key, name } of customCharacterDefs) {
+    if (ns === 'charNames_gen' || ns === 'sillyWisher_charNames')
+      i18n.addResource(lng, ns, key, name, { silent: true })
+    else if (ns === `char_${key}_gen`)
+      i18n.addResource(lng, ns, 'name', name, { silent: true })
+  }
+})
 i18n.services.formatter?.add('percent', (value, _lng, options) => {
   return (value * 100).toFixed(options.fixed)
 })
@@ -73,3 +87,12 @@ i18n.services.formatter?.add('fixed', (value, _lng, options) => {
 console.log('i18n initialized')
 
 export { i18n }
+
+/** Maps a custom character's text namespace to its template's namespace. */
+function customCharacterNamespace(ns: string): string {
+  for (const { key, template } of customCharacterDefs) {
+    if (ns === `char_${key}_gen`) return `char_${template}_gen`
+    if (ns === `char_${key}`) return `char_${template}`
+  }
+  return ns
+}

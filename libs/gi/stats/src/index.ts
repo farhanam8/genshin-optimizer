@@ -2,11 +2,15 @@ import type {
   ArtifactSetKey,
   CharacterKey,
   CharacterSheetKey,
+  CustomCharacterDef,
   ElementKey,
   NonTravelerCharacterKey,
   WeaponKey,
 } from '@genshin-optimizer/gi/consts'
-import { charKeyToLocCharKey } from '@genshin-optimizer/gi/consts'
+import {
+  charKeyToLocCharKey,
+  customCharacterDefs,
+} from '@genshin-optimizer/gi/consts'
 import * as allStat_gen from './allStat_gen.json'
 import type { AllStats, CharacterDataGen } from './executors/gen-stats/executor'
 
@@ -20,6 +24,104 @@ export type {
 const allStats = allStat_gen as AllStats
 
 export { allStats }
+
+type CharGrowCurveKey = CharacterDataGen['lvlCurves'][number]['curve']
+type BaseStatKey = 'hp' | 'atk' | 'def'
+const baseStatKeys = ['hp', 'atk', 'def'] as const
+/** Standard ascension "special" stat progression, as a fraction of its max value */
+const specialStatAscPattern = [0, 0, 0.25, 0.5, 0.5, 0.75, 1]
+const refLevel = 90
+
+function curveAt(curve: CharGrowCurveKey, level: number): number {
+  return allStats.char.expCurve[curve][level]
+}
+
+/**
+ * Base HP/ATK/DEF at level 90/90 and the ascension special stat at max
+ * ascension, as shown in-game. Used to prefill the custom character editor.
+ */
+export function getCharRefStats(ck: CharacterKey): {
+  hp: number
+  atk: number
+  def: number
+  ascStat?: string
+  ascValue: number
+} {
+  const { lvlCurves, ascensionBonus } = getCharStat(ck)
+  const base = (stat: BaseStatKey) => {
+    const lc = lvlCurves.find(({ key }) => key === stat)
+    const fromCurve = lc ? lc.base * curveAt(lc.curve, refLevel) : 0
+    return fromCurve + (ascensionBonus[stat]?.[6] ?? 0)
+  }
+  const special = Object.entries(ascensionBonus).find(
+    ([key]) => !(baseStatKeys as readonly string[]).includes(key)
+  )
+  return {
+    hp: base('hp'),
+    atk: base('atk'),
+    def: base('def'),
+    ascStat: special?.[0],
+    ascValue: special?.[1]?.[6] ?? 0,
+  }
+}
+
+/**
+ * Builds the stat data of a custom character from its template.
+ * The template's level curve shape and the share of each stat coming from
+ * ascension are kept, then scaled so that the level 90/90 value matches the
+ * custom definition.
+ */
+function customCharacterData(def: CustomCharacterDef): CharacterDataGen {
+  const tmpl = (allStats.char.data as Record<string, CharacterDataGen>)[
+    def.template
+  ]
+  const lvlCurves: CharacterDataGen['lvlCurves'] = []
+  const ascensionBonus: CharacterDataGen['ascensionBonus'] = {}
+  for (const stat of baseStatKeys) {
+    const tmplCurve = tmpl.lvlCurves.find(({ key }) => key === stat)
+    const tmplAsc = tmpl.ascensionBonus[stat] ?? [0, 0, 0, 0, 0, 0, 0]
+    const tmplRef =
+      (tmplCurve ? tmplCurve.base * curveAt(tmplCurve.curve, refLevel) : 0) +
+      tmplAsc[6]
+    const ascShare = tmplRef > 0 ? tmplAsc[6] / tmplRef : 0
+    const target = def[stat]
+    const ascMax = target * ascShare
+    const curve = `GROW_CURVE_${stat === 'atk' ? 'ATTACK' : 'HP'}_S${
+      def.rarity
+    }` as CharGrowCurveKey
+    lvlCurves.push({
+      key: stat,
+      base: (target - ascMax) / curveAt(curve, refLevel),
+      curve,
+    })
+    ascensionBonus[stat] =
+      tmplAsc[6] > 0
+        ? tmplAsc.map((v) => (v / tmplAsc[6]) * ascMax)
+        : specialStatAscPattern.map((f) => f * ascMax)
+  }
+  ascensionBonus[def.ascStat] = specialStatAscPattern.map(
+    (f) => f * def.ascValue
+  )
+  return {
+    key: def.key as CharacterDataGen['key'],
+    ele: def.ele,
+    region: tmpl.region,
+    weaponType: def.weaponType,
+    rarity: def.rarity,
+    birthday: tmpl.birthday,
+    lvlCurves,
+    ascensionBonus,
+    baseStats: tmpl.baseStats,
+  }
+}
+
+// Register custom characters, so every lookup by key finds them.
+for (const def of customCharacterDefs) {
+  ;(allStats.char.data as Record<string, CharacterDataGen>)[def.key] =
+    customCharacterData(def)
+  const skillParam = allStats.char.skillParam as Record<string, unknown>
+  skillParam[def.key] = skillParam[def.template]
+}
 
 export function getCharEle(ck: CharacterSheetKey | CharacterKey): ElementKey {
   if (ck.startsWith('TravelerAnemo')) return 'anemo'

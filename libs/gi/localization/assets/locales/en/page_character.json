@@ -117,5 +117,27 @@
     "loadoutsWith": "Team Loadouts with <2/>",
     "addLoAndTeam": "Add new Loadout+Team",
     "addTeam": "Add new Team"
+  },
+  "customChar": {
+    "button": "Custom Character",
+    "title": "Custom Characters",
+    "info": "A custom character uses the talents, passives and constellations of a template character, with its own name, element, weapon type, rarity and base stats. GO reloads after saving. Custom characters are stored only in this browser.",
+    "empty": "No custom characters yet.",
+    "create": "Create Custom Character",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete {{name}}? Its character data in this database is removed too.",
+    "basedOn": "Based on {{name}}",
+    "template": "Template character",
+    "templateHelp": "Talents, passives and constellations follow this character. Stats below are prefilled from it.",
+    "name": "Name",
+    "element": "Element",
+    "weaponType": "Weapon type",
+    "rarity": "Rarity",
+    "baseStats": "Base stats at Lv. 90/90",
+    "ascStat": "Ascension stat",
+    "ascValue": "Value at max ascension",
+    "cancel": "Cancel",
+    "save": "Save & reload"
   }
 }

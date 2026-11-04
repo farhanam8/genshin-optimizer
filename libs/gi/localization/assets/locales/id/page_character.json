@@ -52,5 +52,27 @@
   "tabTeambuff": {
     "team_reso": "Team Resonance",
     "resonance_tip": "Party harus penuh dengan 4 karakter agar resonansi elemen dapat diterapkan."
+  },
+  "customChar": {
+    "button": "Karakter Custom",
+    "title": "Karakter Custom",
+    "info": "Karakter custom memakai talent, pasif, dan konstelasi dari karakter template, dengan nama, elemen, jenis senjata, rarity, dan stat dasarnya sendiri. GO akan dimuat ulang setelah disimpan. Karakter custom hanya tersimpan di browser ini.",
+    "empty": "Belum ada karakter custom.",
+    "create": "Buat Karakter Custom",
+    "edit": "Edit",
+    "delete": "Hapus",
+    "deleteConfirm": "Hapus {{name}}? Data karakternya di database ini juga ikut terhapus.",
+    "basedOn": "Berdasarkan {{name}}",
+    "template": "Karakter template",
+    "templateHelp": "Talent, pasif, dan konstelasi mengikuti karakter ini. Stat di bawah otomatis terisi dari karakter ini.",
+    "name": "Nama",
+    "element": "Elemen",
+    "weaponType": "Jenis senjata",
+    "rarity": "Rarity",
+    "baseStats": "Stat dasar di Lv. 90/90",
+    "ascStat": "Stat ascension",
+    "ascValue": "Nilai di ascension maks",
+    "cancel": "Batal",
+    "save": "Simpan & muat ulang"
   }
 }

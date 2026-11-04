@@ -14,6 +14,7 @@ import {
   allHitModeKeys,
   allInfusionAuraElementKeys,
   type CharacterKey,
+  getCustomCharacterDef,
   type InfusionAuraElementKey,
 } from '@genshin-optimizer/gi/consts'
 import type { IGOOD } from '@genshin-optimizer/gi/good'
@@ -78,15 +79,17 @@ export class TeamCharacterDataManager extends DataManager<
     const existingUndercKey = this.values.filter(
       ({ key }) => key === characterKey
     )
+    // Custom characters are named by their display name instead of their key
+    const charName = getCustomCharacterDef(characterKey)?.name ?? characterKey
     for (
       let num = existingUndercKey.length + 1;
       num <= existingUndercKey.length * 2;
       num++
     ) {
-      const name = `${characterKey} Loadout ${num}`
+      const name = `${charName} Loadout ${num}`
       if (existingUndercKey.some((tc) => tc.name !== name)) return name
     }
-    return `${characterKey} Loadout`
+    return `${charName} Loadout`
   }
   override validate(obj: unknown): TeamCharacter | undefined {
     const { key: characterKey } = obj as TeamCharacter
