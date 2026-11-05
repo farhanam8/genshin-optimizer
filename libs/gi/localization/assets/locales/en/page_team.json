@@ -38,7 +38,17 @@
     "deleteBtn": "Delete Team",
     "addCharBtn": "Add Character",
     "toFieldBtn": "To Field",
-    "onFieldBtn": "On-field Character"
+    "onFieldBtn": "On-field Character",
+    "combo": {
+      "title": "Team Combo DPS",
+      "desc": "Pick the Custom Multi Targets each member does in one rotation. Their damage is summed and divided by the rotation length.",
+      "noTargets": "No Custom Multi Target yet. Make one on this character's Overview tab.",
+      "count": "Times",
+      "subtotal": "Subtotal",
+      "rotationTime": "Rotation length",
+      "totalDmg": "Total team DMG",
+      "dps": "Team DPS ({{time}} s)"
+    }
   },
   "exportModal": {
     "msg": "Copied team data to clipboard.",

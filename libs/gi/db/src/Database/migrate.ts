@@ -209,7 +209,7 @@ export function migrateGOOD(good: IGOOD & IGO): IGOOD & IGO {
           teamCharIds.push(teamCharId)
         })
       }
-      const team: Omit<Team, 'loadoutData'> & {
+      const team: Omit<Team, 'loadoutData' | 'combo'> & {
         teamCharIds: Array<string | undefined>
       } = {
         name: `${characterKey} Team`,
@@ -520,7 +520,7 @@ export function migrate(storage: DBStorage) {
             teamCharIds.push(teamCharId)
           })
         }
-        const team: Omit<Team, 'loadoutData'> & {
+        const team: Omit<Team, 'loadoutData' | 'combo'> & {
           teamCharIds: Array<string | undefined>
         } = {
           name: `${characterKey} Team`,

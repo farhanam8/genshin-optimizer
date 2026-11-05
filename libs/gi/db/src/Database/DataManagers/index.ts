@@ -71,8 +71,10 @@ import type {
   LoadoutDatum,
   LoadoutExportSetting,
   Team,
+  TeamCombo,
+  TeamComboPick,
 } from './TeamDataManager'
-import { defLoadoutExportSetting } from './TeamDataManager'
+import { defLoadoutExportSetting, defTeamCombo } from './TeamDataManager'
 import type { ICachedWeapon } from './WeaponDataManager'
 import {
   defaultInitialWeapon,
@@ -117,6 +119,8 @@ export type {
   StatFilters,
   Team,
   TeamCharacter,
+  TeamCombo,
+  TeamComboPick,
 }
 export {
   allArtifactSetExclusionKeys,
@@ -124,6 +128,7 @@ export {
   defaultInitialWeapon,
   defaultInitialWeaponKey,
   defLoadoutExportSetting,
+  defTeamCombo,
   handleArtSetExclusion,
   initCharTC,
   initCustomMultiTarget,

@@ -1,0 +1,14 @@
+{
+  "teamSettings": {
+    "combo": {
+      "title": "DPS Kombo Tim",
+      "desc": "Pilih Custom Multi Target yang dilakukan tiap anggota dalam satu rotasi. Damage-nya dijumlahkan lalu dibagi durasi rotasi.",
+      "noTargets": "Belum ada Custom Multi Target. Buat di tab Overview karakter ini.",
+      "count": "Kali",
+      "subtotal": "Subtotal",
+      "rotationTime": "Durasi rotasi",
+      "totalDmg": "Total DMG tim",
+      "dps": "DPS tim ({{time}} dtk)"
+    }
+  }
+}

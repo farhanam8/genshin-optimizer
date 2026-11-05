@@ -35,6 +35,7 @@ import { useNavigate } from 'react-router-dom'
 import BuildDropdown from '../BuildDropdown'
 import { LoadoutDropdown } from '../LoadoutDropdown'
 import { ResonanceDisplay } from './ResonanceDisplay'
+import { TeamCombo } from './TeamCombo'
 import { TeammateDisplay } from './TeamComponents'
 import TeamExportModal from './TeamExportModal'
 
@@ -103,6 +104,7 @@ export default function TeamSetting({
       </Box>
       <EnemyExpandCard teamId={teamId} />
       <TeamEditor teamId={teamId} teamData={teamData} />
+      {!noChars && <TeamCombo teamId={teamId} />}
     </CardContent>
   )
 }

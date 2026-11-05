@@ -51,7 +51,22 @@ export interface Team {
   }
   loadoutData: Array<LoadoutDatum | undefined>
   lastEdit: number
+  /** Team combo: custom multi-targets of the members, summed over a rotation */
+  combo: TeamCombo
 }
+/** A custom multi-target of a team member, done `count` times per rotation */
+export type TeamComboPick = {
+  teamCharId: string
+  /** Index in the team character's `customMultiTargets` */
+  target: number
+  count: number
+}
+export type TeamCombo = {
+  /** Rotation length in seconds, used for DPS */
+  rotationTime: number
+  picks: TeamComboPick[]
+}
+export const defTeamCombo = (): TeamCombo => ({ rotationTime: 20, picks: [] })
 export type LoadoutExportSetting = {
   convertEquipped: boolean
   convertbuilds: string[]
@@ -94,6 +109,7 @@ export class TeamDataManager extends DataManager<
       conditional,
       loadoutData,
       lastEdit,
+      combo,
     } = obj as Team
     if (typeof name !== 'string') name = this.newName()
     if (typeof description !== 'string') description = ''
@@ -204,6 +220,8 @@ export class TeamDataManager extends DataManager<
 
     if (typeof lastEdit !== 'number') lastEdit = Date.now()
 
+    combo = this.validateCombo(combo)
+
     return {
       name,
       description,
@@ -211,6 +229,48 @@ export class TeamDataManager extends DataManager<
       conditional,
       loadoutData,
       lastEdit,
+      combo,
+    }
+  }
+  private validateCombo(combo: unknown): TeamCombo {
+    if (typeof combo !== 'object' || combo === null) return defTeamCombo()
+    const { rotationTime, picks } = combo as Partial<TeamCombo>
+    const seen = new Set<string>()
+    return {
+      rotationTime:
+        typeof rotationTime === 'number' &&
+        Number.isFinite(rotationTime) &&
+        rotationTime > 0
+          ? rotationTime
+          : 20,
+      picks: Array.isArray(picks)
+        ? picks.flatMap((pick) => {
+            if (typeof pick !== 'object' || pick === null) return []
+            const { teamCharId, target, count } = pick as TeamComboPick
+            if (
+              typeof teamCharId !== 'string' ||
+              !this.database.teamChars.get(teamCharId) ||
+              !Number.isInteger(target) ||
+              target < 0
+            )
+              return []
+            const id = `${teamCharId}:${target}`
+            if (seen.has(id)) return []
+            seen.add(id)
+            return [
+              {
+                teamCharId,
+                target,
+                count:
+                  typeof count === 'number' &&
+                  Number.isFinite(count) &&
+                  count > 0
+                    ? count
+                    : 1,
+              },
+            ]
+          })
+        : [],
     }
   }
   new(value: Partial<Team> = {}): string {
@@ -235,9 +295,19 @@ export class TeamDataManager extends DataManager<
   ): object {
     const team = this.database.teams.get(teamId)
     if (!team) return {}
-    const { loadoutData, ...rest } = team
+    const { loadoutData, combo, ...rest } = team
+    // combo picks refer to team members by slot, and to exported targets by
+    // their new index
+    const picks = combo.picks.flatMap(({ teamCharId, target, count }) => {
+      const slot = loadoutData.findIndex((ld) => ld?.teamCharId === teamCharId)
+      if (slot < 0) return []
+      const exported = loadoutDataExportSetting[slot]?.exportCustomMultiTarget
+      const newTarget = exported ? exported.indexOf(target) : target
+      return newTarget < 0 ? [] : [{ slot, target: newTarget, count }]
+    })
     return {
       ...rest,
+      combo: { rotationTime: combo.rotationTime, picks },
       loadoutData: loadoutData.map(
         (loadoutData, i) =>
           loadoutData?.teamCharId &&
@@ -249,18 +319,34 @@ export class TeamDataManager extends DataManager<
     }
   }
   import(data: object): string {
-    const { loadoutData, ...rest } = data as Team & { loadoutData: object[] }
+    const { loadoutData, combo, ...rest } = data as Omit<Team, 'combo'> & {
+      loadoutData: object[]
+      combo?: { rotationTime?: number; picks?: { slot?: number }[] }
+    }
     const id = this.generateKey()
+    const newLoadoutData = loadoutData.map(
+      (obj) =>
+        obj && {
+          teamCharId: this.database.teamChars.import(obj),
+        }
+    )
     if (
       !this.set(id, {
         ...rest,
         name: `${rest.name ?? ''} (Imported)`,
-        loadoutData: loadoutData.map(
-          (obj) =>
-            obj && {
-              teamCharId: this.database.teamChars.import(obj),
-            }
-        ),
+        loadoutData: newLoadoutData,
+        combo: {
+          rotationTime: combo?.rotationTime,
+          picks: (Array.isArray(combo?.picks) ? combo.picks : []).map(
+            ({ slot, ...pick }) => ({
+              ...pick,
+              teamCharId:
+                typeof slot === 'number'
+                  ? newLoadoutData[slot]?.teamCharId
+                  : undefined,
+            })
+          ),
+        },
       } as Team)
     )
       return ''
