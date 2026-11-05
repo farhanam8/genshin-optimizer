@@ -179,6 +179,28 @@
       "constellation5": "C5 icon",
       "constellation6": "C6 icon",
       "passive": "Passive 4 icon"
+    },
+    "buffs": "Buffs",
+    "buffsHelp": "Stat bonuses from passives and constellations. They apply once the passive or constellation is unlocked; team buffs show under \"Received Team Buffs\" of every party member. Buffs with a toggle name get a toggle (buffs sharing a name share it).",
+    "buff": {
+      "source": "From",
+      "stat": "Stat",
+      "value": "Value",
+      "valuePer": "Value per {{per}} {{stat}}",
+      "target": "Who",
+      "targetSelf": "This character",
+      "targetTeam": "Whole party",
+      "condition": "Toggle name (optional)",
+      "conditionPlaceholder": "e.g. After Elemental Skill",
+      "scaling": "Scales with",
+      "noScaling": "Nothing",
+      "per": "Per",
+      "max": "Max (optional)",
+      "elements": "Only party members of:",
+      "excludeEles": "All except these",
+      "remove": "Remove buff",
+      "add": "Add Buff",
+      "invalid": "A number in this buff is invalid."
     }
   }
 }

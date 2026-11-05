@@ -114,6 +114,28 @@
       "constellation5": "Ikon C5",
       "constellation6": "Ikon C6",
       "passive": "Ikon pasif 4"
+    },
+    "buffs": "Buff",
+    "buffsHelp": "Bonus stat dari pasif dan konstelasi. Buff aktif setelah pasif/konstelasinya terbuka; buff tim muncul di \"Received Team Buffs\" setiap anggota party. Buff dengan nama toggle mendapat toggle (buff dengan nama yang sama memakai toggle yang sama).",
+    "buff": {
+      "source": "Dari",
+      "stat": "Stat",
+      "value": "Nilai",
+      "valuePer": "Nilai per {{per}} {{stat}}",
+      "target": "Untuk",
+      "targetSelf": "Karakter ini",
+      "targetTeam": "Seluruh party",
+      "condition": "Nama toggle (opsional)",
+      "conditionPlaceholder": "mis. Setelah Elemental Skill",
+      "scaling": "Skala dari",
+      "noScaling": "Tidak ada",
+      "per": "Per",
+      "max": "Maksimal (opsional)",
+      "elements": "Hanya anggota party:",
+      "excludeEles": "Semua kecuali ini",
+      "remove": "Hapus buff",
+      "add": "Tambah Buff",
+      "invalid": "Ada angka yang tidak valid di buff ini."
     }
   }
 }

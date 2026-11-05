@@ -1,0 +1,128 @@
+{
+  "name": "Anastasya",
+  "notes": [
+    "Written by hand from the passive and constellation descriptions.",
+    "Not included: A4 (Stellar Swirl base reaction multiplier +15%, no matching GO stat), C2 Honor (125% of original DMG), C6 extra attacks.",
+    "Blessing of Love (Elemental Skill tapped) and Blessing of Honor (held) are separate toggles; turn on only one."
+  ],
+  "buffs": [
+    {
+      "source": "passive1",
+      "stat": "critDMG_",
+      "value": 0.12,
+      "target": "team",
+      "condition": "Accolades (after Elemental Skill)"
+    },
+    {
+      "source": "passive3",
+      "stat": "stellarconduct_baseDmg_",
+      "value": 0.007,
+      "scaling": { "stat": "atk", "per": 100 },
+      "max": 0.14,
+      "target": "team"
+    },
+    {
+      "source": "passive3",
+      "stat": "stellarswirl_baseDmg_",
+      "value": 0.007,
+      "scaling": { "stat": "atk", "per": 100 },
+      "max": 0.14,
+      "target": "team"
+    },
+    {
+      "source": "constellation1",
+      "stat": "atk_",
+      "value": 0.15,
+      "target": "team",
+      "condition": "Accolades (after Elemental Skill)",
+      "eles": ["cryo"]
+    },
+    {
+      "source": "constellation1",
+      "stat": "eleMas",
+      "value": 60,
+      "target": "team",
+      "condition": "Accolades (after Elemental Skill)",
+      "eles": ["cryo"],
+      "excludeEles": true
+    },
+    {
+      "source": "constellation2",
+      "stat": "stellarconduct_critDMG_",
+      "value": 0.6,
+      "target": "team",
+      "condition": "Blessing of Love (Elemental Skill tapped)"
+    },
+    {
+      "source": "constellation2",
+      "stat": "stellarswirl_critDMG_",
+      "value": 0.6,
+      "target": "team",
+      "condition": "Blessing of Love (Elemental Skill tapped)"
+    },
+    {
+      "source": "constellation2",
+      "stat": "stellarconduct_specialDmg_",
+      "value": 0.05,
+      "target": "team"
+    },
+    {
+      "source": "constellation2",
+      "stat": "stellarswirl_specialDmg_",
+      "value": 0.05,
+      "target": "team"
+    },
+    {
+      "source": "constellation4",
+      "stat": "critDMG_",
+      "value": 0.036,
+      "target": "team",
+      "condition": "Accolades (after Elemental Skill)"
+    },
+    {
+      "source": "constellation4",
+      "stat": "atk_",
+      "value": 0.045,
+      "target": "team",
+      "condition": "Accolades (after Elemental Skill)",
+      "eles": ["cryo"]
+    },
+    {
+      "source": "constellation4",
+      "stat": "eleMas",
+      "value": 18,
+      "target": "team",
+      "condition": "Accolades (after Elemental Skill)",
+      "eles": ["cryo"],
+      "excludeEles": true
+    },
+    {
+      "source": "constellation6",
+      "stat": "stellarconduct_specialDmg_",
+      "value": 0.1,
+      "target": "team",
+      "condition": "Blessing of Love (Elemental Skill tapped)"
+    },
+    {
+      "source": "constellation6",
+      "stat": "stellarswirl_specialDmg_",
+      "value": 0.1,
+      "target": "team",
+      "condition": "Blessing of Love (Elemental Skill tapped)"
+    },
+    {
+      "source": "constellation6",
+      "stat": "stellarconduct_specialDmg_",
+      "value": 0.2,
+      "target": "self",
+      "condition": "Blessing of Honor (Elemental Skill held)"
+    },
+    {
+      "source": "constellation6",
+      "stat": "stellarswirl_specialDmg_",
+      "value": 0.2,
+      "target": "self",
+      "condition": "Blessing of Honor (Elemental Skill held)"
+    }
+  ]
+}

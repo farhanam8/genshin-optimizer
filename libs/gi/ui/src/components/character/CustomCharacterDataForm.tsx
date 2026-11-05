@@ -50,6 +50,12 @@ import {
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ArtifactIconStatWithUnit } from '../artifact/ArtifactStatKeyDisplay'
+import type { BuffRow } from './CustomCharacterBuffEditor'
+import {
+  buffToRow,
+  CustomCharacterBuffEditor,
+  rowToBuff,
+} from './CustomCharacterBuffEditor'
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 const isPercentStat = (stat: string) => stat.endsWith('_')
@@ -57,6 +63,8 @@ const num = (s: string) => (s.trim() === '' ? Number.NaN : Number(s))
 const valid = (n: number) => Number.isFinite(n) && n >= 0
 /** Shows a value without float noise, e.g. 0.396193 * 100 -> "39.6193" */
 const show = (n: number, digits = 4) => `${+n.toFixed(digits)}`
+/** % to fraction without float noise: 39.6193 -> 0.396193 */
+const fromPercent = (n: number) => Number((n / 100).toPrecision(12))
 
 /** Existing (non-custom, non-Traveler) characters, for images. */
 export function imageTemplateKeys(): CharacterKey[] {
@@ -156,6 +164,9 @@ export function CustomCharacterDataForm({
       ) as Record<CustomCharacterImageKey, string>
   )
   const [exampleUrl, setExampleUrl] = useState('')
+  const [buffRows, setBuffRows] = useState<BuffRow[]>(() =>
+    (def.buffs ?? []).map(buffToRow)
+  )
   const imageValid = (url: string) => !url || isCustomCharacterImageUrl(url)
   const fromExample =
     def.imageNames && exampleUrl
@@ -177,7 +188,8 @@ export function CustomCharacterDataForm({
   const canSave =
     Object.values(statNums).every(valid) &&
     paramsValid &&
-    Object.values(images).every(imageValid)
+    Object.values(images).every(imageValid) &&
+    buffRows.every((r) => !!rowToBuff(r))
 
   const save = () => {
     if (!canSave) return
@@ -185,7 +197,7 @@ export function CustomCharacterDataForm({
       ...statNums,
       ascStat: stats.ascStat,
       ascValue: isPercentStat(stats.ascStat)
-        ? statNums.ascValue / 100
+        ? fromPercent(statNums.ascValue)
         : statNums.ascValue,
     })
     const talents = Object.fromEntries(
@@ -194,7 +206,9 @@ export function CustomCharacterDataForm({
         {
           ...def.talents[k],
           params: params[k].map((row, i) =>
-            row.map((v) => (infos[k][i]?.percent ? num(v) / 100 : num(v)))
+            row.map((v) =>
+              infos[k][i]?.percent ? fromPercent(num(v)) : num(v)
+            )
           ),
         },
       ])
@@ -208,6 +222,10 @@ export function CustomCharacterDataForm({
       rarity,
       ...scaled,
       talents,
+      buffs: buffRows.flatMap((r) => {
+        const buff = rowToBuff(r)
+        return buff ? [buff] : []
+      }),
       images: Object.fromEntries(
         Object.entries(images).filter(([, url]) => url.trim())
       ) as CustomCharacterImages,
@@ -477,6 +495,16 @@ export function CustomCharacterDataForm({
           </TableBody>
         </Table>
       </Box>
+
+      <Typography variant="subtitle1">{t('customChar.buffs')}</Typography>
+      <Typography variant="body2" color="text.secondary">
+        {t('customChar.buffsHelp')}
+      </Typography>
+      <CustomCharacterBuffEditor
+        def={def}
+        rows={buffRows}
+        setRows={setBuffRows}
+      />
 
       <Box display="flex" gap={1} justifyContent="flex-end">
         <Button color="secondary" onClick={onCancel}>

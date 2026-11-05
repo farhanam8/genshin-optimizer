@@ -140,6 +140,133 @@ export type CustomCharacterTalent = {
 }
 export type CustomCharacterText = { name: string; description: string }
 
+/** Where a buff comes from; also when it unlocks (A1, A4, constellation level). */
+export const customCharacterBuffSources = [
+  'passive1',
+  'passive2',
+  'passive3',
+  'passive',
+  'constellation1',
+  'constellation2',
+  'constellation3',
+  'constellation4',
+  'constellation5',
+  'constellation6',
+] as const
+export type CustomCharacterBuffSource =
+  (typeof customCharacterBuffSources)[number]
+
+const buffElements = [
+  'anemo',
+  'geo',
+  'electro',
+  'dendro',
+  'hydro',
+  'pyro',
+  'cryo',
+] as const
+
+/** Stats a custom buff can increase (GO stat keys; `_` at the end = percentage). */
+export const customCharacterBuffStats = [
+  'atk_',
+  'hp_',
+  'def_',
+  'atk',
+  'hp',
+  'def',
+  'eleMas',
+  'enerRech_',
+  'critRate_',
+  'critDMG_',
+  'heal_',
+  'all_dmg_',
+  ...buffElements.map((e) => `${e}_dmg_` as const),
+  'physical_dmg_',
+  'normal_dmg_',
+  'charged_dmg_',
+  'plunging_dmg_',
+  'skill_dmg_',
+  'burst_dmg_',
+  'stellarconduct_dmg_',
+  'stellarswirl_dmg_',
+  'stellarconduct_baseDmg_',
+  'stellarswirl_baseDmg_',
+  'stellarconduct_specialDmg_',
+  'stellarswirl_specialDmg_',
+  'stellarconduct_critDMG_',
+  'stellarswirl_critDMG_',
+  ...buffElements.map((e) => `${e}_enemyRes_` as const),
+] as const
+export type CustomCharacterBuffStat = (typeof customCharacterBuffStats)[number]
+
+/**
+ * A stat bonus given by an imported custom character. Its value is
+ * `value` (a fraction for percentage stats, e.g. 0.12 = 12%), or
+ * `value` per `scaling.per` points of the character's own `scaling.stat`
+ * (e.g. 0.007 per 100 ATK), capped at `max`.
+ */
+export type CustomCharacterBuff = {
+  source: CustomCharacterBuffSource
+  stat: CustomCharacterBuffStat
+  value: number
+  /** `self`: only this character; `team`: every party member, including this one */
+  target: 'self' | 'team'
+  scaling?: { stat: 'atk' | 'hp' | 'def' | 'eleMas'; per: number }
+  max?: number
+  /** When set, the buff only applies while this toggle (shared by name) is on */
+  condition?: string
+  /** For team buffs: only party members of these elements (or all others, with `excludeEles`) */
+  eles?: ElementKey[]
+  excludeEles?: boolean
+}
+
+/** Sanitized copy of a buff, or `undefined` if invalid. */
+export function validateCustomCharacterBuff(
+  o: unknown
+): CustomCharacterBuff | undefined {
+  if (typeof o !== 'object' || o === null || Array.isArray(o)) return undefined
+  const b = o as Record<string, unknown>
+  const { source, stat, value, target, scaling, max, condition, eles } = b
+  if (!customCharacterBuffSources.includes(source as CustomCharacterBuffSource))
+    return undefined
+  if (!customCharacterBuffStats.includes(stat as CustomCharacterBuffStat))
+    return undefined
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
+  if (target !== 'self' && target !== 'team') return undefined
+  const buff: CustomCharacterBuff = {
+    source: source as CustomCharacterBuffSource,
+    stat: stat as CustomCharacterBuffStat,
+    value,
+    target,
+  }
+  if (typeof scaling === 'object' && scaling !== null) {
+    const { stat: sStat, per } = scaling as Record<string, unknown>
+    if (
+      (sStat === 'atk' ||
+        sStat === 'hp' ||
+        sStat === 'def' ||
+        sStat === 'eleMas') &&
+      typeof per === 'number' &&
+      Number.isFinite(per) &&
+      per > 0
+    )
+      buff.scaling = { stat: sStat, per }
+  }
+  if (typeof max === 'number' && Number.isFinite(max)) buff.max = max
+  if (typeof condition === 'string' && condition.trim())
+    buff.condition = condition.trim().slice(0, 80)
+  if (Array.isArray(eles)) {
+    const valid = eles.filter((e): e is ElementKey =>
+      buffElements.includes(e as (typeof buffElements)[number])
+    )
+    if (valid.length) {
+      buff.eles = valid
+      if (b['excludeEles'] === true) buff.excludeEles = true
+    }
+  }
+  return buff
+}
+
 export const customCharacterGrowCurves = [
   'GROW_CURVE_HP_S4',
   'GROW_CURVE_ATTACK_S4',
@@ -169,6 +296,8 @@ export type CustomCharacterDataDef = CustomCharacterBase & {
   passive3?: CustomCharacterText
   /** Passives beyond the three standard ones; the first is shown in GO */
   otherPassives?: CustomCharacterText[]
+  /** Stat bonuses from passives and constellations */
+  buffs?: CustomCharacterBuff[]
   constellations: CustomCharacterText[]
   /**
    * File names of the source site's images (without extension), per slot.
@@ -393,6 +522,11 @@ function validateDataDef(
     passive2: validateText(o['passive2']),
     passive3: validateText(o['passive3']),
     imageNames: validateImageMap(o['imageNames'], isImageName),
+    buffs: Array.isArray(o['buffs'])
+      ? o['buffs']
+          .map(validateCustomCharacterBuff)
+          .filter((b): b is CustomCharacterBuff => !!b)
+      : undefined,
     otherPassives: Array.isArray(o['otherPassives'])
       ? o['otherPassives'].map(validateText).filter((c) => !!c)
       : undefined,

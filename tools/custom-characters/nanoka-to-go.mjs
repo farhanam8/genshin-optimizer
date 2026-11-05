@@ -16,10 +16,21 @@
  * full image URLs: every name gets that address's folder and extension.
  * Image URLs can also be filled in later, in GO's custom character editor.
  *
+ * Buffs (stat bonuses from passives and constellations) are not in the source
+ * data. When `buffs/<character id>.json` exists next to this script, its
+ * `buffs` are added to that character. Buffs can also be edited in GO.
+ *
  * Only Node.js built-ins are used, so the script runs without `yarn install`.
  */
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 export const PACK_FORMAT = 'genshin-optimizer-custom-characters'
 export const PACK_VERSION = 1
@@ -272,6 +283,19 @@ export function imagesFromExample(imageNames, exampleUrl) {
   )
 }
 
+/** Hand-written buffs for a character, from `buffs/<id>.json`, if any. */
+function buffPreset(sourceId) {
+  if (!sourceId) return undefined
+  const file = join(
+    dirname(fileURLToPath(import.meta.url)),
+    'buffs',
+    `${sourceId}.json`
+  )
+  if (!existsSync(file)) return undefined
+  const { buffs } = JSON.parse(readFileSync(file, 'utf8'))
+  return Array.isArray(buffs) ? buffs : undefined
+}
+
 export function makePack(characters, source = 'gi.nanoka.cc') {
   return {
     format: PACK_FORMAT,
@@ -325,6 +349,13 @@ function main(argv) {
     }
     const char = convertNanokaCharacter(data, id ? Number(id) : null)
     if (imageUrl) char.images = imagesFromExample(char.imageNames, imageUrl)
+    const buffs = buffPreset(char.sourceId)
+    if (buffs) {
+      char.buffs = buffs
+      console.error(
+        `  + ${buffs.length} buffs from buffs/${char.sourceId}.json`
+      )
+    }
     characters.push(char)
     console.error(`Converted ${char.name} (${file})`)
   }

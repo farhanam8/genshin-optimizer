@@ -120,6 +120,8 @@ function importPack(
           template: existing.template,
           // image URLs set in GO win over the pack's
           images: { ...char.images, ...existing.images },
+          // a pack without buffs keeps the buffs set in GO
+          buffs: char.buffs ?? existing.buffs,
         }
       : {
           ...char,

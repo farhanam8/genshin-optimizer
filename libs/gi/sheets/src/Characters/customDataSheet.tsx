@@ -1,6 +1,8 @@
 import type {
   CharacterKey,
   CharacterSheetKey,
+  CustomCharacterBuff,
+  CustomCharacterBuffSource,
   CustomCharacterDataDef,
   CustomCharacterTalent,
   CustomCharacterTalentKey,
@@ -8,9 +10,24 @@ import type {
 } from '@genshin-optimizer/gi/consts'
 import { customCharacterRowLabels } from '@genshin-optimizer/gi/consts'
 import type { Data, NumNode } from '@genshin-optimizer/gi/wr'
-import { constant, greaterEq, infoMut, input } from '@genshin-optimizer/gi/wr'
+import {
+  constant,
+  equal,
+  greaterEq,
+  infoMut,
+  input,
+  min,
+  percent,
+  prod,
+  sum,
+  target,
+  unequal,
+} from '@genshin-optimizer/gi/wr'
 import type { IFieldDisplay } from '../fieldDisplay'
+import { cond } from '../SheetUtil'
+import type { DocumentSection } from '../sheet'
 import { CharacterSheet } from './CharacterSheet'
+import type { ICharacterTemplate } from './charTemplates'
 import { charTemplates } from './charTemplates'
 import {
   dataObjForCharacterSheet,
@@ -110,6 +127,106 @@ function boostedTalent(
   if (/elemental burst/i.test(description)) return 'burst'
   if (/normal attack/i.test(description)) return 'auto'
   return undefined
+}
+
+/** A buff only counts once its passive or constellation is unlocked. */
+function unlocked(source: CustomCharacterBuffSource, node: NumNode): NumNode {
+  if (source === 'passive1') return greaterEq(input.asc, 1, node)
+  if (source === 'passive2') return greaterEq(input.asc, 4, node)
+  const c = source.match(/^constellation(\d)$/)?.[1]
+  if (c) return greaterEq(input.constellation, Number(c), node)
+  return node
+}
+
+/**
+ * Formulas for a character's buffs: stat bonuses for itself (`self`) and for
+ * the whole party (`team`), plus the sections that show them under their
+ * passive or constellation, with a toggle for each named condition.
+ */
+function buffsOf(
+  key: CharacterKey,
+  buffs: CustomCharacterBuff[],
+  ct: ICharacterTemplate
+) {
+  const self: Record<string, NumNode[]> = {}
+  const team: Record<string, NumNode[]> = {}
+  const conds = new Map<string, ReturnType<typeof cond>>()
+  const groups = new Map<
+    string,
+    {
+      source: CustomCharacterBuffSource
+      condition?: string
+      team: boolean
+      fields: IFieldDisplay[]
+    }
+  >()
+  for (const b of buffs) {
+    if (!(b.stat in input.premod)) continue
+    const isPercent = b.stat.endsWith('_')
+    const amount = (v: number) => (isPercent ? percent(v) : constant(v))
+    let node: NumNode = amount(b.value)
+    if (b.scaling)
+      node = prod(node, input.total[b.scaling.stat], 1 / b.scaling.per)
+    if (b.max !== undefined) node = min(node, amount(b.max))
+    if (b.target === 'team' && b.eles?.length) {
+      const base = node
+      node = b.excludeEles
+        ? b.eles.reduce<NumNode>((n, e) => unequal(target.charEle, e, n), base)
+        : sum(...b.eles.map((e) => equal(target.charEle, e, base)))
+    }
+    if (b.condition) {
+      let c = conds.get(b.condition)
+      if (!c) {
+        const slug = b.condition.replace(/[^a-z0-9]+/gi, '_').slice(0, 40)
+        c = cond(key, `buff_${slug}`)
+        conds.set(b.condition, c)
+      }
+      node = equal('on', c[1], node)
+    }
+    node = infoMut(unlocked(b.source, node), {
+      path: b.stat,
+      isTeamBuff: b.target === 'team',
+    })
+    const premod = b.target === 'team' ? team : self
+    premod[b.stat] = [...(premod[b.stat] ?? []), node]
+
+    const groupKey = `${b.source}|${b.condition ?? ''}`
+    const group = groups.get(groupKey) ?? {
+      source: b.source,
+      condition: b.condition,
+      team: false,
+      fields: [],
+    }
+    group.team ||= b.target === 'team'
+    group.fields.push({ node })
+    groups.set(groupKey, group)
+  }
+
+  const sections: Partial<
+    Record<CustomCharacterBuffSource, DocumentSection[]>
+  > = {}
+  for (const g of groups.values()) {
+    const section: DocumentSection = g.condition
+      ? ct.condTem(g.source, {
+          // biome-ignore lint/style/noNonNullAssertion: set for every condition above
+          path: conds.get(g.condition)![0],
+          // biome-ignore lint/style/noNonNullAssertion: set for every condition above
+          value: conds.get(g.condition)![1],
+          name: g.condition,
+          teamBuff: g.team,
+          states: { on: { fields: g.fields } },
+        })
+      : ct.headerTem(g.source, { teamBuff: g.team, fields: g.fields })
+    sections[g.source] = [...(sections[g.source] ?? []), section]
+  }
+  const total = (nodes: Record<string, NumNode[]>) =>
+    Object.fromEntries(
+      Object.entries(nodes).map(([stat, list]) => [
+        stat,
+        list.length === 1 ? list[0] : sum(...list),
+      ])
+    )
+  return { self: total(self), team: total(team), sections }
 }
 
 export function dataSheetForCustomCharacter(
@@ -216,21 +333,40 @@ export function dataSheetForCustomCharacter(
     constellationFields[i + 1] = [{ node }]
   })
 
-  const data = dataObjForCharacterSheet(key, display, { premod: boosts })
+  const buffs = buffsOf(key, def.buffs ?? [], ct)
+  const data = dataObjForCharacterSheet(key, display, {
+    premod: { ...buffs.self, ...boosts },
+    teamBuff: { premod: buffs.team },
+  })
+  const withBuffs = (
+    k: CustomCharacterBuffSource,
+    sections?: DocumentSection[]
+  ) => {
+    const all = [...(sections ?? []), ...(buffs.sections[k] ?? [])]
+    return all.length ? all : undefined
+  }
 
   const sheet: TalentSheet = {
     auto: ct.talentTem('auto', [{ fields: fields.auto }]),
     skill: ct.talentTem('skill', [{ fields: fields.skill }]),
     burst: ct.talentTem('burst', [{ fields: fields.burst }]),
   }
-  if (def.passive1) sheet.passive1 = ct.talentTem('passive1')
-  if (def.passive2) sheet.passive2 = ct.talentTem('passive2')
-  if (def.passive3) sheet.passive3 = ct.talentTem('passive3')
-  if (def.otherPassives?.length) sheet.passive = ct.talentTem('passive')
+  if (def.passive1 || buffs.sections.passive1)
+    sheet.passive1 = ct.talentTem('passive1', withBuffs('passive1'))
+  if (def.passive2 || buffs.sections.passive2)
+    sheet.passive2 = ct.talentTem('passive2', withBuffs('passive2'))
+  if (def.passive3 || buffs.sections.passive3)
+    sheet.passive3 = ct.talentTem('passive3', withBuffs('passive3'))
+  if (def.otherPassives?.length || buffs.sections.passive)
+    sheet.passive = ct.talentTem('passive', withBuffs('passive'))
   def.constellations.forEach((_, i) => {
-    const ck = `constellation${i + 1}` as TalentSheetElementKey
+    const ck = `constellation${i + 1}` as CustomCharacterBuffSource &
+      TalentSheetElementKey
     const cFields = constellationFields[i + 1]
-    sheet[ck] = ct.talentTem(ck, cFields ? [{ fields: cFields }] : undefined)
+    sheet[ck] = ct.talentTem(
+      ck,
+      withBuffs(ck, cFields ? [{ fields: cFields }] : undefined)
+    )
   })
   return new CharacterSheet(sheet, data)
 }
