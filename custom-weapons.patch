@@ -1,0 +1,2069 @@
+From 7326673a204acf031c837ece17af030f73b9a495 Mon Sep 17 00:00:00 2001
+From: Farhan <farhanabdm@gmail.com>
+Date: Thu, 5 Nov 2026 08:18:28 +0000
+Subject: [PATCH] feat(gi): custom weapons
+
+Add custom weapons, imported from the `weapons` of a custom character
+pack: their own base ATK and substat (with GO's growth curves), ascension
+ATK, passive name and texts per refinement, and passive buffs with their
+value at R1-R5 for the wielder, the party or the other party members,
+optionally behind a toggle. Images come from an existing weapon of the
+same type, or from image URLs.
+
+The Add Weapon dialog gets a "Custom Weapon" button to import, edit
+(name, images, rarity, ATK and substat at level 90, buffs) and delete
+custom weapons. Deleting an equipped custom weapon is safe: the
+database gives the character a default weapon after the reload.
+
+The nanoka converter now also reads weapon JSON. Weapon buff presets in
+tools/custom-characters/buffs/<id>.json can name a passive parameter
+(`param`) instead of values; this adds Silverdawn (15517).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Asb8vZRqeTYT9zLpVizGNv
+---
+ libs/gi/assets/src/index.ts                   |   7 +
+ libs/gi/consts/src/customCharacter.ts         |  13 +-
+ libs/gi/consts/src/customWeapon.ts            | 268 ++++++
+ libs/gi/consts/src/index.ts                   |   1 +
+ libs/gi/consts/src/weapon.ts                  |  25 +
+ libs/gi/i18n/src/i18n.ts                      |  22 +
+ .../assets/locales/en/page_character.json     |   3 +-
+ .../assets/locales/en/page_weapon.json        |  59 +-
+ .../assets/locales/id/page_character.json     |   3 +-
+ .../assets/locales/id/page_weapon.json        |  61 +-
+ libs/gi/page-weapons/src/index.tsx            |   7 +
+ .../sheets/src/Weapons/customWeaponSheet.tsx  | 119 +++
+ libs/gi/sheets/src/Weapons/index.ts           |  11 +-
+ libs/gi/stats/src/index.ts                    |  85 ++
+ .../components/weapon/CustomWeaponModal.tsx   | 837 ++++++++++++++++++
+ .../weapon/WeaponSelectionModal.tsx           |  17 +
+ libs/gi/ui/src/components/weapon/index.ts     |   1 +
+ tools/custom-characters/buffs/15517.json      |  28 +
+ tools/custom-characters/nanoka-to-go.mjs      | 120 ++-
+ 19 files changed, 1662 insertions(+), 25 deletions(-)
+ create mode 100644 libs/gi/consts/src/customWeapon.ts
+ create mode 100644 libs/gi/sheets/src/Weapons/customWeaponSheet.tsx
+ create mode 100644 libs/gi/ui/src/components/weapon/CustomWeaponModal.tsx
+ create mode 100644 tools/custom-characters/buffs/15517.json
+
+diff --git a/libs/gi/assets/src/index.ts b/libs/gi/assets/src/index.ts
+index d0f39d3b..b8e44ae3 100644
+--- a/libs/gi/assets/src/index.ts
++++ b/libs/gi/assets/src/index.ts
+@@ -8,6 +8,7 @@ import type {
+ import {
+   charKeyToLocGenderedCharKey,
+   customCharacterDefs,
++  customWeaponDefs,
+ } from '@genshin-optimizer/gi/consts'
+ import artifacts from './gen/artifacts'
+ import chars from './gen/chars'
+@@ -21,6 +22,12 @@ for (const { key, template, images } of customCharacterDefs) {
+   charAssets[key] = { ...charAssets[template], ...assetImages }
+ }
+ 
++// Custom weapons use their own image URLs where set, and their template's otherwise.
++for (const { key, template, images } of customWeaponDefs) {
++  const weaponAssets = weapons as Record<string, Record<string, string>>
++  weaponAssets[key] = { ...weaponAssets[template], ...images }
++}
++
+ export * from './assets'
+ 
+ type characterAssetKey =
+diff --git a/libs/gi/consts/src/customCharacter.ts b/libs/gi/consts/src/customCharacter.ts
+index c6df8ad2..92271615 100644
+--- a/libs/gi/consts/src/customCharacter.ts
++++ b/libs/gi/consts/src/customCharacter.ts
+@@ -498,10 +498,10 @@ const isImageName = (name: string) => /^[\w.-]{1,100}$/.test(name)
+  * one image of that site, e.g. `https://example.com/ui/UI_AvatarIcon_X.webp`:
+  * every name gets that URL's folder and extension.
+  */
+-export function customCharacterImagesFromExample(
+-  imageNames: Partial<Record<CustomCharacterImageKey, string>>,
++export function customCharacterImagesFromExample<K extends string>(
++  imageNames: Partial<Record<K, string>>,
+   exampleUrl: string
+-): CustomCharacterImages | undefined {
++): Partial<Record<K, string>> | undefined {
+   const m = exampleUrl
+     .trim()
+     .match(/^(https?:\/\/\S+\/)[^/?#]+?(\.[a-z0-9]+)?([?#].*)?$/i)
+@@ -512,7 +512,7 @@ export function customCharacterImagesFromExample(
+       k,
+       `${folder}${name}${ext}${query}`,
+     ])
+-  )
++  ) as Partial<Record<K, string>>
+ }
+ 
+ function validateText(o: unknown): CustomCharacterText | undefined {
+@@ -684,7 +684,10 @@ export function parseCustomCharacterPack(
+   }
+   if (!isObj(pack) || pack['format'] !== customCharacterPackFormat)
+     return { error: 'notAPack' }
+-  if (!Array.isArray(pack['characters'])) return { error: 'notAPack' }
++  if (!Array.isArray(pack['characters']) || !pack['characters'].length)
++    return {
++      error: Array.isArray(pack['weapons']) ? 'noCharacters' : 'notAPack',
++    }
+   const characters: Omit<CustomCharacterDataDef, 'key' | 'template'>[] = []
+   for (const char of pack['characters']) {
+     if (!isObj(char)) return { error: 'invalidCharacter' }
+diff --git a/libs/gi/consts/src/customWeapon.ts b/libs/gi/consts/src/customWeapon.ts
+new file mode 100644
+index 00000000..d8a0f017
+--- /dev/null
++++ b/libs/gi/consts/src/customWeapon.ts
+@@ -0,0 +1,268 @@
++import type { ElementKey } from './character'
++import type {
++  CustomCharacterBuffStat,
++  CustomCharacterBuffTarget,
++} from './customCharacter'
++import {
++  customCharacterBuffStats,
++  customCharacterBuffTargets,
++  customCharacterPackFormat,
++  isCustomCharacterImageUrl,
++} from './customCharacter'
++import type { WeaponTypeKey } from './weapon'
++
++/**
++ * Custom weapons are imported from a custom character pack (its `weapons`,
++ * see `tools/custom-characters`): their own base ATK and substat curves,
++ * ascension bonus, passive texts and passive buffs per refinement.
++ * `template` is an existing weapon of the same type whose images are used
++ * where no image URL is set.
++ *
++ * Like custom characters, definitions live in localStorage and are read once
++ * when this module is first evaluated, so changes need a page reload.
++ */
++export type CustomWeaponDef = {
++  /** Weapon key used everywhere in GO, e.g. `CustomWeapon1` */
++  key: string
++  name: string
++  template: string
++  weaponType: WeaponTypeKey
++  rarity: 1 | 2 | 3 | 4 | 5
++  /** Weapon id on the source site, used to update a weapon on re-import */
++  sourceId?: number
++  /** Base ATK at level 1 and its growth curve */
++  mainStat: { base: number; curve: string }
++  subStat?: { type: CustomWeaponSubstat; base: number; curve: string }
++  /** ATK added at ascension phases 0..6 */
++  ascensionBonus: number[]
++  passiveName: string
++  /** Passive description at refinements 1..5 */
++  passiveDescriptions: string[]
++  buffs?: CustomWeaponBuff[]
++  images?: CustomWeaponImages
++  imageNames?: CustomWeaponImages
++}
++
++export const customWeaponSubstats = [
++  'atk_',
++  'critDMG_',
++  'critRate_',
++  'def_',
++  'eleMas',
++  'enerRech_',
++  'hp_',
++  'physical_dmg_',
++] as const
++export type CustomWeaponSubstat = (typeof customWeaponSubstats)[number]
++
++export type CustomWeaponImages = { icon?: string; awakenIcon?: string }
++
++/**
++ * A stat bonus from a weapon passive, with its value at refinements 1..5
++ * (fractions for percentage stats: 0.4 = 40%).
++ */
++export type CustomWeaponBuff = {
++  stat: CustomCharacterBuffStat
++  values: number[]
++  /** `self`: the wielder; `team`: every party member; `others`: everyone but the wielder */
++  target: CustomCharacterBuffTarget
++  /** When set, the buff only applies while this toggle is on (or in `conditionState`) */
++  condition?: string
++  conditionState?: string
++  eles?: ElementKey[]
++  excludeEles?: boolean
++}
++
++export const customWeaponStorageKey = 'go_customWeapons'
++export const customWeaponKeyPrefix = 'CustomWeapon'
++
++const weaponTypes = ['sword', 'claymore', 'polearm', 'bow', 'catalyst'] as const
++const elements = [
++  'anemo',
++  'geo',
++  'electro',
++  'dendro',
++  'hydro',
++  'pyro',
++  'cryo',
++] as const
++const curveRe = /^GROW_CURVE_(ATTACK|CRITICAL)_\d{3}$/
++
++const isObj = (o: unknown): o is Record<string, unknown> =>
++  typeof o === 'object' && o !== null && !Array.isArray(o)
++const isNum = (n: unknown): n is number =>
++  typeof n === 'number' && Number.isFinite(n)
++const str = (s: unknown) => (typeof s === 'string' ? s : '')
++
++function validateBuff(o: unknown): CustomWeaponBuff | undefined {
++  if (!isObj(o)) return undefined
++  const { stat, values, target, condition, conditionState, eles } = o
++  if (!customCharacterBuffStats.includes(stat as CustomCharacterBuffStat))
++    return undefined
++  if (!Array.isArray(values) || values.length !== 5 || !values.every(isNum))
++    return undefined
++  if (!customCharacterBuffTargets.includes(target as CustomCharacterBuffTarget))
++    return undefined
++  const buff: CustomWeaponBuff = {
++    stat: stat as CustomCharacterBuffStat,
++    values: [...values],
++    target: target as CustomCharacterBuffTarget,
++  }
++  if (typeof condition === 'string' && condition.trim()) {
++    buff.condition = condition.trim().slice(0, 80)
++    if (typeof conditionState === 'string' && conditionState.trim())
++      buff.conditionState = conditionState.trim().slice(0, 80)
++  }
++  if (Array.isArray(eles)) {
++    const valid = eles.filter((e): e is ElementKey =>
++      elements.includes(e as (typeof elements)[number])
++    )
++    if (valid.length) {
++      buff.eles = valid
++      if (o['excludeEles'] === true) buff.excludeEles = true
++    }
++  }
++  return buff
++}
++
++function validateImages(
++  o: unknown,
++  check: (s: string) => boolean
++): CustomWeaponImages | undefined {
++  if (!isObj(o)) return undefined
++  const images: CustomWeaponImages = {}
++  for (const k of ['icon', 'awakenIcon'] as const) {
++    const v = o[k]
++    if (typeof v === 'string' && v && check(v)) images[k] = v
++  }
++  return Object.keys(images).length ? images : undefined
++}
++
++/** Sanitized copy of a weapon definition, or `undefined` if invalid. */
++export function validateCustomWeaponDef(
++  obj: unknown
++): CustomWeaponDef | undefined {
++  if (!isObj(obj)) return undefined
++  const { key, name, template, weaponType, rarity, mainStat, subStat } = obj
++  const { ascensionBonus, passiveDescriptions, buffs } = obj
++  if (typeof key !== 'string' || !/^CustomWeapon\d+$/.test(key))
++    return undefined
++  if (typeof template !== 'string' || !template) return undefined
++  if (!weaponTypes.includes(weaponType as WeaponTypeKey)) return undefined
++  if (![1, 2, 3, 4, 5].includes(rarity as number)) return undefined
++  if (
++    !isObj(mainStat) ||
++    !isNum(mainStat['base']) ||
++    !curveRe.test(str(mainStat['curve']))
++  )
++    return undefined
++  if (
++    !Array.isArray(ascensionBonus) ||
++    ascensionBonus.length !== 7 ||
++    !ascensionBonus.every(isNum)
++  )
++    return undefined
++  const def: CustomWeaponDef = {
++    key,
++    name: typeof name === 'string' && name.trim() ? name.trim() : key,
++    template,
++    weaponType: weaponType as WeaponTypeKey,
++    rarity: rarity as CustomWeaponDef['rarity'],
++    sourceId: isNum(obj['sourceId']) ? obj['sourceId'] : undefined,
++    mainStat: { base: mainStat['base'], curve: str(mainStat['curve']) },
++    ascensionBonus: [...ascensionBonus],
++    passiveName: str(obj['passiveName']),
++    passiveDescriptions: Array.isArray(passiveDescriptions)
++      ? passiveDescriptions.map(str).slice(0, 5)
++      : [],
++  }
++  if (
++    isObj(subStat) &&
++    customWeaponSubstats.includes(subStat['type'] as CustomWeaponSubstat) &&
++    isNum(subStat['base']) &&
++    curveRe.test(str(subStat['curve']))
++  )
++    def.subStat = {
++      type: subStat['type'] as CustomWeaponSubstat,
++      base: subStat['base'],
++      curve: str(subStat['curve']),
++    }
++  if (Array.isArray(buffs))
++    def.buffs = buffs
++      .map(validateBuff)
++      .filter((b): b is CustomWeaponBuff => !!b)
++  const images = validateImages(obj['images'], isCustomCharacterImageUrl)
++  if (images) def.images = images
++  const imageNames = validateImages(obj['imageNames'], (s) =>
++    /^[\w.-]{1,100}$/.test(s)
++  )
++  if (imageNames) def.imageNames = imageNames
++  return def
++}
++
++/** Reads the definitions from localStorage. Safe to call outside a browser. */
++export function readCustomWeaponDefs(): CustomWeaponDef[] {
++  try {
++    if (typeof localStorage === 'undefined') return []
++    const raw = localStorage.getItem(customWeaponStorageKey)
++    if (!raw) return []
++    const parsed: unknown = JSON.parse(raw)
++    if (!Array.isArray(parsed)) return []
++    const seen = new Set<string>()
++    return parsed.flatMap((entry) => {
++      const def = validateCustomWeaponDef(entry)
++      if (!def || seen.has(def.key)) return []
++      seen.add(def.key)
++      return [def]
++    })
++  } catch {
++    return []
++  }
++}
++
++/** Persists definitions to localStorage. The page must be reloaded afterwards. */
++export function writeCustomWeaponDefs(defs: CustomWeaponDef[]) {
++  localStorage.setItem(customWeaponStorageKey, JSON.stringify(defs))
++}
++
++/** The next unused `CustomWeaponN` key. */
++export function nextCustomWeaponKey(defs: { key: string }[]): string {
++  const used = new Set(defs.map(({ key }) => key))
++  let i = 1
++  while (used.has(`${customWeaponKeyPrefix}${i}`)) i++
++  return `${customWeaponKeyPrefix}${i}`
++}
++
++/**
++ * The weapons of a custom character pack, as definitions without a key or
++ * template yet, or an error message key.
++ */
++export function parseCustomWeaponPack(
++  json: string
++):
++  | { weapons: Omit<CustomWeaponDef, 'key' | 'template'>[] }
++  | { error: string } {
++  let pack: unknown
++  try {
++    pack = JSON.parse(json)
++  } catch {
++    return { error: 'invalidJson' }
++  }
++  if (!isObj(pack) || pack['format'] !== customCharacterPackFormat)
++    return { error: 'notAPack' }
++  if (!Array.isArray(pack['weapons']) || !pack['weapons'].length)
++    return { error: 'noWeapons' }
++  const weapons: Omit<CustomWeaponDef, 'key' | 'template'>[] = []
++  for (const w of pack['weapons']) {
++    if (!isObj(w)) return { error: 'invalidWeapon' }
++    const def = validateCustomWeaponDef({
++      ...w,
++      key: `${customWeaponKeyPrefix}0`,
++      template: '-',
++    })
++    if (!def) return { error: 'invalidWeapon' }
++    const { key: _key, template: _template, ...rest } = def
++    weapons.push(rest)
++  }
++  return { weapons }
++}
+diff --git a/libs/gi/consts/src/index.ts b/libs/gi/consts/src/index.ts
+index 5121c2c8..7c820d55 100644
+--- a/libs/gi/consts/src/index.ts
++++ b/libs/gi/consts/src/index.ts
+@@ -2,6 +2,7 @@ export * from './artifact'
+ export * from './character'
+ export * from './common'
+ export * from './customCharacter'
++export * from './customWeapon'
+ export * from './genshin'
+ export * from './go'
+ export * from './reaction'
+diff --git a/libs/gi/consts/src/weapon.ts b/libs/gi/consts/src/weapon.ts
+index 61dd79cd..ec65d985 100644
+--- a/libs/gi/consts/src/weapon.ts
++++ b/libs/gi/consts/src/weapon.ts
+@@ -1,5 +1,6 @@
+ import { clamp } from '@genshin-optimizer/common/util'
+ import { type AscensionKey, type RarityKey, validateLevelAsc } from './common'
++import { readCustomWeaponDefs } from './customWeapon'
+ 
+ export const allWeaponTypeKeys = [
+   'sword',
+@@ -283,6 +284,30 @@ export const allWeaponCatalystKeys = [
+ ] as const
+ export type WeaponCatalystKey = (typeof allWeaponCatalystKeys)[number]
+ 
++/**
++ * User-defined custom weapons (see `./customWeapon`). Their keys are appended
++ * to the key list of their weapon type at load time, so every list built from
++ * them (`allWeaponKeys`, database schemas, ...) accepts these keys.
++ * They are intentionally not part of the `WeaponKey` type.
++ */
++export const customWeaponDefs = readCustomWeaponDefs()
++for (const { key, weaponType } of customWeaponDefs) {
++  const lists: Record<WeaponTypeKey, readonly string[]> = {
++    sword: allWeaponSwordKeys,
++    claymore: allWeaponClaymoreKeys,
++    polearm: allWeaponPolearmKeys,
++    bow: allWeaponBowKeys,
++    catalyst: allWeaponCatalystKeys,
++  }
++  ;(lists[weaponType] as string[]).push(key)
++}
++export function isCustomWeaponKey(key: string): boolean {
++  return customWeaponDefs.some((def) => def.key === key)
++}
++export function getCustomWeaponDef(key: string) {
++  return customWeaponDefs.find((def) => def.key === key)
++}
++
+ export const allWeaponKeys = [
+   ...allWeaponSwordKeys,
+   ...allWeaponClaymoreKeys,
+diff --git a/libs/gi/i18n/src/i18n.ts b/libs/gi/i18n/src/i18n.ts
+index d10bd5df..28103314 100644
+--- a/libs/gi/i18n/src/i18n.ts
++++ b/libs/gi/i18n/src/i18n.ts
+@@ -4,6 +4,7 @@ import type {
+ } from '@genshin-optimizer/gi/consts'
+ import {
+   customCharacterDefs,
++  customWeaponDefs,
+   isCustomCharacterDataDef,
+ } from '@genshin-optimizer/gi/consts'
+ import i18n from 'i18next'
+@@ -84,7 +85,28 @@ i18n.store.on('added', (lng: string, ns: string) => {
+     else if (ns === `char_${key}_gen`)
+       i18n.addResource(lng, ns, 'name', name, { silent: true })
+   }
++  if (ns === 'weaponNames_gen')
++    for (const { key, name } of customWeaponDefs)
++      i18n.addResource(lng, ns, key, name, { silent: true })
+ })
++// Custom weapons bring their own name and passive texts, in every language.
++for (const def of customWeaponDefs)
++  for (const lng of languageCodeList)
++    i18n.addResourceBundle(
++      lng,
++      `weapon_${def.key}_gen`,
++      {
++        name: def.name,
++        // the source data has no flavor text
++        description: '',
++        passiveName: def.passiveName,
++        passiveDescription: Object.fromEntries(
++          def.passiveDescriptions.map((d, i) => [i, d])
++        ),
++      },
++      true,
++      true
++    )
+ // Imported custom characters bring their own talent texts, in every language.
+ for (const def of customCharacterDefs)
+   if (isCustomCharacterDataDef(def))
+diff --git a/libs/gi/localization/assets/locales/en/page_character.json b/libs/gi/localization/assets/locales/en/page_character.json
+index 491cd391..ead6dc6a 100644
+--- a/libs/gi/localization/assets/locales/en/page_character.json
++++ b/libs/gi/localization/assets/locales/en/page_character.json
+@@ -148,7 +148,8 @@
+     "importErrors": {
+       "invalidJson": "This file is not valid JSON.",
+       "notAPack": "This file is not a custom character pack.",
+-      "invalidCharacter": "A character in this pack has invalid data."
++      "invalidCharacter": "A character in this pack has invalid data.",
++      "noCharacters": "This pack has no characters."
+     },
+     "importedFrom": "Imported · images from {{name}}",
+     "imageTemplate": "Images from",
+diff --git a/libs/gi/localization/assets/locales/en/page_weapon.json b/libs/gi/localization/assets/locales/en/page_weapon.json
+index b8976283..163396bc 100644
+--- a/libs/gi/localization/assets/locales/en/page_weapon.json
++++ b/libs/gi/localization/assets/locales/en/page_weapon.json
+@@ -28,5 +28,62 @@
+     "bow": "Bow",
+     "catalyst": "Catalyst"
+   },
+-  "tcBuild": "TC Build"
++  "tcBuild": "TC Build",
++  "customWeapon": {
++    "button": "Custom Weapon",
++    "title": "Custom Weapons",
++    "info": "Custom weapons are imported from a custom character pack, with their own base ATK, substat, passive and passive buffs per refinement. GO reloads after saving. Custom weapons are stored only in this browser.",
++    "empty": "No custom weapons yet.",
++    "import": "Import Weapons (.json)",
++    "importHelp": "Import the weapons of a custom character pack, e.g. made with tools/custom-characters/nanoka-to-go.mjs. Weapons imported before are updated.",
++    "importPreview": "These weapons will be imported:",
++    "importNew": "New weapon",
++    "importUpdate": "Updates an imported weapon (keeps its name and images)",
++    "importConfirm": "Import & reload",
++    "importErrors": {
++      "invalidJson": "This file is not valid JSON.",
++      "notAPack": "This file is not a custom character pack.",
++      "noWeapons": "This pack has no weapons.",
++      "invalidWeapon": "A weapon in this pack has invalid data."
++    },
++    "imagesFrom": "Images from {{name}}",
++    "edit": "Edit",
++    "delete": "Delete",
++    "deleteConfirm": "Delete {{name}}? Copies of it in your database are removed after the reload.",
++    "name": "Name",
++    "passiveName": "Passive name",
++    "template": "Images from",
++    "templateHelp": "Used for images left empty below.",
++    "rarity": "Rarity",
++    "images": "Images",
++    "exampleUrl": "URL of any one image of this weapon on the source site",
++    "exampleUrlHelp": "In the browser, right-click an image of this weapon on the source site and copy the image address.",
++    "fillImages": "Fill all images",
++    "imageSlots": {
++      "icon": "Icon",
++      "awakenIcon": "Icon after ascension 2"
++    },
++    "stats": "Stats at Lv. 90/90",
++    "subStat": "Substat",
++    "noSubStat": "None",
++    "subValue": "Substat value",
++    "buffs": "Passive buffs",
++    "buffsHelp": "Stat bonuses from the passive, with their value at each refinement (R1–R5). Team buffs show under \"Received Team Buffs\" of every party member.",
++    "buff": {
++      "stat": "Stat",
++      "target": "Who",
++      "targetSelf": "Wielder",
++      "targetTeam": "Whole party",
++      "targetOthers": "Other party members",
++      "condition": "Toggle name (optional)",
++      "conditionState": "Toggle option (optional)",
++      "elements": "Only party members of:",
++      "excludeEles": "All except these",
++      "remove": "Remove buff",
++      "close": "Close",
++      "add": "Add Buff"
++    },
++    "cancel": "Cancel",
++    "save": "Save & reload"
++  }
+ }
+diff --git a/libs/gi/localization/assets/locales/id/page_character.json b/libs/gi/localization/assets/locales/id/page_character.json
+index ce11f570..6e8c410d 100644
+--- a/libs/gi/localization/assets/locales/id/page_character.json
++++ b/libs/gi/localization/assets/locales/id/page_character.json
+@@ -83,7 +83,8 @@
+     "importErrors": {
+       "invalidJson": "File ini bukan JSON yang valid.",
+       "notAPack": "File ini bukan paket karakter custom.",
+-      "invalidCharacter": "Ada karakter di paket ini yang datanya tidak valid."
++      "invalidCharacter": "Ada karakter di paket ini yang datanya tidak valid.",
++      "noCharacters": "Paket ini tidak berisi karakter."
+     },
+     "importedFrom": "Hasil import · gambar dari {{name}}",
+     "imageTemplate": "Gambar dari",
+diff --git a/libs/gi/localization/assets/locales/id/page_weapon.json b/libs/gi/localization/assets/locales/id/page_weapon.json
+index 7a9e767d..464b51ec 100644
+--- a/libs/gi/localization/assets/locales/id/page_weapon.json
++++ b/libs/gi/localization/assets/locales/id/page_weapon.json
+@@ -2,5 +2,62 @@
+   "edit": "Edit Senjata",
+   "weaponName": "Nama Senjata",
+   "removeWeapon": "Kamu yakin ingin menghapus {{value}}?",
+-  "addWeapon": "Tambah Senjata Baru"
+-}
+\ No newline at end of file
++  "addWeapon": "Tambah Senjata Baru",
++  "customWeapon": {
++    "button": "Senjata Custom",
++    "title": "Senjata Custom",
++    "info": "Senjata custom di-import dari paket karakter custom, dengan ATK dasar, substat, passive, dan buff passive per refinement sendiri. GO akan dimuat ulang setelah disimpan. Senjata custom hanya tersimpan di browser ini.",
++    "empty": "Belum ada senjata custom.",
++    "import": "Import Senjata (.json)",
++    "importHelp": "Import senjata dari paket karakter custom, misalnya hasil tools/custom-characters/nanoka-to-go.mjs. Senjata yang pernah di-import akan diperbarui.",
++    "importPreview": "Senjata berikut akan di-import:",
++    "importNew": "Senjata baru",
++    "importUpdate": "Memperbarui senjata yang sudah di-import (nama dan gambar tetap)",
++    "importConfirm": "Import & muat ulang",
++    "importErrors": {
++      "invalidJson": "File ini bukan JSON yang valid.",
++      "notAPack": "File ini bukan paket karakter custom.",
++      "noWeapons": "Paket ini tidak berisi senjata.",
++      "invalidWeapon": "Ada senjata di paket ini yang datanya tidak valid."
++    },
++    "imagesFrom": "Gambar dari {{name}}",
++    "edit": "Edit",
++    "delete": "Hapus",
++    "deleteConfirm": "Hapus {{name}}? Salinannya di database akan dihapus setelah dimuat ulang.",
++    "name": "Nama",
++    "passiveName": "Nama passive",
++    "template": "Gambar dari",
++    "templateHelp": "Dipakai untuk gambar yang dibiarkan kosong di bawah.",
++    "rarity": "Rarity",
++    "images": "Gambar",
++    "exampleUrl": "URL salah satu gambar senjata ini di situs sumber",
++    "exampleUrlHelp": "Di browser, klik kanan gambar senjata ini di situs sumber, lalu salin alamat gambarnya.",
++    "fillImages": "Isi semua gambar",
++    "imageSlots": {
++      "icon": "Ikon",
++      "awakenIcon": "Ikon setelah ascension 2"
++    },
++    "stats": "Stat di Lv. 90/90",
++    "subStat": "Substat",
++    "noSubStat": "Tidak ada",
++    "subValue": "Nilai substat",
++    "buffs": "Buff passive",
++    "buffsHelp": "Bonus stat dari passive, dengan nilainya di setiap refinement (R1–R5). Buff tim muncul di \"Received Team Buffs\" setiap anggota party.",
++    "buff": {
++      "stat": "Stat",
++      "target": "Untuk",
++      "targetSelf": "Pemakai",
++      "targetTeam": "Seluruh party",
++      "targetOthers": "Anggota party lain",
++      "condition": "Nama toggle (opsional)",
++      "conditionState": "Pilihan toggle (opsional)",
++      "elements": "Hanya anggota party:",
++      "excludeEles": "Semua kecuali ini",
++      "remove": "Hapus buff",
++      "close": "Tutup",
++      "add": "Tambah Buff"
++    },
++    "cancel": "Batal",
++    "save": "Simpan & muat ulang"
++  }
++}
+diff --git a/libs/gi/page-weapons/src/index.tsx b/libs/gi/page-weapons/src/index.tsx
+index 989f1139..10e52d01 100644
+--- a/libs/gi/page-weapons/src/index.tsx
++++ b/libs/gi/page-weapons/src/index.tsx
+@@ -16,6 +16,7 @@ import type { WeaponKey } from '@genshin-optimizer/gi/consts'
+ import { initialWeapon } from '@genshin-optimizer/gi/db'
+ import { useDatabase } from '@genshin-optimizer/gi/db-ui'
+ import {
++  CustomWeaponModal,
+   WeaponCard,
+   WeaponEditor,
+   WeaponSelectionModal,
+@@ -56,6 +57,7 @@ export default function PageWeapon() {
+ 
+   const [newWeaponModalShow, onNewWeaponModalShow, onNewWeaponModalHide] =
+     useBoolState(false)
++  const [customWeaponShow, setCustomWeaponShow] = useState(false)
+   useEffect(() => {
+     ReactGA.send({ hitType: 'pageview', page: '/weapon' })
+   }, [])
+@@ -191,8 +193,13 @@ export default function PageWeapon() {
+           show={newWeaponModalShow}
+           onHide={onNewWeaponModalHide}
+           onSelect={newWeapon}
++          onCreateCustom={() => setCustomWeaponShow(true)}
+         />
+       </Suspense>
++      <CustomWeaponModal
++        show={customWeaponShow}
++        onHide={() => setCustomWeaponShow(false)}
++      />
+       {/* Editor/character detail display */}
+       <Suspense fallback={false}>
+         <WeaponEditor
+diff --git a/libs/gi/sheets/src/Weapons/customWeaponSheet.tsx b/libs/gi/sheets/src/Weapons/customWeaponSheet.tsx
+new file mode 100644
+index 00000000..f2555ad1
+--- /dev/null
++++ b/libs/gi/sheets/src/Weapons/customWeaponSheet.tsx
+@@ -0,0 +1,119 @@
++import type { CustomWeaponDef, WeaponKey } from '@genshin-optimizer/gi/consts'
++import type { NumNode } from '@genshin-optimizer/gi/wr'
++import {
++  equal,
++  infoMut,
++  input,
++  subscript,
++  sum,
++  target,
++  unequal,
++} from '@genshin-optimizer/gi/wr'
++import type { IFieldDisplay } from '../fieldDisplay'
++import { cond, st } from '../SheetUtil'
++import type { DocumentSection } from '../sheet'
++import { dataObjForWeaponSheet } from './util'
++import { headerTemplate, WeaponSheet } from './WeaponSheet'
++
++const slug = (s: string) => s.replace(/[^a-z0-9]+/gi, '_').slice(0, 40)
++
++/**
++ * Sheet of a custom weapon: its passive buffs, each with its value at
++ * refinements 1..5, for the wielder, the party or the other party members,
++ * optionally behind a named toggle (with options, when buffs name states).
++ */
++export function sheetForCustomWeapon(def: CustomWeaponDef): WeaponSheet {
++  const key = def.key as WeaponKey
++  const conds = new Map<
++    string,
++    { path: string[]; node: ReturnType<typeof cond>[1]; states: string[] }
++  >()
++  for (const { condition, conditionState } of def.buffs ?? []) {
++    if (!condition) continue
++    let c = conds.get(condition)
++    if (!c) {
++      const [path, node] = cond(key, `buff_${slug(condition)}`)
++      c = { path, node, states: [] }
++      conds.set(condition, c)
++    }
++    const state = conditionState ?? ''
++    if (!c.states.includes(state)) c.states.push(state)
++  }
++  const stateKey = (state = '') => (state ? slug(state) : 'on')
++
++  const self: Record<string, NumNode[]> = {}
++  const team: Record<string, NumNode[]> = {}
++  /** Fields per toggle ('' = always on) and toggle option */
++  const fields = new Map<string, Map<string, IFieldDisplay[]>>()
++  const teamToggles = new Set<string>()
++  for (const b of def.buffs ?? []) {
++    if (!(b.stat in input.premod)) continue
++    let node: NumNode = subscript(input.weapon.refinement, [-1, ...b.values])
++    const forParty = b.target !== 'self'
++    if (forParty && b.eles?.length) {
++      const base = node
++      node = b.excludeEles
++        ? b.eles.reduce<NumNode>((n, e) => unequal(target.charEle, e, n), base)
++        : sum(...b.eles.map((e) => equal(target.charEle, e, base)))
++    }
++    if (b.target === 'others')
++      node = unequal(target.charKey, input.charKey, node)
++    const c = b.condition ? conds.get(b.condition) : undefined
++    if (c) node = equal(stateKey(b.conditionState), c.node, node)
++    node = infoMut(node, { path: b.stat, isTeamBuff: forParty })
++    const premod = forParty ? team : self
++    premod[b.stat] = [...(premod[b.stat] ?? []), node]
++
++    const toggle = b.condition ?? ''
++    if (forParty) teamToggles.add(toggle)
++    const byState = fields.get(toggle) ?? new Map<string, IFieldDisplay[]>()
++    const state = b.conditionState ?? ''
++    byState.set(state, [...(byState.get(state) ?? []), { node }])
++    fields.set(toggle, byState)
++  }
++
++  const document: DocumentSection[] = []
++  for (const [toggle, byState] of fields) {
++    const c = toggle ? conds.get(toggle) : undefined
++    document.push(
++      c
++        ? {
++            value: c.node,
++            path: c.path,
++            teamBuff: teamToggles.has(toggle),
++            header: headerTemplate(key, st('conditional')),
++            name: toggle,
++            states: Object.fromEntries(
++              c.states.map((state) => [
++                stateKey(state),
++                {
++                  ...(state ? { name: state } : {}),
++                  fields: byState.get(state) ?? [],
++                },
++              ])
++            ),
++          }
++        : {
++            header: headerTemplate(key, st('base')),
++            teamBuff: teamToggles.has(''),
++            fields: byState.get('') ?? [],
++          }
++    )
++  }
++  // Show the passive's description even without buffs
++  if (!document.length)
++    document.push({ header: headerTemplate(key), fields: [] })
++
++  const total = (nodes: Record<string, NumNode[]>) =>
++    Object.fromEntries(
++      Object.entries(nodes).map(([stat, list]) => [
++        stat,
++        list.length === 1 ? list[0] : sum(...list),
++      ])
++    )
++  const data = dataObjForWeaponSheet(key, {
++    premod: total(self),
++    teamBuff: { premod: total(team) },
++  })
++  return new WeaponSheet({ document }, data)
++}
+diff --git a/libs/gi/sheets/src/Weapons/index.ts b/libs/gi/sheets/src/Weapons/index.ts
+index 1e84cc51..5e20a7d2 100644
+--- a/libs/gi/sheets/src/Weapons/index.ts
++++ b/libs/gi/sheets/src/Weapons/index.ts
+@@ -1,10 +1,14 @@
+ import type { WeaponKey, WeaponTypeKey } from '@genshin-optimizer/gi/consts'
+-import { allWeaponTypeKeys } from '@genshin-optimizer/gi/consts'
++import {
++  allWeaponTypeKeys,
++  customWeaponDefs,
++} from '@genshin-optimizer/gi/consts'
+ import { getWeaponStat } from '@genshin-optimizer/gi/stats'
+ import { type Data, mergeData } from '@genshin-optimizer/gi/wr'
+ import bow from './Bow'
+ import catalyst from './Catalyst'
+ import claymore from './Claymore'
++import { sheetForCustomWeapon } from './customWeaponSheet'
+ import polearm from './Polearm'
+ import sword from './Sword'
+ import type { WeaponSheet } from './WeaponSheet'
+@@ -17,6 +21,11 @@ const WeaponData: Record<WeaponKey, WeaponSheet> = {
+   ...catalyst,
+ } as const
+ 
++// Custom weapons, registered before the display data below is built from this list.
++for (const def of customWeaponDefs)
++  (WeaponData as Record<string, WeaponSheet>)[def.key] =
++    sheetForCustomWeapon(def)
++
+ // This is the weapon Data.displays merged together for each weapons.
+ export const displayDataMap = Object.fromEntries(
+   allWeaponTypeKeys.map((k) => [
+diff --git a/libs/gi/stats/src/index.ts b/libs/gi/stats/src/index.ts
+index 0d781876..e2f9bb8f 100644
+--- a/libs/gi/stats/src/index.ts
++++ b/libs/gi/stats/src/index.ts
+@@ -4,6 +4,8 @@ import type {
+   CharacterSheetKey,
+   CustomCharacterDataDef,
+   CustomCharacterTemplateDef,
++  CustomWeaponDef,
++  CustomWeaponSubstat,
+   ElementKey,
+   NonTravelerCharacterKey,
+   WeaponKey,
+@@ -13,6 +15,7 @@ import {
+   charKeyToLocCharKey,
+   customCharacterAscStatKeys,
+   customCharacterDefs,
++  customWeaponDefs,
+   isCustomCharacterDataDef,
+ } from '@genshin-optimizer/gi/consts'
+ import * as allStat_gen from './allStat_gen.json'
+@@ -25,6 +28,8 @@ export type {
+   WeaponDataGen,
+ } from './executors/gen-stats/executor'
+ 
++import type { WeaponDataGen } from './executors/gen-stats/executor'
++
+ const allStats = allStat_gen as AllStats
+ 
+ export { allStats }
+@@ -186,6 +191,86 @@ export function scaleCustomCharacterStats(
+   return { lvlCurves, ascensionBonus }
+ }
+ 
++// Register custom weapons, so every lookup by key finds them. A growth curve
++// GO does not have falls back to the most common one of its kind.
++for (const def of customWeaponDefs) {
++  const curves = allStats.weapon.expCurve as Record<string, number[]>
++  const curve = (c: string, fallback: string) => (curves[c] ? c : fallback)
++  const mainCurve = curve(def.mainStat.curve, 'GROW_CURVE_ATTACK_301')
++  const subStat = def.subStat && {
++    ...def.subStat,
++    curve: curve(def.subStat.curve, 'GROW_CURVE_CRITICAL_301'),
++  }
++  const data: WeaponDataGen = {
++    weaponType: def.weaponType,
++    rarity: def.rarity,
++    mainStat: {
++      type: 'atk',
++      base: def.mainStat.base,
++      curve: mainCurve,
++    } as WeaponDataGen['mainStat'],
++    subStat: subStat as WeaponDataGen['subStat'],
++    lvlCurves: [
++      { key: 'atk', base: def.mainStat.base, curve: mainCurve },
++      ...(subStat
++        ? [{ key: subStat.type, base: subStat.base, curve: subStat.curve }]
++        : []),
++    ] as WeaponDataGen['lvlCurves'],
++    refinementBonus: {},
++    ascensionBonus: { atk: [...def.ascensionBonus] },
++  }
++  ;(allStats.weapon.data as Record<string, WeaponDataGen>)[def.key] = data
++}
++
++/** Base ATK and substat of a weapon at level 90/90 (or its max level). */
++export function getWeaponRefStats(wk: WeaponKey) {
++  const { mainStat, subStat, ascensionBonus, rarity } = getWeaponStat(wk)
++  const curves = allStats.weapon.expCurve as Record<string, number[]>
++  const lvl = rarity <= 2 ? 70 : 90
++  return {
++    atk:
++      mainStat.base * curves[mainStat.curve][lvl] +
++      (ascensionBonus['atk']?.at(-1) ?? 0),
++    subStat: subStat?.type,
++    subValue: subStat ? subStat.base * curves[subStat.curve][lvl] : 0,
++  }
++}
++
++/**
++ * Rescales a custom weapon's base ATK (curve and ascension bonus together)
++ * and substat so that their values at level 90/90 (70 for 1-2 stars) match
++ * `target`.
++ */
++export function scaleCustomWeaponStats(
++  def: Pick<
++    CustomWeaponDef,
++    'mainStat' | 'subStat' | 'ascensionBonus' | 'rarity'
++  >,
++  target: { atk: number; subValue?: number; subStat?: CustomWeaponSubstat }
++): Pick<CustomWeaponDef, 'mainStat' | 'subStat' | 'ascensionBonus'> {
++  const curves = allStats.weapon.expCurve as Record<string, number[]>
++  const lvl = def.rarity <= 2 ? 70 : 90
++  const at = (curve: string, fallback: string) =>
++    (curves[curve] ?? curves[fallback])[lvl]
++  const atkNow =
++    def.mainStat.base * at(def.mainStat.curve, 'GROW_CURVE_ATTACK_301') +
++    (def.ascensionBonus.at(-1) ?? 0)
++  const f = atkNow > 0 ? target.atk / atkNow : 0
++  const subCurve = def.subStat?.curve ?? 'GROW_CURVE_CRITICAL_301'
++  return {
++    mainStat: { ...def.mainStat, base: def.mainStat.base * f },
++    ascensionBonus: def.ascensionBonus.map((v) => v * f),
++    subStat:
++      target.subStat && target.subValue !== undefined
++        ? {
++            type: target.subStat,
++            base: target.subValue / at(subCurve, 'GROW_CURVE_CRITICAL_301'),
++            curve: subCurve,
++          }
++        : undefined,
++  }
++}
++
+ // Register custom characters, so every lookup by key finds them.
+ for (const def of customCharacterDefs) {
+   const charData = allStats.char.data as Record<string, CharacterDataGen>
+diff --git a/libs/gi/ui/src/components/weapon/CustomWeaponModal.tsx b/libs/gi/ui/src/components/weapon/CustomWeaponModal.tsx
+new file mode 100644
+index 00000000..58050f2e
+--- /dev/null
++++ b/libs/gi/ui/src/components/weapon/CustomWeaponModal.tsx
+@@ -0,0 +1,837 @@
++import { CardThemed, ImgIcon, ModalWrapper } from '@genshin-optimizer/common/ui'
++import { weaponAsset } from '@genshin-optimizer/gi/assets'
++import type {
++  CustomCharacterBuffStat,
++  CustomCharacterBuffTarget,
++  CustomWeaponBuff,
++  CustomWeaponDef,
++  CustomWeaponSubstat,
++  ElementKey,
++  WeaponKey,
++} from '@genshin-optimizer/gi/consts'
++import {
++  allElementKeys,
++  allWeaponKeys,
++  customCharacterBuffStats,
++  customCharacterImagesFromExample,
++  customWeaponSubstats,
++  isCustomCharacterImageUrl,
++  isCustomWeaponKey,
++  nextCustomWeaponKey,
++  parseCustomWeaponPack,
++  readCustomWeaponDefs,
++  writeCustomWeaponDefs,
++} from '@genshin-optimizer/gi/consts'
++import { KeyMap } from '@genshin-optimizer/gi/keymap'
++import {
++  getWeaponRefStats,
++  getWeaponStat,
++  scaleCustomWeaponStats,
++} from '@genshin-optimizer/gi/stats'
++import AddIcon from '@mui/icons-material/Add'
++import CloseIcon from '@mui/icons-material/Close'
++import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
++import EditIcon from '@mui/icons-material/Edit'
++import ExpandLessIcon from '@mui/icons-material/ExpandLess'
++import FileUploadIcon from '@mui/icons-material/FileUpload'
++import {
++  Alert,
++  Autocomplete,
++  Box,
++  Button,
++  CardContent,
++  CardHeader,
++  Checkbox,
++  Divider,
++  FormControlLabel,
++  Grid,
++  IconButton,
++  InputAdornment,
++  MenuItem,
++  TextField,
++  Typography,
++} from '@mui/material'
++import type { ChangeEvent } from 'react'
++import { useMemo, useRef, useState } from 'react'
++import { useTranslation } from 'react-i18next'
++
++const num = (s: string) => (s.trim() === '' ? Number.NaN : Number(s))
++const isPct = (stat: string) => stat.endsWith('_')
++const show = (n: number, digits = 4) => `${+n.toFixed(digits)}`
++const fromPercent = (n: number) => Number((n / 100).toPrecision(12))
++
++/** Existing (non-custom) weapons of a type, for images. */
++function templateWeapons(def: Pick<CustomWeaponDef, 'weaponType'>) {
++  return (allWeaponKeys as readonly string[]).filter(
++    (k) =>
++      !isCustomWeaponKey(k) &&
++      getWeaponStat(k as WeaponKey).weaponType === def.weaponType
++  ) as WeaponKey[]
++}
++
++/** An existing weapon to borrow images from: same type and rarity if possible. */
++function pickTemplate(def: Pick<CustomWeaponDef, 'weaponType' | 'rarity'>) {
++  const keys = templateWeapons(def)
++  return (
++    keys.find((k) => getWeaponStat(k).rarity === def.rarity) ??
++    keys[0] ??
++    (allWeaponKeys[0] as WeaponKey)
++  )
++}
++
++type ImportItem = { def: CustomWeaponDef; isNew: boolean }
++
++/** Weapons imported before (same source id) are updated, keeping their key, name and images. */
++function importPack(
++  json: string,
++  defs: CustomWeaponDef[]
++): { items: ImportItem[] } | { error: string } {
++  const parsed = parseCustomWeaponPack(json)
++  if ('error' in parsed) return parsed
++  const all = [...defs]
++  const items = parsed.weapons.map((w) => {
++    const existing = all.find(
++      (d) => d.sourceId !== undefined && d.sourceId === w.sourceId
++    )
++    const def: CustomWeaponDef = existing
++      ? {
++          ...w,
++          key: existing.key,
++          name: existing.name,
++          template: existing.template,
++          images: { ...w.images, ...existing.images },
++          buffs: w.buffs ?? existing.buffs,
++        }
++      : { ...w, key: nextCustomWeaponKey(all), template: pickTemplate(w) }
++    if (!existing) all.push(def)
++    return { def, isNew: !existing }
++  })
++  return { items }
++}
++
++function saveAndReload(defs: CustomWeaponDef[]) {
++  writeCustomWeaponDefs(defs)
++  window.location.reload()
++}
++
++/**
++ * Import, edit and delete custom weapons: weapons from a custom character pack
++ * (see tools/custom-characters), with their own stats, passive and buffs.
++ */
++export function CustomWeaponModal({
++  show,
++  onHide,
++}: {
++  show: boolean
++  onHide: () => void
++}) {
++  const { t } = useTranslation(['page_weapon', 'weaponNames_gen'])
++  const [defs] = useState(() => readCustomWeaponDefs())
++  const [edit, setEdit] = useState<CustomWeaponDef | null>(null)
++  const [imported, setImported] = useState<ImportItem[] | null>(null)
++  const [error, setError] = useState('')
++  const fileRef = useRef<HTMLInputElement>(null)
++
++  const close = () => {
++    setEdit(null)
++    setImported(null)
++    setError('')
++    onHide()
++  }
++  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
++    const file = e.target.files?.[0]
++    e.target.value = ''
++    if (!file) return
++    const result = importPack(await file.text(), defs)
++    if ('error' in result) {
++      setError(t(`customWeapon.importErrors.${result.error}`))
++      setImported(null)
++    } else {
++      setError('')
++      setImported(result.items)
++    }
++  }
++
++  return (
++    <ModalWrapper open={show} onClose={close}>
++      <CardThemed>
++        <CardHeader
++          title={t('customWeapon.title')}
++          action={
++            <IconButton onClick={close}>
++              <CloseIcon />
++            </IconButton>
++          }
++        />
++        <Divider />
++        <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
++          <Alert severity="info">{t('customWeapon.info')}</Alert>
++          {error && <Alert severity="error">{error}</Alert>}
++          {edit ? (
++            <CustomWeaponForm
++              def={edit}
++              onCancel={() => setEdit(null)}
++              onSave={(def) =>
++                saveAndReload(defs.map((d) => (d.key === def.key ? def : d)))
++              }
++            />
++          ) : imported ? (
++            <>
++              <Typography>{t('customWeapon.importPreview')}</Typography>
++              {imported.map(({ def, isNew }) => (
++                <CardThemed bgt="light" key={def.key}>
++                  <CardContent
++                    sx={{ display: 'flex', alignItems: 'center', gap: 2 }}
++                  >
++                    <ImgIcon
++                      src={weaponAsset(def.template as WeaponKey)}
++                      size={3}
++                    />
++                    <Box flexGrow={1}>
++                      <Typography variant="h6">
++                        {def.name} {'★'.repeat(def.rarity)}
++                      </Typography>
++                      <Typography variant="body2" color="text.secondary">
++                        {t(
++                          isNew
++                            ? 'customWeapon.importNew'
++                            : 'customWeapon.importUpdate'
++                        )}
++                      </Typography>
++                    </Box>
++                  </CardContent>
++                </CardThemed>
++              ))}
++              <Box display="flex" gap={1} justifyContent="flex-end">
++                <Button color="secondary" onClick={() => setImported(null)}>
++                  {t('customWeapon.cancel')}
++                </Button>
++                <Button
++                  color="success"
++                  onClick={() => {
++                    const byKey = new Map(
++                      imported.map((i) => [i.def.key, i.def])
++                    )
++                    saveAndReload([
++                      ...defs.map((d) => byKey.get(d.key) ?? d),
++                      ...imported.filter((i) => i.isNew).map((i) => i.def),
++                    ])
++                  }}
++                >
++                  {t('customWeapon.importConfirm')}
++                </Button>
++              </Box>
++            </>
++          ) : (
++            <>
++              {defs.length === 0 && (
++                <Typography color="text.secondary">
++                  {t('customWeapon.empty')}
++                </Typography>
++              )}
++              {defs.map((def) => (
++                <CardThemed bgt="light" key={def.key}>
++                  <CardContent
++                    sx={{ display: 'flex', alignItems: 'center', gap: 2 }}
++                  >
++                    <ImgIcon src={weaponAsset(def.key as WeaponKey)} size={3} />
++                    <Box flexGrow={1}>
++                      <Typography variant="h6">
++                        {def.name} {'★'.repeat(def.rarity)}
++                      </Typography>
++                      <Typography variant="body2" color="text.secondary">
++                        {t('customWeapon.imagesFrom', {
++                          name: t(`weaponNames_gen:${def.template}`),
++                        })}
++                      </Typography>
++                    </Box>
++                    <Button
++                      startIcon={<EditIcon />}
++                      onClick={() => setEdit(def)}
++                    >
++                      {t('customWeapon.edit')}
++                    </Button>
++                    <Button
++                      color="error"
++                      startIcon={<DeleteForeverIcon />}
++                      onClick={() => {
++                        if (
++                          window.confirm(
++                            t('customWeapon.deleteConfirm', { name: def.name })
++                          )
++                        )
++                          saveAndReload(defs.filter((d) => d.key !== def.key))
++                      }}
++                    >
++                      {t('customWeapon.delete')}
++                    </Button>
++                  </CardContent>
++                </CardThemed>
++              ))}
++              <Button
++                color="primary"
++                startIcon={<FileUploadIcon />}
++                onClick={() => fileRef.current?.click()}
++              >
++                {t('customWeapon.import')}
++              </Button>
++              <input
++                ref={fileRef}
++                type="file"
++                accept=".json,application/json"
++                hidden
++                onChange={onFile}
++              />
++              <Typography variant="body2" color="text.secondary">
++                {t('customWeapon.importHelp')}
++              </Typography>
++            </>
++          )}
++        </CardContent>
++      </CardThemed>
++    </ModalWrapper>
++  )
++}
++
++/** A buff as edited: values at R1..R5 as typed, percentages in % */
++type BuffRow = {
++  stat: CustomCharacterBuffStat
++  values: string[]
++  target: CustomCharacterBuffTarget
++  condition: string
++  conditionState: string
++  eles: ElementKey[]
++  excludeEles: boolean
++}
++
++const buffToRow = (b: CustomWeaponBuff): BuffRow => ({
++  stat: b.stat,
++  values: b.values.map((v) => show(isPct(b.stat) ? v * 100 : v)),
++  target: b.target,
++  condition: b.condition ?? '',
++  conditionState: b.conditionState ?? '',
++  eles: b.eles ?? [],
++  excludeEles: !!b.excludeEles,
++})
++
++function rowToBuff(r: BuffRow): CustomWeaponBuff | undefined {
++  const values = r.values.map((v) =>
++    isPct(r.stat) ? fromPercent(num(v)) : num(v)
++  )
++  if (!values.every(Number.isFinite)) return undefined
++  return {
++    stat: r.stat,
++    values,
++    target: r.target,
++    ...(r.condition.trim()
++      ? {
++          condition: r.condition.trim(),
++          ...(r.conditionState.trim()
++            ? { conditionState: r.conditionState.trim() }
++            : {}),
++        }
++      : {}),
++    ...(r.target !== 'self' && r.eles.length
++      ? { eles: r.eles, ...(r.excludeEles ? { excludeEles: true } : {}) }
++      : {}),
++  }
++}
++
++function CustomWeaponForm({
++  def,
++  onCancel,
++  onSave,
++}: {
++  def: CustomWeaponDef
++  onCancel: () => void
++  onSave: (def: CustomWeaponDef) => void
++}) {
++  const { t } = useTranslation(['page_weapon', 'weaponNames_gen'])
++  const options = useMemo(() => templateWeapons(def), [def])
++  const ref = useMemo(() => getWeaponRefStats(def.key as WeaponKey), [def])
++  const [name, setName] = useState(def.name)
++  const [passiveName, setPassiveName] = useState(def.passiveName)
++  const [template, setTemplate] = useState(def.template as WeaponKey)
++  const [rarity, setRarity] = useState(def.rarity)
++  const [atk, setAtk] = useState(show(ref.atk, 2))
++  const [subStat, setSubStat] = useState<CustomWeaponSubstat | ''>(
++    def.subStat?.type ?? ''
++  )
++  const [subValue, setSubValue] = useState(
++    show(isPct(subStat) ? ref.subValue * 100 : ref.subValue, 2)
++  )
++  const [images, setImages] = useState({
++    icon: def.images?.icon ?? '',
++    awakenIcon: def.images?.awakenIcon ?? '',
++  })
++  const [exampleUrl, setExampleUrl] = useState('')
++  const fromExample =
++    def.imageNames && exampleUrl
++      ? customCharacterImagesFromExample(def.imageNames, exampleUrl)
++      : undefined
++  const [rows, setRows] = useState<BuffRow[]>(() =>
++    (def.buffs ?? []).map(buffToRow)
++  )
++  const [open, setOpen] = useState<number | null>(null)
++  const update = (i: number, partial: Partial<BuffRow>) =>
++    setRows(rows.map((r, j) => (j === i ? { ...r, ...partial } : r)))
++
++  const imageValid = (u: string) => !u || isCustomCharacterImageUrl(u)
++  const valid =
++    num(atk) >= 0 &&
++    (!subStat || Number.isFinite(num(subValue))) &&
++    imageValid(images.icon) &&
++    imageValid(images.awakenIcon) &&
++    rows.every((r) => !!rowToBuff(r))
++
++  const save = () => {
++    if (!valid) return
++    const scaled = scaleCustomWeaponStats(
++      { ...def, rarity },
++      {
++        atk: num(atk),
++        subStat: subStat || undefined,
++        subValue: subStat
++          ? isPct(subStat)
++            ? fromPercent(num(subValue))
++            : num(subValue)
++          : undefined,
++      }
++    )
++    onSave({
++      ...def,
++      ...scaled,
++      name: name.trim() || def.name,
++      passiveName,
++      template,
++      rarity,
++      images: Object.fromEntries(
++        Object.entries(images).filter(([, u]) => u.trim())
++      ),
++      buffs: rows.flatMap((r) => {
++        const b = rowToBuff(r)
++        return b ? [b] : []
++      }),
++    })
++  }
++
++  const targetLabel = {
++    self: t('customWeapon.buff.targetSelf'),
++    team: t('customWeapon.buff.targetTeam'),
++    others: t('customWeapon.buff.targetOthers'),
++  }
++
++  return (
++    <Box display="flex" flexDirection="column" gap={2}>
++      <Grid container spacing={2}>
++        <Grid item xs={12} md={6}>
++          <TextField
++            fullWidth
++            label={t('customWeapon.name')}
++            value={name}
++            onChange={(e) => setName(e.target.value)}
++          />
++        </Grid>
++        <Grid item xs={12} md={6}>
++          <TextField
++            fullWidth
++            label={t('customWeapon.passiveName')}
++            value={passiveName}
++            onChange={(e) => setPassiveName(e.target.value)}
++          />
++        </Grid>
++        <Grid item xs={12} md={8}>
++          <Autocomplete
++            options={options}
++            value={template}
++            disableClearable
++            onChange={(_, k) => setTemplate(k)}
++            getOptionLabel={(k) => t(`weaponNames_gen:${k}`)}
++            renderOption={(props, k) => (
++              <Box
++                component="li"
++                {...props}
++                key={k}
++                sx={{ display: 'flex', gap: 1 }}
++              >
++                <ImgIcon src={weaponAsset(k)} size={2} />
++                {t(`weaponNames_gen:${k}`)}
++              </Box>
++            )}
++            renderInput={(params) => (
++              <TextField
++                {...params}
++                InputLabelProps={{ ...params.InputLabelProps, shrink: true }}
++                label={t('customWeapon.template')}
++                helperText={t('customWeapon.templateHelp')}
++              />
++            )}
++          />
++        </Grid>
++        <Grid item xs={12} md={4}>
++          <TextField
++            select
++            fullWidth
++            label={t('customWeapon.rarity')}
++            value={rarity}
++            onChange={(e) =>
++              setRarity(Number(e.target.value) as CustomWeaponDef['rarity'])
++            }
++          >
++            {[5, 4, 3, 2, 1].map((r) => (
++              <MenuItem key={r} value={r}>
++                {r}★
++              </MenuItem>
++            ))}
++          </TextField>
++        </Grid>
++      </Grid>
++
++      <Typography variant="subtitle1">{t('customWeapon.images')}</Typography>
++      {def.imageNames && (
++        <Box display="flex" gap={1} alignItems="flex-start">
++          <TextField
++            fullWidth
++            size="small"
++            label={t('customWeapon.exampleUrl')}
++            value={exampleUrl}
++            onChange={(e) => setExampleUrl(e.target.value)}
++            error={!!exampleUrl && !fromExample}
++            helperText={t('customWeapon.exampleUrlHelp')}
++          />
++          <Button
++            disabled={!fromExample}
++            sx={{ whiteSpace: 'nowrap' }}
++            onClick={() =>
++              fromExample &&
++              setImages({
++                icon: fromExample.icon ?? images.icon,
++                awakenIcon: fromExample.awakenIcon ?? images.awakenIcon,
++              })
++            }
++          >
++            {t('customWeapon.fillImages')}
++          </Button>
++        </Box>
++      )}
++      <Grid container spacing={1}>
++        {(['icon', 'awakenIcon'] as const).map((k) => (
++          <Grid item xs={12} md={6} key={k}>
++            <Box display="flex" gap={1} alignItems="center">
++              <Box
++                component="img"
++                alt=""
++                src={images[k] || weaponAsset(template, k === 'awakenIcon')}
++                sx={{
++                  width: 40,
++                  height: 40,
++                  objectFit: 'contain',
++                  opacity: images[k] ? 1 : 0.4,
++                }}
++              />
++              <TextField
++                fullWidth
++                size="small"
++                label={t(`customWeapon.imageSlots.${k}`)}
++                value={images[k]}
++                placeholder={def.imageNames?.[k]}
++                error={!imageValid(images[k])}
++                onChange={(e) => setImages({ ...images, [k]: e.target.value })}
++              />
++            </Box>
++          </Grid>
++        ))}
++      </Grid>
++
++      <Typography variant="subtitle1">{t('customWeapon.stats')}</Typography>
++      <Grid container spacing={2}>
++        <Grid item xs={12} md={4}>
++          <TextField
++            fullWidth
++            label={KeyMap.get('atk')}
++            value={atk}
++            error={!(num(atk) >= 0)}
++            onChange={(e) => setAtk(e.target.value)}
++            inputProps={{ inputMode: 'decimal' }}
++          />
++        </Grid>
++        <Grid item xs={12} md={4}>
++          <TextField
++            select
++            fullWidth
++            label={t('customWeapon.subStat')}
++            value={subStat}
++            onChange={(e) =>
++              setSubStat(e.target.value as CustomWeaponSubstat | '')
++            }
++          >
++            <MenuItem value="">{t('customWeapon.noSubStat')}</MenuItem>
++            {customWeaponSubstats.map((s) => (
++              <MenuItem key={s} value={s}>
++                {KeyMap.get(s)}
++              </MenuItem>
++            ))}
++          </TextField>
++        </Grid>
++        <Grid item xs={12} md={4}>
++          <TextField
++            fullWidth
++            disabled={!subStat}
++            label={t('customWeapon.subValue')}
++            value={subValue}
++            error={!!subStat && !Number.isFinite(num(subValue))}
++            onChange={(e) => setSubValue(e.target.value)}
++            InputProps={
++              isPct(subStat)
++                ? {
++                    endAdornment: (
++                      <InputAdornment position="end">%</InputAdornment>
++                    ),
++                  }
++                : undefined
++            }
++            inputProps={{ inputMode: 'decimal' }}
++          />
++        </Grid>
++      </Grid>
++
++      <Typography variant="subtitle1">{t('customWeapon.buffs')}</Typography>
++      <Typography variant="body2" color="text.secondary">
++        {t('customWeapon.buffsHelp')}
++      </Typography>
++      {rows.map((r, i) => {
++        const unit = isPct(r.stat) ? '%' : ''
++        if (open !== i)
++          return (
++            <CardThemed bgt="light" key={i}>
++              <Box display="flex" alignItems="center" gap={1} px={2} py={0.5}>
++                <Typography
++                  variant="body2"
++                  flexGrow={1}
++                  sx={{ cursor: 'pointer' }}
++                  color={rowToBuff(r) ? undefined : 'error'}
++                  onClick={() => setOpen(i)}
++                >
++                  {`${KeyMap.get(r.stat)} ${r.values.join('/')}${unit} · ${targetLabel[r.target]}${
++                    r.target !== 'self' && r.eles.length
++                      ? ` (${r.excludeEles ? '≠ ' : ''}${r.eles.join('/')})`
++                      : ''
++                  }${r.condition ? ` · ${r.condition}${r.conditionState ? `: ${r.conditionState}` : ''}` : ''}`}
++                </Typography>
++                <IconButton
++                  size="small"
++                  aria-label={t('customWeapon.edit')}
++                  onClick={() => setOpen(i)}
++                >
++                  <EditIcon fontSize="small" />
++                </IconButton>
++                <IconButton
++                  size="small"
++                  color="error"
++                  aria-label={t('customWeapon.buff.remove')}
++                  onClick={() => {
++                    setRows(rows.filter((_, j) => j !== i))
++                    setOpen(null)
++                  }}
++                >
++                  <DeleteForeverIcon fontSize="small" />
++                </IconButton>
++              </Box>
++            </CardThemed>
++          )
++        return (
++          <CardThemed bgt="light" key={i}>
++            <CardContent>
++              <Grid container spacing={1} alignItems="center">
++                <Grid item xs={12} md={5}>
++                  <TextField
++                    select
++                    fullWidth
++                    size="small"
++                    label={t('customWeapon.buff.stat')}
++                    value={r.stat}
++                    onChange={(e) =>
++                      update(i, {
++                        stat: e.target.value as CustomCharacterBuffStat,
++                      })
++                    }
++                  >
++                    {customCharacterBuffStats.map((s) => (
++                      <MenuItem key={s} value={s}>
++                        {KeyMap.get(s)}
++                      </MenuItem>
++                    ))}
++                  </TextField>
++                </Grid>
++                <Grid item xs={12} md={3}>
++                  <TextField
++                    select
++                    fullWidth
++                    size="small"
++                    label={t('customWeapon.buff.target')}
++                    value={r.target}
++                    onChange={(e) =>
++                      update(i, {
++                        target: e.target.value as CustomCharacterBuffTarget,
++                      })
++                    }
++                  >
++                    {(['self', 'team', 'others'] as const).map((k) => (
++                      <MenuItem key={k} value={k}>
++                        {targetLabel[k]}
++                      </MenuItem>
++                    ))}
++                  </TextField>
++                </Grid>
++                <Grid item xs={12} md={4} textAlign="right">
++                  <IconButton
++                    aria-label={t('customWeapon.buff.close')}
++                    onClick={() => setOpen(null)}
++                  >
++                    <ExpandLessIcon />
++                  </IconButton>
++                  <IconButton
++                    color="error"
++                    aria-label={t('customWeapon.buff.remove')}
++                    onClick={() => {
++                      setRows(rows.filter((_, j) => j !== i))
++                      setOpen(null)
++                    }}
++                  >
++                    <DeleteForeverIcon />
++                  </IconButton>
++                </Grid>
++                {r.values.map((v, k) => (
++                  <Grid item xs={4} md={2} key={k}>
++                    <TextField
++                      fullWidth
++                      size="small"
++                      label={`R${k + 1}`}
++                      value={v}
++                      error={!Number.isFinite(num(v))}
++                      onChange={(e) =>
++                        update(i, {
++                          values: r.values.map((x, j) =>
++                            j === k ? e.target.value : x
++                          ),
++                        })
++                      }
++                      InputProps={
++                        unit
++                          ? {
++                              endAdornment: (
++                                <InputAdornment position="end">
++                                  %
++                                </InputAdornment>
++                              ),
++                            }
++                          : undefined
++                      }
++                      inputProps={{ inputMode: 'decimal' }}
++                    />
++                  </Grid>
++                ))}
++                <Grid item xs={12} md={6}>
++                  <TextField
++                    fullWidth
++                    size="small"
++                    label={t('customWeapon.buff.condition')}
++                    value={r.condition}
++                    onChange={(e) => update(i, { condition: e.target.value })}
++                  />
++                </Grid>
++                <Grid item xs={12} md={6}>
++                  <TextField
++                    fullWidth
++                    size="small"
++                    disabled={!r.condition.trim()}
++                    label={t('customWeapon.buff.conditionState')}
++                    value={r.conditionState}
++                    onChange={(e) =>
++                      update(i, { conditionState: e.target.value })
++                    }
++                  />
++                </Grid>
++                {r.target !== 'self' && (
++                  <Grid item xs={12}>
++                    <Box
++                      display="flex"
++                      gap={1}
++                      alignItems="center"
++                      flexWrap="wrap"
++                    >
++                      <Typography variant="body2" color="text.secondary">
++                        {t('customWeapon.buff.elements')}
++                      </Typography>
++                      {allElementKeys.map((e) => (
++                        <FormControlLabel
++                          key={e}
++                          control={
++                            <Checkbox
++                              size="small"
++                              checked={r.eles.includes(e)}
++                              onChange={(_, checked) =>
++                                update(i, {
++                                  eles: checked
++                                    ? [...r.eles, e]
++                                    : r.eles.filter((x) => x !== e),
++                                })
++                              }
++                            />
++                          }
++                          label={e}
++                        />
++                      ))}
++                      <FormControlLabel
++                        control={
++                          <Checkbox
++                            size="small"
++                            disabled={!r.eles.length}
++                            checked={r.excludeEles}
++                            onChange={(_, checked) =>
++                              update(i, { excludeEles: checked })
++                            }
++                          />
++                        }
++                        label={t('customWeapon.buff.excludeEles')}
++                      />
++                    </Box>
++                  </Grid>
++                )}
++              </Grid>
++            </CardContent>
++          </CardThemed>
++        )
++      })}
++      <Button
++        startIcon={<AddIcon />}
++        onClick={() => {
++          setRows([
++            ...rows,
++            {
++              stat: 'atk_',
++              values: ['', '', '', '', ''],
++              target: 'self',
++              condition: '',
++              conditionState: '',
++              eles: [],
++              excludeEles: false,
++            },
++          ])
++          setOpen(rows.length)
++        }}
++      >
++        {t('customWeapon.buff.add')}
++      </Button>
++
++      <Box display="flex" gap={1} justifyContent="flex-end">
++        <Button color="secondary" onClick={onCancel}>
++          {t('customWeapon.cancel')}
++        </Button>
++        <Button color="success" disabled={!valid} onClick={save}>
++          {t('customWeapon.save')}
++        </Button>
++      </Box>
++    </Box>
++  )
++}
+diff --git a/libs/gi/ui/src/components/weapon/WeaponSelectionModal.tsx b/libs/gi/ui/src/components/weapon/WeaponSelectionModal.tsx
+index c6fb0a0c..82132dd4 100644
+--- a/libs/gi/ui/src/components/weapon/WeaponSelectionModal.tsx
++++ b/libs/gi/ui/src/components/weapon/WeaponSelectionModal.tsx
+@@ -16,9 +16,11 @@ import { useDatabase } from '@genshin-optimizer/gi/db-ui'
+ import type { WeaponSheet } from '@genshin-optimizer/gi/sheets'
+ import { getWeaponSheet } from '@genshin-optimizer/gi/sheets'
+ import { getWeaponStat } from '@genshin-optimizer/gi/stats'
++import AddIcon from '@mui/icons-material/Add'
+ import CloseIcon from '@mui/icons-material/Close'
+ import {
+   Box,
++  Button,
+   CardActionArea,
+   CardContent,
+   Divider,
+@@ -40,6 +42,8 @@ type WeaponSelectionModalProps = {
+   onSelect: (wKey: WeaponKey) => void
+   filter?: (sheet: WeaponSheet) => boolean
+   weaponTypeFilter?: WeaponTypeKey | ''
++  /** When set, shows a button to manage custom weapons */
++  onCreateCustom?: () => void
+ }
+ 
+ export function WeaponSelectionModal({
+@@ -49,6 +53,7 @@ export function WeaponSelectionModal({
+   onSelect,
+   filter = () => true,
+   weaponTypeFilter,
++  onCreateCustom,
+ }: WeaponSelectionModalProps) {
+   const { t } = useTranslation(['page_weapon', 'weaponNames_gen'])
+   const [weaponFilter, setWeaponfilter] = useState<WeaponTypeKey[]>(
+@@ -142,6 +147,18 @@ export function WeaponSelectionModal({
+               sx: { height: '100%' },
+             }}
+           />
++          {onCreateCustom && (
++            <Button
++              color="info"
++              startIcon={<AddIcon />}
++              onClick={() => {
++                onHide()
++                onCreateCustom()
++              }}
++            >
++              {t('customWeapon.button')}
++            </Button>
++          )}
+           <IconButton onClick={onHide} sx={{ ml: 'auto' }}>
+             <CloseIcon />
+           </IconButton>
+diff --git a/libs/gi/ui/src/components/weapon/index.ts b/libs/gi/ui/src/components/weapon/index.ts
+index 1ce90bd2..1732b67b 100644
+--- a/libs/gi/ui/src/components/weapon/index.ts
++++ b/libs/gi/ui/src/components/weapon/index.ts
+@@ -1,3 +1,4 @@
++export * from './CustomWeaponModal'
+ export * from './WeaponCard'
+ export * from './WeaponCardNano'
+ export * from './WeaponCardPico'
+diff --git a/tools/custom-characters/buffs/15517.json b/tools/custom-characters/buffs/15517.json
+new file mode 100644
+index 00000000..b05cdad9
+--- /dev/null
++++ b/tools/custom-characters/buffs/15517.json
+@@ -0,0 +1,28 @@
++{
++  "name": "Silverdawn",
++  "notes": [
++    "White Crown's Bequest: after Elemental Skill or Burst, ATK and Stellar Glimmer reaction CRIT DMG of the wielder increase.",
++    "`param` is the index of the value in the passive's parameters (0: ATK, 1: Stellar Glimmer CRIT DMG); the converter fills in R1..R5.",
++    "Not included: Energy regeneration."
++  ],
++  "buffs": [
++    {
++      "stat": "atk_",
++      "param": 0,
++      "target": "self",
++      "condition": "White Crown's Bequest (after Skill/Burst)"
++    },
++    {
++      "stat": "stellarconduct_critDMG_",
++      "param": 1,
++      "target": "self",
++      "condition": "White Crown's Bequest (after Skill/Burst)"
++    },
++    {
++      "stat": "stellarswirl_critDMG_",
++      "param": 1,
++      "target": "self",
++      "condition": "White Crown's Bequest (after Skill/Burst)"
++    }
++  ]
++}
+diff --git a/tools/custom-characters/nanoka-to-go.mjs b/tools/custom-characters/nanoka-to-go.mjs
+index d406bc21..d656968d 100644
+--- a/tools/custom-characters/nanoka-to-go.mjs
++++ b/tools/custom-characters/nanoka-to-go.mjs
+@@ -1,14 +1,16 @@
+ #!/usr/bin/env node
+ /**
+- * Converts character data from gi.nanoka.cc into a Genshin Optimizer
+- * custom character pack, which GO can import as custom characters.
++ * Converts character and weapon data from gi.nanoka.cc into a Genshin
++ * Optimizer custom character pack, which GO can import as custom characters
++ * and custom weapons.
+  *
+  * Usage:
+  *   node tools/custom-characters/nanoka-to-go.mjs <input.json | input-dir>... [-o output.json] [--image-url <url>]
+  *
+- * Each input is a character JSON from gi.nanoka.cc (for example the response
+- * for character 10000149), or a directory of such files. All characters are
+- * written into a single pack. Without `-o`, the pack is printed to stdout.
++ * Each input is a character or weapon JSON from gi.nanoka.cc (for example
++ * the response for character 10000149 or weapon 15517), or a directory of
++ * such files. Everything is written into a single pack. Without `-o`, the
++ * pack is printed to stdout.
+  *
+  * The pack always lists the file names of each character's images. With
+  * `--image-url` set to the address of any one image on that site (for example
+@@ -17,9 +19,11 @@
+  * Image URLs can also be filled in later, in GO's custom character editor.
+  *
+  * Buffs (stat bonuses from passives and constellations) are not in the source
+- * data. When `buffs/<character id>.json` exists next to this script, its
+- * `buffs` and `rowEffects` are added to that character. Both can also be
+- * edited in GO.
++ * data. When `buffs/<character or weapon id>.json` exists next to this
++ * script, its `buffs` (and, for characters, `rowEffects`) are added. A weapon
++ * buff can give `param` (an index into the passive's values) instead of
++ * `values`; its values at refinements 1..5 are then read from the source.
++ * Both can also be edited in GO.
+  *
+  * Only Node.js built-ins are used, so the script runs without `yarn install`.
+  */
+@@ -300,13 +304,79 @@ function buffPreset(sourceId) {
+   }
+ }
+ 
+-export function makePack(characters, source = 'gi.nanoka.cc') {
++/** Main stat prop of weapons: GO only supports ATK */
++const weaponSubstatMap = {
++  FIGHT_PROP_ATTACK_PERCENT: 'atk_',
++  FIGHT_PROP_CRITICAL_HURT: 'critDMG_',
++  FIGHT_PROP_CRITICAL: 'critRate_',
++  FIGHT_PROP_DEFENSE_PERCENT: 'def_',
++  FIGHT_PROP_ELEMENT_MASTERY: 'eleMas',
++  FIGHT_PROP_CHARGE_EFFICIENCY: 'enerRech_',
++  FIGHT_PROP_HP_PERCENT: 'hp_',
++  FIGHT_PROP_PHYSICAL_ADD_HURT: 'physical_dmg_',
++}
++
++export function convertNanokaWeapon(src, sourceId) {
++  if (!src || typeof src !== 'object' || !Array.isArray(src.weapon_prop))
++    fail('Not a gi.nanoka.cc weapon JSON (missing weapon_prop)')
++  const name = src.name || fail('Missing name')
++  const weaponType = weaponMap[src.weapon_type]
++  if (!weaponType) fail(`${name}: unknown weapon type "${src.weapon_type}"`)
++  const rarity = Number(src.rarity)
++  if (!(rarity >= 1 && rarity <= 5))
++    fail(`${name}: unknown rarity "${src.rarity}"`)
++  const [main, sub] = src.weapon_prop
++  if (main?.prop_type !== 'FIGHT_PROP_BASE_ATTACK')
++    fail(`${name}: main stat must be base ATK, got ${main?.prop_type}`)
++  const subType = sub && weaponSubstatMap[sub.prop_type]
++  if (sub && !subType) fail(`${name}: unknown substat ${sub.prop_type}`)
++
++  // nanoka lists ascension phases 1..6 (1..4 for 1-2 star weapons); GO also has phase 0
++  const ascensionBonus = [0, 0, 0, 0, 0, 0, 0]
++  for (const [phase, props] of Object.entries(src.ascension ?? {}))
++    ascensionBonus[Number(phase)] = props.fight_prop_base_attack ?? 0
++  for (let i = 1; i < 7; i++)
++    if (!(String(i) in (src.ascension ?? {})))
++      ascensionBonus[i] = ascensionBonus[i - 1]
++
++  const refinements = [1, 2, 3, 4, 5].map((r) => src.refinement?.[r])
++  return {
++    sourceId: sourceId ?? null,
++    name,
++    weaponType,
++    rarity,
++    mainStat: { base: main.init_value, curve: main.type },
++    ...(sub
++      ? { subStat: { type: subType, base: sub.init_value, curve: sub.type } }
++      : {}),
++    ascensionBonus,
++    passiveName: refinements[0]?.name ?? '',
++    passiveDescriptions: refinements.map((r) => cleanText(r?.desc)),
++    passiveParams: refinements.map((r) => trimParams(r?.param_list)),
++    imageNames: {
++      icon: src.icon,
++      awakenIcon: src.icon ? `${src.icon}_Awaken` : undefined,
++    },
++  }
++}
++
++/** Weapon buffs with `param` get their values at refinements 1..5 from the passive. */
++function resolveWeaponBuffs(buffs, passiveParams) {
++  return buffs.map(({ param, ...b }) =>
++    param === undefined
++      ? b
++      : { ...b, values: passiveParams.map((p) => p?.[param] ?? 0) }
++  )
++}
++
++export function makePack(characters, source = 'gi.nanoka.cc', weapons = []) {
+   return {
+     format: PACK_FORMAT,
+     version: PACK_VERSION,
+     source,
+     exportedAt: new Date().toISOString(),
+     characters,
++    weapons,
+   }
+ }
+ 
+@@ -344,11 +414,31 @@ function main(argv) {
+     process.exit(1)
+   }
+   const characters = []
++  const weapons = []
+   for (const { file, optional } of collectInputs(args)) {
+-    const id = file.match(/(\d{8})[^\\/]*\.json$/)?.[1]
++    const id = file.match(/(\d{5,8})[^\\/]*\.json$/)?.[1]
+     const data = JSON.parse(readFileSync(file, 'utf8'))
+-    if (optional && !data?.stats_modifier) {
+-      console.error(`Skipped ${file} (not a gi.nanoka.cc character JSON)`)
++    if (Array.isArray(data?.weapon_prop)) {
++      const weapon = convertNanokaWeapon(data, id ? Number(id) : null)
++      if (imageUrl)
++        weapon.images = imagesFromExample(weapon.imageNames, imageUrl)
++      const preset = buffPreset(weapon.sourceId)
++      if (preset) {
++        weapon.buffs = resolveWeaponBuffs(preset.buffs, weapon.passiveParams)
++        console.error(
++          `  + ${weapon.buffs.length} buffs from buffs/${weapon.sourceId}.json`
++        )
++      }
++      weapons.push(weapon)
++      console.error(`Converted weapon ${weapon.name} (${file})`)
++      continue
++    }
++    if (!Array.isArray(data?.skills)) {
++      if (!optional)
++        fail(`${file}: not a gi.nanoka.cc character or weapon JSON`)
++      console.error(
++        `Skipped ${file} (not a gi.nanoka.cc character or weapon JSON)`
++      )
+       continue
+     }
+     const char = convertNanokaCharacter(data, id ? Number(id) : null)
+@@ -364,10 +454,12 @@ function main(argv) {
+     characters.push(char)
+     console.error(`Converted ${char.name} (${file})`)
+   }
+-  const json = `${JSON.stringify(makePack(characters), null, 2)}\n`
++  const json = `${JSON.stringify(makePack(characters, undefined, weapons), null, 2)}\n`
+   if (out) {
+     writeFileSync(out, json)
+-    console.error(`Wrote ${characters.length} character(s) to ${out}`)
++    console.error(
++      `Wrote ${characters.length} character(s) and ${weapons.length} weapon(s) to ${out}`
++    )
+   } else process.stdout.write(json)
+ }
+ 
+-- 
+2.43.0
+

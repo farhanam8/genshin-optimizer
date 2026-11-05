@@ -2,7 +2,7 @@
   "format": "genshin-optimizer-custom-characters",
   "version": 1,
   "source": "gi.nanoka.cc",
-  "exportedAt": "2026-11-05T02:21:19.473Z",
+  "exportedAt": "2026-11-05T06:42:16.161Z",
   "characters": [
     {
       "sourceId": 10000149,
@@ -1544,7 +1544,401 @@
         "constellation4": "UI_Talent_S_Anastasya_03",
         "constellation5": "UI_Talent_U_Anastasya_02",
         "constellation6": "UI_Talent_S_Anastasya_04"
-      }
+      },
+      "buffs": [
+        {
+          "source": "passive1",
+          "stat": "critDMG_",
+          "value": 0.12,
+          "target": "team",
+          "condition": "Accolades",
+          "conditionState": "No one Sealed"
+        },
+        {
+          "source": "passive1",
+          "stat": "critDMG_",
+          "value": 0.48,
+          "target": "self",
+          "condition": "Accolades",
+          "conditionState": "Others Sealed (Q + E hold)"
+        },
+        {
+          "source": "passive1",
+          "stat": "critDMG_",
+          "value": 0.16,
+          "target": "others",
+          "condition": "Accolades",
+          "conditionState": "Anastasya Sealed (Q + E tap)"
+        },
+        {
+          "source": "passive3",
+          "stat": "stellarconduct_baseDmg_",
+          "value": 0.007,
+          "target": "team",
+          "scaling": {
+            "stat": "atk",
+            "per": 100
+          },
+          "max": 0.14
+        },
+        {
+          "source": "passive3",
+          "stat": "stellarswirl_baseDmg_",
+          "value": 0.007,
+          "target": "team",
+          "scaling": {
+            "stat": "atk",
+            "per": 100
+          },
+          "max": 0.14
+        },
+        {
+          "source": "constellation1",
+          "stat": "critDMG_",
+          "value": 0.12,
+          "target": "others",
+          "condition": "Accolades",
+          "conditionState": "Others Sealed (Q + E hold)"
+        },
+        {
+          "source": "constellation1",
+          "stat": "critDMG_",
+          "value": 0.32,
+          "target": "others",
+          "condition": "Accolades",
+          "conditionState": "Anastasya Sealed (Q + E tap)"
+        },
+        {
+          "source": "constellation1",
+          "stat": "critDMG_",
+          "value": 0.12,
+          "target": "self",
+          "condition": "Accolades",
+          "conditionState": "Anastasya Sealed (Q + E tap)"
+        },
+        {
+          "source": "constellation1",
+          "stat": "atk_",
+          "value": 0.15,
+          "target": "team",
+          "condition": "Accolades",
+          "conditionState": "No one Sealed",
+          "eles": [
+            "cryo"
+          ]
+        },
+        {
+          "source": "constellation1",
+          "stat": "eleMas",
+          "value": 60,
+          "target": "team",
+          "condition": "Accolades",
+          "conditionState": "No one Sealed",
+          "eles": [
+            "cryo"
+          ],
+          "excludeEles": true
+        },
+        {
+          "source": "constellation1",
+          "stat": "atk_",
+          "value": 0.6,
+          "target": "self",
+          "condition": "Accolades",
+          "conditionState": "Others Sealed (Q + E hold)"
+        },
+        {
+          "source": "constellation1",
+          "stat": "atk_",
+          "value": 0.15,
+          "target": "others",
+          "condition": "Accolades",
+          "conditionState": "Others Sealed (Q + E hold)",
+          "eles": [
+            "cryo"
+          ]
+        },
+        {
+          "source": "constellation1",
+          "stat": "eleMas",
+          "value": 60,
+          "target": "others",
+          "condition": "Accolades",
+          "conditionState": "Others Sealed (Q + E hold)",
+          "eles": [
+            "cryo"
+          ],
+          "excludeEles": true
+        },
+        {
+          "source": "constellation1",
+          "stat": "atk_",
+          "value": 0.6,
+          "target": "others",
+          "condition": "Accolades",
+          "conditionState": "Anastasya Sealed (Q + E tap)",
+          "eles": [
+            "cryo"
+          ]
+        },
+        {
+          "source": "constellation1",
+          "stat": "eleMas",
+          "value": 240,
+          "target": "others",
+          "condition": "Accolades",
+          "conditionState": "Anastasya Sealed (Q + E tap)",
+          "eles": [
+            "cryo"
+          ],
+          "excludeEles": true
+        },
+        {
+          "source": "constellation1",
+          "stat": "atk_",
+          "value": 0.15,
+          "target": "self",
+          "condition": "Accolades",
+          "conditionState": "Anastasya Sealed (Q + E tap)"
+        },
+        {
+          "source": "constellation2",
+          "stat": "stellarconduct_critDMG_",
+          "value": 0.6,
+          "target": "team",
+          "condition": "Blessing (after Elemental Skill)",
+          "conditionState": "Love (E tap)"
+        },
+        {
+          "source": "constellation2",
+          "stat": "stellarswirl_critDMG_",
+          "value": 0.6,
+          "target": "team",
+          "condition": "Blessing (after Elemental Skill)",
+          "conditionState": "Love (E tap)"
+        },
+        {
+          "source": "constellation2",
+          "stat": "stellarconduct_specialDmg_",
+          "value": 0.05,
+          "target": "team"
+        },
+        {
+          "source": "constellation2",
+          "stat": "stellarswirl_specialDmg_",
+          "value": 0.05,
+          "target": "team"
+        },
+        {
+          "source": "constellation4",
+          "stat": "critDMG_",
+          "value": 0.036,
+          "target": "team",
+          "condition": "Accolades",
+          "conditionState": "No one Sealed"
+        },
+        {
+          "source": "constellation4",
+          "stat": "critDMG_",
+          "value": 0.144,
+          "target": "self",
+          "condition": "Accolades",
+          "conditionState": "Others Sealed (Q + E hold)"
+        },
+        {
+          "source": "constellation4",
+          "stat": "critDMG_",
+          "value": 0.036,
+          "target": "others",
+          "condition": "Accolades",
+          "conditionState": "Others Sealed (Q + E hold)"
+        },
+        {
+          "source": "constellation4",
+          "stat": "critDMG_",
+          "value": 0.144,
+          "target": "others",
+          "condition": "Accolades",
+          "conditionState": "Anastasya Sealed (Q + E tap)"
+        },
+        {
+          "source": "constellation4",
+          "stat": "critDMG_",
+          "value": 0.036,
+          "target": "self",
+          "condition": "Accolades",
+          "conditionState": "Anastasya Sealed (Q + E tap)"
+        },
+        {
+          "source": "constellation4",
+          "stat": "atk_",
+          "value": 0.045,
+          "target": "team",
+          "condition": "Accolades",
+          "conditionState": "No one Sealed",
+          "eles": [
+            "cryo"
+          ]
+        },
+        {
+          "source": "constellation4",
+          "stat": "eleMas",
+          "value": 18,
+          "target": "team",
+          "condition": "Accolades",
+          "conditionState": "No one Sealed",
+          "eles": [
+            "cryo"
+          ],
+          "excludeEles": true
+        },
+        {
+          "source": "constellation4",
+          "stat": "atk_",
+          "value": 0.18,
+          "target": "self",
+          "condition": "Accolades",
+          "conditionState": "Others Sealed (Q + E hold)"
+        },
+        {
+          "source": "constellation4",
+          "stat": "atk_",
+          "value": 0.045,
+          "target": "others",
+          "condition": "Accolades",
+          "conditionState": "Others Sealed (Q + E hold)",
+          "eles": [
+            "cryo"
+          ]
+        },
+        {
+          "source": "constellation4",
+          "stat": "eleMas",
+          "value": 18,
+          "target": "others",
+          "condition": "Accolades",
+          "conditionState": "Others Sealed (Q + E hold)",
+          "eles": [
+            "cryo"
+          ],
+          "excludeEles": true
+        },
+        {
+          "source": "constellation4",
+          "stat": "atk_",
+          "value": 0.18,
+          "target": "others",
+          "condition": "Accolades",
+          "conditionState": "Anastasya Sealed (Q + E tap)",
+          "eles": [
+            "cryo"
+          ]
+        },
+        {
+          "source": "constellation4",
+          "stat": "eleMas",
+          "value": 72,
+          "target": "others",
+          "condition": "Accolades",
+          "conditionState": "Anastasya Sealed (Q + E tap)",
+          "eles": [
+            "cryo"
+          ],
+          "excludeEles": true
+        },
+        {
+          "source": "constellation4",
+          "stat": "atk_",
+          "value": 0.045,
+          "target": "self",
+          "condition": "Accolades",
+          "conditionState": "Anastasya Sealed (Q + E tap)"
+        },
+        {
+          "source": "constellation6",
+          "stat": "stellarconduct_specialDmg_",
+          "value": 0.1,
+          "target": "team",
+          "condition": "Blessing (after Elemental Skill)",
+          "conditionState": "Love (E tap)"
+        },
+        {
+          "source": "constellation6",
+          "stat": "stellarswirl_specialDmg_",
+          "value": 0.1,
+          "target": "team",
+          "condition": "Blessing (after Elemental Skill)",
+          "conditionState": "Love (E tap)"
+        },
+        {
+          "source": "constellation6",
+          "stat": "stellarconduct_specialDmg_",
+          "value": 0.2,
+          "target": "self",
+          "condition": "Blessing (after Elemental Skill)",
+          "conditionState": "Honor (E hold)"
+        },
+        {
+          "source": "constellation6",
+          "stat": "stellarswirl_specialDmg_",
+          "value": 0.2,
+          "target": "self",
+          "condition": "Blessing (after Elemental Skill)",
+          "conditionState": "Honor (E hold)"
+        }
+      ],
+      "rowEffects": [
+        {
+          "source": "constellation2",
+          "kind": "multiplier",
+          "talent": "skill",
+          "match": "^\\d-Hit",
+          "value": 1.25,
+          "name": "Blessed Armament Normal Attacks",
+          "condition": "Blessing (after Elemental Skill)",
+          "conditionState": "Honor (E hold)"
+        },
+        {
+          "source": "constellation2",
+          "kind": "multiplier",
+          "talent": "burst",
+          "match": "Evernight|^Doom",
+          "value": 1.25,
+          "name": "The Evernight Yields to Dawn and Palestar Edict: Doom",
+          "condition": "Blessing (after Elemental Skill)",
+          "conditionState": "Honor (E hold)"
+        },
+        {
+          "source": "constellation6",
+          "kind": "extraHit",
+          "talent": "burst",
+          "match": "^Triumph",
+          "value": 2.5,
+          "name": "C6 Triumph (250%)",
+          "condition": "Blessing (after Elemental Skill)",
+          "conditionState": "Love (E tap)"
+        },
+        {
+          "source": "constellation6",
+          "kind": "extraHit",
+          "talent": "burst",
+          "match": "^Doom 3-Hit",
+          "value": 2,
+          "name": "C6 Doom 3rd hit (200%)",
+          "condition": "Blessing (after Elemental Skill)",
+          "conditionState": "Honor (E hold)",
+          "bonuses": [
+            {
+              "stat": "critDMG_",
+              "value": 0.468
+            },
+            {
+              "stat": "atk_",
+              "value": 0.585
+            }
+          ]
+        }
+      ]
     }
   ]
 }

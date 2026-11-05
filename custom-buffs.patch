@@ -1,0 +1,1136 @@
+From c87b0dc8e102486399fc9ea93771505396eada3a Mon Sep 17 00:00:00 2001
+From: Farhan <farhanabdm@gmail.com>
+Date: Thu, 5 Nov 2026 03:45:01 +0000
+Subject: [PATCH] feat(gi): buffs for imported custom characters
+
+Imported custom characters can give stat bonuses from their passives and
+constellations, for themselves or the whole party. A buff has a stat and
+value, optionally scales with the character's ATK/HP/DEF/EM (e.g. 0.7%
+per 100 ATK, up to 14%), can be limited to party members of some
+elements, and can depend on a named toggle. It applies once its passive
+(A1/A4) or constellation is unlocked, and team buffs show under
+"Received Team Buffs" like official characters' buffs.
+
+Buffs are edited in the custom character editor. The pack converter adds
+hand-written buffs from tools/custom-characters/buffs/<id>.json; this
+adds Anastasya's (10000149) from her passive and constellation texts.
+
+Also rounds percentages entered in the editors, so 0.7% is stored as
+0.007.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Asb8vZRqeTYT9zLpVizGNv
+---
+ libs/gi/consts/src/customCharacter.ts         | 134 +++++++
+ .../assets/locales/en/page_character.json     |  22 ++
+ .../assets/locales/id/page_character.json     |  22 ++
+ .../sheets/src/Characters/customDataSheet.tsx | 152 +++++++-
+ .../character/CustomCharacterBuffEditor.tsx   | 369 ++++++++++++++++++
+ .../character/CustomCharacterDataForm.tsx     |  34 +-
+ .../character/CustomCharacterModal.tsx        |   2 +
+ tools/custom-characters/buffs/10000149.json   | 128 ++++++
+ tools/custom-characters/nanoka-to-go.mjs      |  35 +-
+ 9 files changed, 885 insertions(+), 13 deletions(-)
+ create mode 100644 libs/gi/ui/src/components/character/CustomCharacterBuffEditor.tsx
+ create mode 100644 tools/custom-characters/buffs/10000149.json
+
+diff --git a/libs/gi/consts/src/customCharacter.ts b/libs/gi/consts/src/customCharacter.ts
+index 343efd06..2d998ba1 100644
+--- a/libs/gi/consts/src/customCharacter.ts
++++ b/libs/gi/consts/src/customCharacter.ts
+@@ -140,6 +140,133 @@ export type CustomCharacterTalent = {
+ }
+ export type CustomCharacterText = { name: string; description: string }
+ 
++/** Where a buff comes from; also when it unlocks (A1, A4, constellation level). */
++export const customCharacterBuffSources = [
++  'passive1',
++  'passive2',
++  'passive3',
++  'passive',
++  'constellation1',
++  'constellation2',
++  'constellation3',
++  'constellation4',
++  'constellation5',
++  'constellation6',
++] as const
++export type CustomCharacterBuffSource =
++  (typeof customCharacterBuffSources)[number]
++
++const buffElements = [
++  'anemo',
++  'geo',
++  'electro',
++  'dendro',
++  'hydro',
++  'pyro',
++  'cryo',
++] as const
++
++/** Stats a custom buff can increase (GO stat keys; `_` at the end = percentage). */
++export const customCharacterBuffStats = [
++  'atk_',
++  'hp_',
++  'def_',
++  'atk',
++  'hp',
++  'def',
++  'eleMas',
++  'enerRech_',
++  'critRate_',
++  'critDMG_',
++  'heal_',
++  'all_dmg_',
++  ...buffElements.map((e) => `${e}_dmg_` as const),
++  'physical_dmg_',
++  'normal_dmg_',
++  'charged_dmg_',
++  'plunging_dmg_',
++  'skill_dmg_',
++  'burst_dmg_',
++  'stellarconduct_dmg_',
++  'stellarswirl_dmg_',
++  'stellarconduct_baseDmg_',
++  'stellarswirl_baseDmg_',
++  'stellarconduct_specialDmg_',
++  'stellarswirl_specialDmg_',
++  'stellarconduct_critDMG_',
++  'stellarswirl_critDMG_',
++  ...buffElements.map((e) => `${e}_enemyRes_` as const),
++] as const
++export type CustomCharacterBuffStat = (typeof customCharacterBuffStats)[number]
++
++/**
++ * A stat bonus given by an imported custom character. Its value is
++ * `value` (a fraction for percentage stats, e.g. 0.12 = 12%), or
++ * `value` per `scaling.per` points of the character's own `scaling.stat`
++ * (e.g. 0.007 per 100 ATK), capped at `max`.
++ */
++export type CustomCharacterBuff = {
++  source: CustomCharacterBuffSource
++  stat: CustomCharacterBuffStat
++  value: number
++  /** `self`: only this character; `team`: every party member, including this one */
++  target: 'self' | 'team'
++  scaling?: { stat: 'atk' | 'hp' | 'def' | 'eleMas'; per: number }
++  max?: number
++  /** When set, the buff only applies while this toggle (shared by name) is on */
++  condition?: string
++  /** For team buffs: only party members of these elements (or all others, with `excludeEles`) */
++  eles?: ElementKey[]
++  excludeEles?: boolean
++}
++
++/** Sanitized copy of a buff, or `undefined` if invalid. */
++export function validateCustomCharacterBuff(
++  o: unknown
++): CustomCharacterBuff | undefined {
++  if (typeof o !== 'object' || o === null || Array.isArray(o)) return undefined
++  const b = o as Record<string, unknown>
++  const { source, stat, value, target, scaling, max, condition, eles } = b
++  if (!customCharacterBuffSources.includes(source as CustomCharacterBuffSource))
++    return undefined
++  if (!customCharacterBuffStats.includes(stat as CustomCharacterBuffStat))
++    return undefined
++  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
++  if (target !== 'self' && target !== 'team') return undefined
++  const buff: CustomCharacterBuff = {
++    source: source as CustomCharacterBuffSource,
++    stat: stat as CustomCharacterBuffStat,
++    value,
++    target,
++  }
++  if (typeof scaling === 'object' && scaling !== null) {
++    const { stat: sStat, per } = scaling as Record<string, unknown>
++    if (
++      (sStat === 'atk' ||
++        sStat === 'hp' ||
++        sStat === 'def' ||
++        sStat === 'eleMas') &&
++      typeof per === 'number' &&
++      Number.isFinite(per) &&
++      per > 0
++    )
++      buff.scaling = { stat: sStat, per }
++  }
++  if (typeof max === 'number' && Number.isFinite(max)) buff.max = max
++  if (typeof condition === 'string' && condition.trim())
++    buff.condition = condition.trim().slice(0, 80)
++  if (Array.isArray(eles)) {
++    const valid = eles.filter((e): e is ElementKey =>
++      buffElements.includes(e as (typeof buffElements)[number])
++    )
++    if (valid.length) {
++      buff.eles = valid
++      if (b['excludeEles'] === true) buff.excludeEles = true
++    }
++  }
++  return buff
++}
++
+ export const customCharacterGrowCurves = [
+   'GROW_CURVE_HP_S4',
+   'GROW_CURVE_ATTACK_S4',
+@@ -169,6 +296,8 @@ export type CustomCharacterDataDef = CustomCharacterBase & {
+   passive3?: CustomCharacterText
+   /** Passives beyond the three standard ones; the first is shown in GO */
+   otherPassives?: CustomCharacterText[]
++  /** Stat bonuses from passives and constellations */
++  buffs?: CustomCharacterBuff[]
+   constellations: CustomCharacterText[]
+   /**
+    * File names of the source site's images (without extension), per slot.
+@@ -393,6 +522,11 @@ function validateDataDef(
+     passive2: validateText(o['passive2']),
+     passive3: validateText(o['passive3']),
+     imageNames: validateImageMap(o['imageNames'], isImageName),
++    buffs: Array.isArray(o['buffs'])
++      ? o['buffs']
++          .map(validateCustomCharacterBuff)
++          .filter((b): b is CustomCharacterBuff => !!b)
++      : undefined,
+     otherPassives: Array.isArray(o['otherPassives'])
+       ? o['otherPassives'].map(validateText).filter((c) => !!c)
+       : undefined,
+diff --git a/libs/gi/localization/assets/locales/en/page_character.json b/libs/gi/localization/assets/locales/en/page_character.json
+index 7638cdba..09e149f4 100644
+--- a/libs/gi/localization/assets/locales/en/page_character.json
++++ b/libs/gi/localization/assets/locales/en/page_character.json
+@@ -179,6 +179,28 @@
+       "constellation5": "C5 icon",
+       "constellation6": "C6 icon",
+       "passive": "Passive 4 icon"
++    },
++    "buffs": "Buffs",
++    "buffsHelp": "Stat bonuses from passives and constellations. They apply once the passive or constellation is unlocked; team buffs show under \"Received Team Buffs\" of every party member. Buffs with a toggle name get a toggle (buffs sharing a name share it).",
++    "buff": {
++      "source": "From",
++      "stat": "Stat",
++      "value": "Value",
++      "valuePer": "Value per {{per}} {{stat}}",
++      "target": "Who",
++      "targetSelf": "This character",
++      "targetTeam": "Whole party",
++      "condition": "Toggle name (optional)",
++      "conditionPlaceholder": "e.g. After Elemental Skill",
++      "scaling": "Scales with",
++      "noScaling": "Nothing",
++      "per": "Per",
++      "max": "Max (optional)",
++      "elements": "Only party members of:",
++      "excludeEles": "All except these",
++      "remove": "Remove buff",
++      "add": "Add Buff",
++      "invalid": "A number in this buff is invalid."
+     }
+   }
+ }
+diff --git a/libs/gi/localization/assets/locales/id/page_character.json b/libs/gi/localization/assets/locales/id/page_character.json
+index 11346e6b..abfe447e 100644
+--- a/libs/gi/localization/assets/locales/id/page_character.json
++++ b/libs/gi/localization/assets/locales/id/page_character.json
+@@ -114,6 +114,28 @@
+       "constellation5": "Ikon C5",
+       "constellation6": "Ikon C6",
+       "passive": "Ikon pasif 4"
++    },
++    "buffs": "Buff",
++    "buffsHelp": "Bonus stat dari pasif dan konstelasi. Buff aktif setelah pasif/konstelasinya terbuka; buff tim muncul di \"Received Team Buffs\" setiap anggota party. Buff dengan nama toggle mendapat toggle (buff dengan nama yang sama memakai toggle yang sama).",
++    "buff": {
++      "source": "Dari",
++      "stat": "Stat",
++      "value": "Nilai",
++      "valuePer": "Nilai per {{per}} {{stat}}",
++      "target": "Untuk",
++      "targetSelf": "Karakter ini",
++      "targetTeam": "Seluruh party",
++      "condition": "Nama toggle (opsional)",
++      "conditionPlaceholder": "mis. Setelah Elemental Skill",
++      "scaling": "Skala dari",
++      "noScaling": "Tidak ada",
++      "per": "Per",
++      "max": "Maksimal (opsional)",
++      "elements": "Hanya anggota party:",
++      "excludeEles": "Semua kecuali ini",
++      "remove": "Hapus buff",
++      "add": "Tambah Buff",
++      "invalid": "Ada angka yang tidak valid di buff ini."
+     }
+   }
+ }
+diff --git a/libs/gi/sheets/src/Characters/customDataSheet.tsx b/libs/gi/sheets/src/Characters/customDataSheet.tsx
+index 9ea80d79..6f12095a 100644
+--- a/libs/gi/sheets/src/Characters/customDataSheet.tsx
++++ b/libs/gi/sheets/src/Characters/customDataSheet.tsx
+@@ -1,6 +1,8 @@
+ import type {
+   CharacterKey,
+   CharacterSheetKey,
++  CustomCharacterBuff,
++  CustomCharacterBuffSource,
+   CustomCharacterDataDef,
+   CustomCharacterTalent,
+   CustomCharacterTalentKey,
+@@ -8,9 +10,24 @@ import type {
+ } from '@genshin-optimizer/gi/consts'
+ import { customCharacterRowLabels } from '@genshin-optimizer/gi/consts'
+ import type { Data, NumNode } from '@genshin-optimizer/gi/wr'
+-import { constant, greaterEq, infoMut, input } from '@genshin-optimizer/gi/wr'
++import {
++  constant,
++  equal,
++  greaterEq,
++  infoMut,
++  input,
++  min,
++  percent,
++  prod,
++  sum,
++  target,
++  unequal,
++} from '@genshin-optimizer/gi/wr'
+ import type { IFieldDisplay } from '../fieldDisplay'
++import { cond } from '../SheetUtil'
++import type { DocumentSection } from '../sheet'
+ import { CharacterSheet } from './CharacterSheet'
++import type { ICharacterTemplate } from './charTemplates'
+ import { charTemplates } from './charTemplates'
+ import {
+   dataObjForCharacterSheet,
+@@ -112,6 +129,106 @@ function boostedTalent(
+   return undefined
+ }
+ 
++/** A buff only counts once its passive or constellation is unlocked. */
++function unlocked(source: CustomCharacterBuffSource, node: NumNode): NumNode {
++  if (source === 'passive1') return greaterEq(input.asc, 1, node)
++  if (source === 'passive2') return greaterEq(input.asc, 4, node)
++  const c = source.match(/^constellation(\d)$/)?.[1]
++  if (c) return greaterEq(input.constellation, Number(c), node)
++  return node
++}
++
++/**
++ * Formulas for a character's buffs: stat bonuses for itself (`self`) and for
++ * the whole party (`team`), plus the sections that show them under their
++ * passive or constellation, with a toggle for each named condition.
++ */
++function buffsOf(
++  key: CharacterKey,
++  buffs: CustomCharacterBuff[],
++  ct: ICharacterTemplate
++) {
++  const self: Record<string, NumNode[]> = {}
++  const team: Record<string, NumNode[]> = {}
++  const conds = new Map<string, ReturnType<typeof cond>>()
++  const groups = new Map<
++    string,
++    {
++      source: CustomCharacterBuffSource
++      condition?: string
++      team: boolean
++      fields: IFieldDisplay[]
++    }
++  >()
++  for (const b of buffs) {
++    if (!(b.stat in input.premod)) continue
++    const isPercent = b.stat.endsWith('_')
++    const amount = (v: number) => (isPercent ? percent(v) : constant(v))
++    let node: NumNode = amount(b.value)
++    if (b.scaling)
++      node = prod(node, input.total[b.scaling.stat], 1 / b.scaling.per)
++    if (b.max !== undefined) node = min(node, amount(b.max))
++    if (b.target === 'team' && b.eles?.length) {
++      const base = node
++      node = b.excludeEles
++        ? b.eles.reduce<NumNode>((n, e) => unequal(target.charEle, e, n), base)
++        : sum(...b.eles.map((e) => equal(target.charEle, e, base)))
++    }
++    if (b.condition) {
++      let c = conds.get(b.condition)
++      if (!c) {
++        const slug = b.condition.replace(/[^a-z0-9]+/gi, '_').slice(0, 40)
++        c = cond(key, `buff_${slug}`)
++        conds.set(b.condition, c)
++      }
++      node = equal('on', c[1], node)
++    }
++    node = infoMut(unlocked(b.source, node), {
++      path: b.stat,
++      isTeamBuff: b.target === 'team',
++    })
++    const premod = b.target === 'team' ? team : self
++    premod[b.stat] = [...(premod[b.stat] ?? []), node]
++
++    const groupKey = `${b.source}|${b.condition ?? ''}`
++    const group = groups.get(groupKey) ?? {
++      source: b.source,
++      condition: b.condition,
++      team: false,
++      fields: [],
++    }
++    group.team ||= b.target === 'team'
++    group.fields.push({ node })
++    groups.set(groupKey, group)
++  }
++
++  const sections: Partial<
++    Record<CustomCharacterBuffSource, DocumentSection[]>
++  > = {}
++  for (const g of groups.values()) {
++    const section: DocumentSection = g.condition
++      ? ct.condTem(g.source, {
++          // biome-ignore lint/style/noNonNullAssertion: set for every condition above
++          path: conds.get(g.condition)![0],
++          // biome-ignore lint/style/noNonNullAssertion: set for every condition above
++          value: conds.get(g.condition)![1],
++          name: g.condition,
++          teamBuff: g.team,
++          states: { on: { fields: g.fields } },
++        })
++      : ct.headerTem(g.source, { teamBuff: g.team, fields: g.fields })
++    sections[g.source] = [...(sections[g.source] ?? []), section]
++  }
++  const total = (nodes: Record<string, NumNode[]>) =>
++    Object.fromEntries(
++      Object.entries(nodes).map(([stat, list]) => [
++        stat,
++        list.length === 1 ? list[0] : sum(...list),
++      ])
++    )
++  return { self: total(self), team: total(team), sections }
++}
++
+ export function dataSheetForCustomCharacter(
+   def: CustomCharacterDataDef
+ ): CharacterSheet {
+@@ -216,21 +333,40 @@ export function dataSheetForCustomCharacter(
+     constellationFields[i + 1] = [{ node }]
+   })
+ 
+-  const data = dataObjForCharacterSheet(key, display, { premod: boosts })
++  const buffs = buffsOf(key, def.buffs ?? [], ct)
++  const data = dataObjForCharacterSheet(key, display, {
++    premod: { ...buffs.self, ...boosts },
++    teamBuff: { premod: buffs.team },
++  })
++  const withBuffs = (
++    k: CustomCharacterBuffSource,
++    sections?: DocumentSection[]
++  ) => {
++    const all = [...(sections ?? []), ...(buffs.sections[k] ?? [])]
++    return all.length ? all : undefined
++  }
+ 
+   const sheet: TalentSheet = {
+     auto: ct.talentTem('auto', [{ fields: fields.auto }]),
+     skill: ct.talentTem('skill', [{ fields: fields.skill }]),
+     burst: ct.talentTem('burst', [{ fields: fields.burst }]),
+   }
+-  if (def.passive1) sheet.passive1 = ct.talentTem('passive1')
+-  if (def.passive2) sheet.passive2 = ct.talentTem('passive2')
+-  if (def.passive3) sheet.passive3 = ct.talentTem('passive3')
+-  if (def.otherPassives?.length) sheet.passive = ct.talentTem('passive')
++  if (def.passive1 || buffs.sections.passive1)
++    sheet.passive1 = ct.talentTem('passive1', withBuffs('passive1'))
++  if (def.passive2 || buffs.sections.passive2)
++    sheet.passive2 = ct.talentTem('passive2', withBuffs('passive2'))
++  if (def.passive3 || buffs.sections.passive3)
++    sheet.passive3 = ct.talentTem('passive3', withBuffs('passive3'))
++  if (def.otherPassives?.length || buffs.sections.passive)
++    sheet.passive = ct.talentTem('passive', withBuffs('passive'))
+   def.constellations.forEach((_, i) => {
+-    const ck = `constellation${i + 1}` as TalentSheetElementKey
++    const ck = `constellation${i + 1}` as CustomCharacterBuffSource &
++      TalentSheetElementKey
+     const cFields = constellationFields[i + 1]
+-    sheet[ck] = ct.talentTem(ck, cFields ? [{ fields: cFields }] : undefined)
++    sheet[ck] = ct.talentTem(
++      ck,
++      withBuffs(ck, cFields ? [{ fields: cFields }] : undefined)
++    )
+   })
+   return new CharacterSheet(sheet, data)
+ }
+diff --git a/libs/gi/ui/src/components/character/CustomCharacterBuffEditor.tsx b/libs/gi/ui/src/components/character/CustomCharacterBuffEditor.tsx
+new file mode 100644
+index 00000000..fc8b7ed3
+--- /dev/null
++++ b/libs/gi/ui/src/components/character/CustomCharacterBuffEditor.tsx
+@@ -0,0 +1,369 @@
++import { iconInlineProps } from '@genshin-optimizer/common/svgicons'
++import { CardThemed } from '@genshin-optimizer/common/ui'
++import type {
++  CustomCharacterBuff,
++  CustomCharacterBuffSource,
++  CustomCharacterBuffStat,
++  CustomCharacterDataDef,
++  ElementKey,
++} from '@genshin-optimizer/gi/consts'
++import {
++  allElementKeys,
++  customCharacterBuffSources,
++  customCharacterBuffStats,
++  validateCustomCharacterBuff,
++} from '@genshin-optimizer/gi/consts'
++import { KeyMap } from '@genshin-optimizer/gi/keymap'
++import { ElementIcon } from '@genshin-optimizer/gi/svgicons'
++import AddIcon from '@mui/icons-material/Add'
++import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
++import {
++  Box,
++  Button,
++  CardContent,
++  Checkbox,
++  FormControlLabel,
++  Grid,
++  IconButton,
++  InputAdornment,
++  MenuItem,
++  TextField,
++  Typography,
++} from '@mui/material'
++import { useTranslation } from 'react-i18next'
++
++/** A buff as edited: numbers as typed, percentages in % */
++export type BuffRow = {
++  source: CustomCharacterBuffSource
++  stat: CustomCharacterBuffStat
++  value: string
++  target: 'self' | 'team'
++  scalingStat: '' | 'atk' | 'hp' | 'def' | 'eleMas'
++  scalingPer: string
++  max: string
++  condition: string
++  eles: ElementKey[]
++  excludeEles: boolean
++}
++
++const isPercentStat = (stat: string) => stat.endsWith('_')
++const num = (s: string) => (s.trim() === '' ? Number.NaN : Number(s))
++const show = (n: number) => `${+n.toFixed(6)}`
++/** % to fraction without float noise: 0.7 -> 0.007, not 0.006999999999999999 */
++const fromPercent = (n: number) => Number((n / 100).toPrecision(12))
++
++export function buffToRow(b: CustomCharacterBuff): BuffRow {
++  const pct = isPercentStat(b.stat)
++  return {
++    source: b.source,
++    stat: b.stat,
++    value: show(pct ? b.value * 100 : b.value),
++    target: b.target,
++    scalingStat: b.scaling?.stat ?? '',
++    scalingPer: b.scaling ? show(b.scaling.per) : '100',
++    max: b.max === undefined ? '' : show(pct ? b.max * 100 : b.max),
++    condition: b.condition ?? '',
++    eles: b.eles ?? [],
++    excludeEles: !!b.excludeEles,
++  }
++}
++
++/** The buff a row describes, or `undefined` if a number is invalid. */
++export function rowToBuff(r: BuffRow): CustomCharacterBuff | undefined {
++  const pct = isPercentStat(r.stat)
++  const value = num(r.value)
++  if (!Number.isFinite(value)) return undefined
++  const max = r.max.trim() === '' ? undefined : num(r.max)
++  if (max !== undefined && !Number.isFinite(max)) return undefined
++  const per = num(r.scalingPer)
++  if (r.scalingStat && !(Number.isFinite(per) && per > 0)) return undefined
++  return validateCustomCharacterBuff({
++    source: r.source,
++    stat: r.stat,
++    value: pct ? fromPercent(value) : value,
++    target: r.target,
++    scaling: r.scalingStat ? { stat: r.scalingStat, per } : undefined,
++    max: max === undefined ? undefined : pct ? fromPercent(max) : max,
++    condition: r.condition,
++    eles: r.target === 'team' ? r.eles : undefined,
++    excludeEles: r.excludeEles,
++  })
++}
++
++const newRow = (): BuffRow => ({
++  source: 'passive1',
++  stat: 'atk_',
++  value: '',
++  target: 'team',
++  scalingStat: '',
++  scalingPer: '100',
++  max: '',
++  condition: '',
++  eles: [],
++  excludeEles: false,
++})
++
++/** Labels like "A1 · The Radiant Reign of Night" for each buff source. */
++function sourceLabels(def: CustomCharacterDataDef) {
++  const name = (t?: { name: string }) => (t?.name ? ` · ${t.name}` : '')
++  return {
++    passive1: `A1${name(def.passive1)}`,
++    passive2: `A4${name(def.passive2)}`,
++    passive3: `P3${name(def.passive3)}`,
++    passive: `P4${name(def.otherPassives?.[0])}`,
++    ...Object.fromEntries(
++      [1, 2, 3, 4, 5, 6].map((i) => [
++        `constellation${i}`,
++        `C${i}${name(def.constellations[i - 1])}`,
++      ])
++    ),
++  } as Record<CustomCharacterBuffSource, string>
++}
++
++/**
++ * Edits the buffs of an imported custom character: which passive or
++ * constellation gives them, the stat and value, who receives them, and an
++ * optional toggle, ATK/HP/DEF/EM scaling, cap and element filter.
++ */
++export function CustomCharacterBuffEditor({
++  def,
++  rows,
++  setRows,
++}: {
++  def: CustomCharacterDataDef
++  rows: BuffRow[]
++  setRows: (rows: BuffRow[]) => void
++}) {
++  const { t } = useTranslation('page_character')
++  const sources = sourceLabels(def)
++  const update = (i: number, partial: Partial<BuffRow>) =>
++    setRows(rows.map((r, j) => (j === i ? { ...r, ...partial } : r)))
++
++  return (
++    <Box display="flex" flexDirection="column" gap={1}>
++      {rows.map((r, i) => {
++        const pct = isPercentStat(r.stat)
++        const percentAdornment = pct
++          ? { endAdornment: <InputAdornment position="end">%</InputAdornment> }
++          : undefined
++        const invalid = !rowToBuff(r)
++        return (
++          <CardThemed bgt="light" key={i}>
++            <CardContent>
++              <Grid container spacing={1} alignItems="center">
++                <Grid item xs={12} md={4}>
++                  <TextField
++                    select
++                    fullWidth
++                    size="small"
++                    label={t('customChar.buff.source')}
++                    value={r.source}
++                    onChange={(e) =>
++                      update(i, {
++                        source: e.target.value as CustomCharacterBuffSource,
++                      })
++                    }
++                  >
++                    {customCharacterBuffSources.map((s) => (
++                      <MenuItem key={s} value={s}>
++                        {sources[s]}
++                      </MenuItem>
++                    ))}
++                  </TextField>
++                </Grid>
++                <Grid item xs={12} md={4}>
++                  <TextField
++                    select
++                    fullWidth
++                    size="small"
++                    label={t('customChar.buff.stat')}
++                    value={r.stat}
++                    onChange={(e) =>
++                      update(i, {
++                        stat: e.target.value as CustomCharacterBuffStat,
++                      })
++                    }
++                  >
++                    {customCharacterBuffStats.map((s) => (
++                      <MenuItem key={s} value={s}>
++                        {KeyMap.get(s)}
++                      </MenuItem>
++                    ))}
++                  </TextField>
++                </Grid>
++                <Grid item xs={6} md={2}>
++                  <TextField
++                    fullWidth
++                    size="small"
++                    label={
++                      r.scalingStat
++                        ? t('customChar.buff.valuePer', {
++                            per: r.scalingPer,
++                            stat: KeyMap.get(r.scalingStat),
++                          })
++                        : t('customChar.buff.value')
++                    }
++                    value={r.value}
++                    error={!Number.isFinite(num(r.value))}
++                    onChange={(e) => update(i, { value: e.target.value })}
++                    InputProps={percentAdornment}
++                    inputProps={{ inputMode: 'decimal' }}
++                  />
++                </Grid>
++                <Grid item xs={6} md={2}>
++                  <TextField
++                    select
++                    fullWidth
++                    size="small"
++                    label={t('customChar.buff.target')}
++                    value={r.target}
++                    onChange={(e) =>
++                      update(i, {
++                        target: e.target.value as 'self' | 'team',
++                      })
++                    }
++                  >
++                    <MenuItem value="self">
++                      {t('customChar.buff.targetSelf')}
++                    </MenuItem>
++                    <MenuItem value="team">
++                      {t('customChar.buff.targetTeam')}
++                    </MenuItem>
++                  </TextField>
++                </Grid>
++                <Grid item xs={12} md={4}>
++                  <TextField
++                    fullWidth
++                    size="small"
++                    label={t('customChar.buff.condition')}
++                    placeholder={t('customChar.buff.conditionPlaceholder')}
++                    value={r.condition}
++                    onChange={(e) => update(i, { condition: e.target.value })}
++                  />
++                </Grid>
++                <Grid item xs={6} md={2}>
++                  <TextField
++                    select
++                    fullWidth
++                    size="small"
++                    label={t('customChar.buff.scaling')}
++                    value={r.scalingStat}
++                    onChange={(e) =>
++                      update(i, {
++                        scalingStat: e.target.value as BuffRow['scalingStat'],
++                      })
++                    }
++                  >
++                    <MenuItem value="">
++                      {t('customChar.buff.noScaling')}
++                    </MenuItem>
++                    {(['atk', 'hp', 'def', 'eleMas'] as const).map((s) => (
++                      <MenuItem key={s} value={s}>
++                        {KeyMap.get(s)}
++                      </MenuItem>
++                    ))}
++                  </TextField>
++                </Grid>
++                <Grid item xs={6} md={2}>
++                  <TextField
++                    fullWidth
++                    size="small"
++                    disabled={!r.scalingStat}
++                    label={t('customChar.buff.per')}
++                    value={r.scalingPer}
++                    error={!!r.scalingStat && !(num(r.scalingPer) > 0)}
++                    onChange={(e) => update(i, { scalingPer: e.target.value })}
++                    inputProps={{ inputMode: 'decimal' }}
++                  />
++                </Grid>
++                <Grid item xs={6} md={2}>
++                  <TextField
++                    fullWidth
++                    size="small"
++                    label={t('customChar.buff.max')}
++                    value={r.max}
++                    error={r.max.trim() !== '' && !Number.isFinite(num(r.max))}
++                    onChange={(e) => update(i, { max: e.target.value })}
++                    InputProps={percentAdornment}
++                    inputProps={{ inputMode: 'decimal' }}
++                  />
++                </Grid>
++                <Grid item xs={6} md={2} textAlign="right">
++                  <IconButton
++                    color="error"
++                    aria-label={t('customChar.buff.remove')}
++                    onClick={() => setRows(rows.filter((_, j) => j !== i))}
++                  >
++                    <DeleteForeverIcon />
++                  </IconButton>
++                </Grid>
++                {r.target === 'team' && (
++                  <Grid item xs={12}>
++                    <Box
++                      display="flex"
++                      gap={1}
++                      alignItems="center"
++                      flexWrap="wrap"
++                    >
++                      <Typography variant="body2" color="text.secondary">
++                        {t('customChar.buff.elements')}
++                      </Typography>
++                      {allElementKeys.map((e) => (
++                        <FormControlLabel
++                          key={e}
++                          sx={{ mr: 0.5 }}
++                          control={
++                            <Checkbox
++                              size="small"
++                              checked={r.eles.includes(e)}
++                              onChange={(_, checked) =>
++                                update(i, {
++                                  eles: checked
++                                    ? [...r.eles, e]
++                                    : r.eles.filter((x) => x !== e),
++                                })
++                              }
++                            />
++                          }
++                          label={
++                            <ElementIcon ele={e} iconProps={iconInlineProps} />
++                          }
++                        />
++                      ))}
++                      <FormControlLabel
++                        control={
++                          <Checkbox
++                            size="small"
++                            disabled={!r.eles.length}
++                            checked={r.excludeEles}
++                            onChange={(_, checked) =>
++                              update(i, { excludeEles: checked })
++                            }
++                          />
++                        }
++                        label={t('customChar.buff.excludeEles')}
++                      />
++                    </Box>
++                  </Grid>
++                )}
++                {invalid && (
++                  <Grid item xs={12}>
++                    <Typography variant="body2" color="error">
++                      {t('customChar.buff.invalid')}
++                    </Typography>
++                  </Grid>
++                )}
++              </Grid>
++            </CardContent>
++          </CardThemed>
++        )
++      })}
++      <Button
++        startIcon={<AddIcon />}
++        onClick={() => setRows([...rows, newRow()])}
++      >
++        {t('customChar.buff.add')}
++      </Button>
++    </Box>
++  )
++}
+diff --git a/libs/gi/ui/src/components/character/CustomCharacterDataForm.tsx b/libs/gi/ui/src/components/character/CustomCharacterDataForm.tsx
+index a4a6ece2..fd319538 100644
+--- a/libs/gi/ui/src/components/character/CustomCharacterDataForm.tsx
++++ b/libs/gi/ui/src/components/character/CustomCharacterDataForm.tsx
+@@ -50,6 +50,12 @@ import {
+ import { useMemo, useState } from 'react'
+ import { useTranslation } from 'react-i18next'
+ import { ArtifactIconStatWithUnit } from '../artifact/ArtifactStatKeyDisplay'
++import type { BuffRow } from './CustomCharacterBuffEditor'
++import {
++  buffToRow,
++  CustomCharacterBuffEditor,
++  rowToBuff,
++} from './CustomCharacterBuffEditor'
+ 
+ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+ const isPercentStat = (stat: string) => stat.endsWith('_')
+@@ -57,6 +63,8 @@ const num = (s: string) => (s.trim() === '' ? Number.NaN : Number(s))
+ const valid = (n: number) => Number.isFinite(n) && n >= 0
+ /** Shows a value without float noise, e.g. 0.396193 * 100 -> "39.6193" */
+ const show = (n: number, digits = 4) => `${+n.toFixed(digits)}`
++/** % to fraction without float noise: 39.6193 -> 0.396193 */
++const fromPercent = (n: number) => Number((n / 100).toPrecision(12))
+ 
+ /** Existing (non-custom, non-Traveler) characters, for images. */
+ export function imageTemplateKeys(): CharacterKey[] {
+@@ -156,6 +164,9 @@ export function CustomCharacterDataForm({
+       ) as Record<CustomCharacterImageKey, string>
+   )
+   const [exampleUrl, setExampleUrl] = useState('')
++  const [buffRows, setBuffRows] = useState<BuffRow[]>(() =>
++    (def.buffs ?? []).map(buffToRow)
++  )
+   const imageValid = (url: string) => !url || isCustomCharacterImageUrl(url)
+   const fromExample =
+     def.imageNames && exampleUrl
+@@ -177,7 +188,8 @@ export function CustomCharacterDataForm({
+   const canSave =
+     Object.values(statNums).every(valid) &&
+     paramsValid &&
+-    Object.values(images).every(imageValid)
++    Object.values(images).every(imageValid) &&
++    buffRows.every((r) => !!rowToBuff(r))
+ 
+   const save = () => {
+     if (!canSave) return
+@@ -185,7 +197,7 @@ export function CustomCharacterDataForm({
+       ...statNums,
+       ascStat: stats.ascStat,
+       ascValue: isPercentStat(stats.ascStat)
+-        ? statNums.ascValue / 100
++        ? fromPercent(statNums.ascValue)
+         : statNums.ascValue,
+     })
+     const talents = Object.fromEntries(
+@@ -194,7 +206,9 @@ export function CustomCharacterDataForm({
+         {
+           ...def.talents[k],
+           params: params[k].map((row, i) =>
+-            row.map((v) => (infos[k][i]?.percent ? num(v) / 100 : num(v)))
++            row.map((v) =>
++              infos[k][i]?.percent ? fromPercent(num(v)) : num(v)
++            )
+           ),
+         },
+       ])
+@@ -208,6 +222,10 @@ export function CustomCharacterDataForm({
+       rarity,
+       ...scaled,
+       talents,
++      buffs: buffRows.flatMap((r) => {
++        const buff = rowToBuff(r)
++        return buff ? [buff] : []
++      }),
+       images: Object.fromEntries(
+         Object.entries(images).filter(([, url]) => url.trim())
+       ) as CustomCharacterImages,
+@@ -478,6 +496,16 @@ export function CustomCharacterDataForm({
+         </Table>
+       </Box>
+ 
++      <Typography variant="subtitle1">{t('customChar.buffs')}</Typography>
++      <Typography variant="body2" color="text.secondary">
++        {t('customChar.buffsHelp')}
++      </Typography>
++      <CustomCharacterBuffEditor
++        def={def}
++        rows={buffRows}
++        setRows={setBuffRows}
++      />
++
+       <Box display="flex" gap={1} justifyContent="flex-end">
+         <Button color="secondary" onClick={onCancel}>
+           {t('customChar.cancel')}
+diff --git a/libs/gi/ui/src/components/character/CustomCharacterModal.tsx b/libs/gi/ui/src/components/character/CustomCharacterModal.tsx
+index 90b32996..ba08b4e8 100644
+--- a/libs/gi/ui/src/components/character/CustomCharacterModal.tsx
++++ b/libs/gi/ui/src/components/character/CustomCharacterModal.tsx
+@@ -120,6 +120,8 @@ function importPack(
+           template: existing.template,
+           // image URLs set in GO win over the pack's
+           images: { ...char.images, ...existing.images },
++          // a pack without buffs keeps the buffs set in GO
++          buffs: char.buffs ?? existing.buffs,
+         }
+       : {
+           ...char,
+diff --git a/tools/custom-characters/buffs/10000149.json b/tools/custom-characters/buffs/10000149.json
+new file mode 100644
+index 00000000..afed0015
+--- /dev/null
++++ b/tools/custom-characters/buffs/10000149.json
+@@ -0,0 +1,128 @@
++{
++  "name": "Anastasya",
++  "notes": [
++    "Written by hand from the passive and constellation descriptions.",
++    "Not included: A4 (Stellar Swirl base reaction multiplier +15%, no matching GO stat), C2 Honor (125% of original DMG), C6 extra attacks.",
++    "Blessing of Love (Elemental Skill tapped) and Blessing of Honor (held) are separate toggles; turn on only one."
++  ],
++  "buffs": [
++    {
++      "source": "passive1",
++      "stat": "critDMG_",
++      "value": 0.12,
++      "target": "team",
++      "condition": "Accolades (after Elemental Skill)"
++    },
++    {
++      "source": "passive3",
++      "stat": "stellarconduct_baseDmg_",
++      "value": 0.007,
++      "scaling": { "stat": "atk", "per": 100 },
++      "max": 0.14,
++      "target": "team"
++    },
++    {
++      "source": "passive3",
++      "stat": "stellarswirl_baseDmg_",
++      "value": 0.007,
++      "scaling": { "stat": "atk", "per": 100 },
++      "max": 0.14,
++      "target": "team"
++    },
++    {
++      "source": "constellation1",
++      "stat": "atk_",
++      "value": 0.15,
++      "target": "team",
++      "condition": "Accolades (after Elemental Skill)",
++      "eles": ["cryo"]
++    },
++    {
++      "source": "constellation1",
++      "stat": "eleMas",
++      "value": 60,
++      "target": "team",
++      "condition": "Accolades (after Elemental Skill)",
++      "eles": ["cryo"],
++      "excludeEles": true
++    },
++    {
++      "source": "constellation2",
++      "stat": "stellarconduct_critDMG_",
++      "value": 0.6,
++      "target": "team",
++      "condition": "Blessing of Love (Elemental Skill tapped)"
++    },
++    {
++      "source": "constellation2",
++      "stat": "stellarswirl_critDMG_",
++      "value": 0.6,
++      "target": "team",
++      "condition": "Blessing of Love (Elemental Skill tapped)"
++    },
++    {
++      "source": "constellation2",
++      "stat": "stellarconduct_specialDmg_",
++      "value": 0.05,
++      "target": "team"
++    },
++    {
++      "source": "constellation2",
++      "stat": "stellarswirl_specialDmg_",
++      "value": 0.05,
++      "target": "team"
++    },
++    {
++      "source": "constellation4",
++      "stat": "critDMG_",
++      "value": 0.036,
++      "target": "team",
++      "condition": "Accolades (after Elemental Skill)"
++    },
++    {
++      "source": "constellation4",
++      "stat": "atk_",
++      "value": 0.045,
++      "target": "team",
++      "condition": "Accolades (after Elemental Skill)",
++      "eles": ["cryo"]
++    },
++    {
++      "source": "constellation4",
++      "stat": "eleMas",
++      "value": 18,
++      "target": "team",
++      "condition": "Accolades (after Elemental Skill)",
++      "eles": ["cryo"],
++      "excludeEles": true
++    },
++    {
++      "source": "constellation6",
++      "stat": "stellarconduct_specialDmg_",
++      "value": 0.1,
++      "target": "team",
++      "condition": "Blessing of Love (Elemental Skill tapped)"
++    },
++    {
++      "source": "constellation6",
++      "stat": "stellarswirl_specialDmg_",
++      "value": 0.1,
++      "target": "team",
++      "condition": "Blessing of Love (Elemental Skill tapped)"
++    },
++    {
++      "source": "constellation6",
++      "stat": "stellarconduct_specialDmg_",
++      "value": 0.2,
++      "target": "self",
++      "condition": "Blessing of Honor (Elemental Skill held)"
++    },
++    {
++      "source": "constellation6",
++      "stat": "stellarswirl_specialDmg_",
++      "value": 0.2,
++      "target": "self",
++      "condition": "Blessing of Honor (Elemental Skill held)"
++    }
++  ]
++}
+diff --git a/tools/custom-characters/nanoka-to-go.mjs b/tools/custom-characters/nanoka-to-go.mjs
+index 36906b9b..e4a9314a 100644
+--- a/tools/custom-characters/nanoka-to-go.mjs
++++ b/tools/custom-characters/nanoka-to-go.mjs
+@@ -16,10 +16,21 @@
+  * full image URLs: every name gets that address's folder and extension.
+  * Image URLs can also be filled in later, in GO's custom character editor.
+  *
++ * Buffs (stat bonuses from passives and constellations) are not in the source
++ * data. When `buffs/<character id>.json` exists next to this script, its
++ * `buffs` are added to that character. Buffs can also be edited in GO.
++ *
+  * Only Node.js built-ins are used, so the script runs without `yarn install`.
+  */
+-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+-import { join } from 'node:path'
++import {
++  existsSync,
++  readdirSync,
++  readFileSync,
++  statSync,
++  writeFileSync,
++} from 'node:fs'
++import { dirname, join } from 'node:path'
++import { fileURLToPath } from 'node:url'
+ 
+ export const PACK_FORMAT = 'genshin-optimizer-custom-characters'
+ export const PACK_VERSION = 1
+@@ -272,6 +283,19 @@ export function imagesFromExample(imageNames, exampleUrl) {
+   )
+ }
+ 
++/** Hand-written buffs for a character, from `buffs/<id>.json`, if any. */
++function buffPreset(sourceId) {
++  if (!sourceId) return undefined
++  const file = join(
++    dirname(fileURLToPath(import.meta.url)),
++    'buffs',
++    `${sourceId}.json`
++  )
++  if (!existsSync(file)) return undefined
++  const { buffs } = JSON.parse(readFileSync(file, 'utf8'))
++  return Array.isArray(buffs) ? buffs : undefined
++}
++
+ export function makePack(characters, source = 'gi.nanoka.cc') {
+   return {
+     format: PACK_FORMAT,
+@@ -325,6 +349,13 @@ function main(argv) {
+     }
+     const char = convertNanokaCharacter(data, id ? Number(id) : null)
+     if (imageUrl) char.images = imagesFromExample(char.imageNames, imageUrl)
++    const buffs = buffPreset(char.sourceId)
++    if (buffs) {
++      char.buffs = buffs
++      console.error(
++        `  + ${buffs.length} buffs from buffs/${char.sourceId}.json`
++      )
++    }
+     characters.push(char)
+     console.error(`Converted ${char.name} (${file})`)
+   }
+-- 
+2.43.0
+

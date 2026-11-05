@@ -1,0 +1,637 @@
+From 7f511584b50d09dcd6ab97ecca637a6f19e8276c Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 5 Nov 2026 13:17:09 +0000
+Subject: [PATCH] feat(gi): team combo DPS in Team Settings
+
+Pick Custom Multi Targets of each team member, with how many times each
+is done per rotation. Their damage is summed and divided by a rotation
+length (seconds, default 20) for team DPS, with each member's share.
+Each member's targets are computed with its own team data, so values
+match its Overview. The choice is stored on the team and kept through
+team export/import.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Asb8vZRqeTYT9zLpVizGNv
+---
+ .../Database/DataManagers/TeamDataManager.ts  | 102 +++++-
+ libs/gi/db/src/Database/DataManagers/index.ts |   7 +-
+ libs/gi/db/src/Database/migrate.ts            |   4 +-
+ .../assets/locales/en/page_team.json          |  12 +-
+ .../assets/locales/id/page_team.json          |  14 +
+ .../page-team/src/TeamSetting/TeamCombo.tsx   | 328 ++++++++++++++++++
+ libs/gi/page-team/src/TeamSetting/index.tsx   |   2 +
+ 7 files changed, 457 insertions(+), 12 deletions(-)
+ create mode 100644 libs/gi/localization/assets/locales/id/page_team.json
+ create mode 100644 libs/gi/page-team/src/TeamSetting/TeamCombo.tsx
+
+diff --git a/libs/gi/db/src/Database/DataManagers/TeamDataManager.ts b/libs/gi/db/src/Database/DataManagers/TeamDataManager.ts
+index dceeb13c..76cc6690 100644
+--- a/libs/gi/db/src/Database/DataManagers/TeamDataManager.ts
++++ b/libs/gi/db/src/Database/DataManagers/TeamDataManager.ts
+@@ -51,7 +51,22 @@ export interface Team {
+   }
+   loadoutData: Array<LoadoutDatum | undefined>
+   lastEdit: number
++  /** Team combo: custom multi-targets of the members, summed over a rotation */
++  combo: TeamCombo
+ }
++/** A custom multi-target of a team member, done `count` times per rotation */
++export type TeamComboPick = {
++  teamCharId: string
++  /** Index in the team character's `customMultiTargets` */
++  target: number
++  count: number
++}
++export type TeamCombo = {
++  /** Rotation length in seconds, used for DPS */
++  rotationTime: number
++  picks: TeamComboPick[]
++}
++export const defTeamCombo = (): TeamCombo => ({ rotationTime: 20, picks: [] })
+ export type LoadoutExportSetting = {
+   convertEquipped: boolean
+   convertbuilds: string[]
+@@ -94,6 +109,7 @@ export class TeamDataManager extends DataManager<
+       conditional,
+       loadoutData,
+       lastEdit,
++      combo,
+     } = obj as Team
+     if (typeof name !== 'string') name = this.newName()
+     if (typeof description !== 'string') description = ''
+@@ -204,6 +220,8 @@ export class TeamDataManager extends DataManager<
+ 
+     if (typeof lastEdit !== 'number') lastEdit = Date.now()
+ 
++    combo = this.validateCombo(combo)
++
+     return {
+       name,
+       description,
+@@ -211,6 +229,48 @@ export class TeamDataManager extends DataManager<
+       conditional,
+       loadoutData,
+       lastEdit,
++      combo,
++    }
++  }
++  private validateCombo(combo: unknown): TeamCombo {
++    if (typeof combo !== 'object' || combo === null) return defTeamCombo()
++    const { rotationTime, picks } = combo as Partial<TeamCombo>
++    const seen = new Set<string>()
++    return {
++      rotationTime:
++        typeof rotationTime === 'number' &&
++        Number.isFinite(rotationTime) &&
++        rotationTime > 0
++          ? rotationTime
++          : 20,
++      picks: Array.isArray(picks)
++        ? picks.flatMap((pick) => {
++            if (typeof pick !== 'object' || pick === null) return []
++            const { teamCharId, target, count } = pick as TeamComboPick
++            if (
++              typeof teamCharId !== 'string' ||
++              !this.database.teamChars.get(teamCharId) ||
++              !Number.isInteger(target) ||
++              target < 0
++            )
++              return []
++            const id = `${teamCharId}:${target}`
++            if (seen.has(id)) return []
++            seen.add(id)
++            return [
++              {
++                teamCharId,
++                target,
++                count:
++                  typeof count === 'number' &&
++                  Number.isFinite(count) &&
++                  count > 0
++                    ? count
++                    : 1,
++              },
++            ]
++          })
++        : [],
+     }
+   }
+   new(value: Partial<Team> = {}): string {
+@@ -235,9 +295,19 @@ export class TeamDataManager extends DataManager<
+   ): object {
+     const team = this.database.teams.get(teamId)
+     if (!team) return {}
+-    const { loadoutData, ...rest } = team
++    const { loadoutData, combo, ...rest } = team
++    // combo picks refer to team members by slot, and to exported targets by
++    // their new index
++    const picks = combo.picks.flatMap(({ teamCharId, target, count }) => {
++      const slot = loadoutData.findIndex((ld) => ld?.teamCharId === teamCharId)
++      if (slot < 0) return []
++      const exported = loadoutDataExportSetting[slot]?.exportCustomMultiTarget
++      const newTarget = exported ? exported.indexOf(target) : target
++      return newTarget < 0 ? [] : [{ slot, target: newTarget, count }]
++    })
+     return {
+       ...rest,
++      combo: { rotationTime: combo.rotationTime, picks },
+       loadoutData: loadoutData.map(
+         (loadoutData, i) =>
+           loadoutData?.teamCharId &&
+@@ -249,18 +319,34 @@ export class TeamDataManager extends DataManager<
+     }
+   }
+   import(data: object): string {
+-    const { loadoutData, ...rest } = data as Team & { loadoutData: object[] }
++    const { loadoutData, combo, ...rest } = data as Omit<Team, 'combo'> & {
++      loadoutData: object[]
++      combo?: { rotationTime?: number; picks?: { slot?: number }[] }
++    }
+     const id = this.generateKey()
++    const newLoadoutData = loadoutData.map(
++      (obj) =>
++        obj && {
++          teamCharId: this.database.teamChars.import(obj),
++        }
++    )
+     if (
+       !this.set(id, {
+         ...rest,
+         name: `${rest.name ?? ''} (Imported)`,
+-        loadoutData: loadoutData.map(
+-          (obj) =>
+-            obj && {
+-              teamCharId: this.database.teamChars.import(obj),
+-            }
+-        ),
++        loadoutData: newLoadoutData,
++        combo: {
++          rotationTime: combo?.rotationTime,
++          picks: (Array.isArray(combo?.picks) ? combo.picks : []).map(
++            ({ slot, ...pick }) => ({
++              ...pick,
++              teamCharId:
++                typeof slot === 'number'
++                  ? newLoadoutData[slot]?.teamCharId
++                  : undefined,
++            })
++          ),
++        },
+       } as Team)
+     )
+       return ''
+diff --git a/libs/gi/db/src/Database/DataManagers/index.ts b/libs/gi/db/src/Database/DataManagers/index.ts
+index 07441f69..78673504 100644
+--- a/libs/gi/db/src/Database/DataManagers/index.ts
++++ b/libs/gi/db/src/Database/DataManagers/index.ts
+@@ -71,8 +71,10 @@ import type {
+   LoadoutDatum,
+   LoadoutExportSetting,
+   Team,
++  TeamCombo,
++  TeamComboPick,
+ } from './TeamDataManager'
+-import { defLoadoutExportSetting } from './TeamDataManager'
++import { defLoadoutExportSetting, defTeamCombo } from './TeamDataManager'
+ import type { ICachedWeapon } from './WeaponDataManager'
+ import {
+   defaultInitialWeapon,
+@@ -117,6 +119,8 @@ export type {
+   StatFilters,
+   Team,
+   TeamCharacter,
++  TeamCombo,
++  TeamComboPick,
+ }
+ export {
+   allArtifactSetExclusionKeys,
+@@ -124,6 +128,7 @@ export {
+   defaultInitialWeapon,
+   defaultInitialWeaponKey,
+   defLoadoutExportSetting,
++  defTeamCombo,
+   handleArtSetExclusion,
+   initCharTC,
+   initCustomMultiTarget,
+diff --git a/libs/gi/db/src/Database/migrate.ts b/libs/gi/db/src/Database/migrate.ts
+index b7937bcd..fb513595 100644
+--- a/libs/gi/db/src/Database/migrate.ts
++++ b/libs/gi/db/src/Database/migrate.ts
+@@ -209,7 +209,7 @@ export function migrateGOOD(good: IGOOD & IGO): IGOOD & IGO {
+           teamCharIds.push(teamCharId)
+         })
+       }
+-      const team: Omit<Team, 'loadoutData'> & {
++      const team: Omit<Team, 'loadoutData' | 'combo'> & {
+         teamCharIds: Array<string | undefined>
+       } = {
+         name: `${characterKey} Team`,
+@@ -520,7 +520,7 @@ export function migrate(storage: DBStorage) {
+             teamCharIds.push(teamCharId)
+           })
+         }
+-        const team: Omit<Team, 'loadoutData'> & {
++        const team: Omit<Team, 'loadoutData' | 'combo'> & {
+           teamCharIds: Array<string | undefined>
+         } = {
+           name: `${characterKey} Team`,
+diff --git a/libs/gi/localization/assets/locales/en/page_team.json b/libs/gi/localization/assets/locales/en/page_team.json
+index 8b692027..7239e99a 100644
+--- a/libs/gi/localization/assets/locales/en/page_team.json
++++ b/libs/gi/localization/assets/locales/en/page_team.json
+@@ -38,7 +38,17 @@
+     "deleteBtn": "Delete Team",
+     "addCharBtn": "Add Character",
+     "toFieldBtn": "To Field",
+-    "onFieldBtn": "On-field Character"
++    "onFieldBtn": "On-field Character",
++    "combo": {
++      "title": "Team Combo DPS",
++      "desc": "Pick the Custom Multi Targets each member does in one rotation. Their damage is summed and divided by the rotation length.",
++      "noTargets": "No Custom Multi Target yet. Make one on this character's Overview tab.",
++      "count": "Times",
++      "subtotal": "Subtotal",
++      "rotationTime": "Rotation length",
++      "totalDmg": "Total team DMG",
++      "dps": "Team DPS ({{time}} s)"
++    }
+   },
+   "exportModal": {
+     "msg": "Copied team data to clipboard.",
+diff --git a/libs/gi/localization/assets/locales/id/page_team.json b/libs/gi/localization/assets/locales/id/page_team.json
+new file mode 100644
+index 00000000..388dfe0c
+--- /dev/null
++++ b/libs/gi/localization/assets/locales/id/page_team.json
+@@ -0,0 +1,14 @@
++{
++  "teamSettings": {
++    "combo": {
++      "title": "DPS Kombo Tim",
++      "desc": "Pilih Custom Multi Target yang dilakukan tiap anggota dalam satu rotasi. Damage-nya dijumlahkan lalu dibagi durasi rotasi.",
++      "noTargets": "Belum ada Custom Multi Target. Buat di tab Overview karakter ini.",
++      "count": "Kali",
++      "subtotal": "Subtotal",
++      "rotationTime": "Durasi rotasi",
++      "totalDmg": "Total DMG tim",
++      "dps": "DPS tim ({{time}} dtk)"
++    }
++  }
++}
+diff --git a/libs/gi/page-team/src/TeamSetting/TeamCombo.tsx b/libs/gi/page-team/src/TeamSetting/TeamCombo.tsx
+new file mode 100644
+index 00000000..495e93fc
+--- /dev/null
++++ b/libs/gi/page-team/src/TeamSetting/TeamCombo.tsx
+@@ -0,0 +1,328 @@
++import { CardThemed } from '@genshin-optimizer/common/ui'
++import type { CharacterKey } from '@genshin-optimizer/gi/consts'
++import type { TeamComboPick } from '@genshin-optimizer/gi/db'
++import { useDatabase, useDBMeta, useTeam } from '@genshin-optimizer/gi/db-ui'
++import { getCharEle } from '@genshin-optimizer/gi/stats'
++import {
++  CharacterName,
++  CharIconSide,
++  useTeamDataNoContext,
++} from '@genshin-optimizer/gi/ui'
++import TimerIcon from '@mui/icons-material/Timer'
++import {
++  Box,
++  CardContent,
++  CardHeader,
++  Checkbox,
++  Divider,
++  Grid,
++  InputAdornment,
++  TextField,
++  Tooltip,
++  Typography,
++} from '@mui/material'
++import { useEffect, useState } from 'react'
++import { useTranslation } from 'react-i18next'
++
++const fmt = (n: number) =>
++  n.toLocaleString(undefined, { maximumFractionDigits: n < 100 ? 1 : 0 })
++
++/** The value of each custom multi-target of a team member, as on its own page */
++function useMemberTargets(teamId: string, teamCharId: string | undefined) {
++  const database = useDatabase()
++  // Custom multi-targets are only computed for the character the data is
++  // made for, so each member needs its own team data.
++  const teamData = useTeamDataNoContext(
++    teamCharId ? teamId : '',
++    teamCharId ?? ''
++  )
++  const teamChar = teamCharId ? database.teamChars.get(teamCharId) : undefined
++  if (!teamChar) return undefined
++  const display = teamData?.[teamChar.key]?.target.getDisplay()['custom']
++  return {
++    characterKey: teamChar.key as CharacterKey,
++    targets: teamChar.customMultiTargets.map(({ name }, i) => ({
++      name,
++      value: display?.[i]?.value as number | undefined,
++    })),
++  }
++}
++
++/** A number field that keeps what is typed and reports valid positive values */
++function NumberField({
++  value,
++  onChange,
++  label,
++  unit,
++  width,
++}: {
++  value: number
++  onChange: (v: number) => void
++  label?: string
++  unit?: string
++  width: number
++}) {
++  const [text, setText] = useState(`${value}`)
++  useEffect(() => {
++    setText((t) => (Number(t) === value ? t : `${value}`))
++  }, [value])
++  const n = Number(text)
++  const valid = text.trim() !== '' && Number.isFinite(n) && n > 0
++  return (
++    <TextField
++      size="small"
++      label={label}
++      value={text}
++      error={!valid}
++      sx={{ width }}
++      onChange={(e) => {
++        setText(e.target.value)
++        const v = Number(e.target.value)
++        if (e.target.value.trim() !== '' && Number.isFinite(v) && v > 0)
++          onChange(v)
++      }}
++      inputProps={{ inputMode: 'decimal' }}
++      InputProps={
++        unit
++          ? {
++              endAdornment: (
++                <InputAdornment position="end">{unit}</InputAdornment>
++              ),
++            }
++          : undefined
++      }
++    />
++  )
++}
++
++/**
++ * Team damage over a rotation: picked custom multi-targets of the members,
++ * each done a number of times, summed, and divided by the rotation length.
++ */
++export function TeamCombo({ teamId }: { teamId: string }) {
++  const { t } = useTranslation('page_team')
++  const database = useDatabase()
++  const { gender } = useDBMeta()
++  const team = useTeam(teamId)!
++  const { loadoutData, combo } = team
++  const members = [
++    useMemberTargets(teamId, loadoutData[0]?.teamCharId),
++    useMemberTargets(teamId, loadoutData[1]?.teamCharId),
++    useMemberTargets(teamId, loadoutData[2]?.teamCharId),
++    useMemberTargets(teamId, loadoutData[3]?.teamCharId),
++  ]
++
++  const pickOf = (teamCharId: string, target: number) =>
++    combo.picks.find((p) => p.teamCharId === teamCharId && p.target === target)
++  const setPicks = (f: (picks: TeamComboPick[]) => TeamComboPick[]) =>
++    database.teams.set(teamId, (team) => {
++      team.combo = { ...team.combo, picks: f(team.combo.picks) }
++    })
++  const toggle = (teamCharId: string, target: number, on: boolean) =>
++    setPicks((picks) =>
++      on
++        ? [...picks, { teamCharId, target, count: 1 }]
++        : picks.filter(
++            (p) => !(p.teamCharId === teamCharId && p.target === target)
++          )
++    )
++  const setCount = (teamCharId: string, target: number, count: number) =>
++    setPicks((picks) =>
++      picks.map((p) =>
++        p.teamCharId === teamCharId && p.target === target ? { ...p, count } : p
++      )
++    )
++  const setRotationTime = (rotationTime: number) =>
++    database.teams.set(teamId, (team) => {
++      team.combo = { ...team.combo, rotationTime }
++    })
++
++  const rows = loadoutData.map((loadoutDatum, slot) => {
++    const member = members[slot]
++    if (!loadoutDatum || !member) return undefined
++    const { teamCharId } = loadoutDatum
++    const targets = member.targets.map((target, i) => {
++      const pick = pickOf(teamCharId, i)
++      return {
++        ...target,
++        index: i,
++        pick,
++        total: pick ? (target.value ?? 0) * pick.count : 0,
++      }
++    })
++    return {
++      teamCharId,
++      characterKey: member.characterKey,
++      targets,
++      total: targets.reduce((a, x) => a + x.total, 0),
++    }
++  })
++  const total = rows.reduce((a, r) => a + (r?.total ?? 0), 0)
++  const dps = total / combo.rotationTime
++
++  return (
++    <CardThemed bgt="light">
++      <CardHeader
++        avatar={<TimerIcon />}
++        title={t('teamSettings.combo.title')}
++        subheader={t('teamSettings.combo.desc')}
++        titleTypographyProps={{ variant: 'h6' }}
++      />
++      <Divider />
++      <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
++        <Grid container columns={{ xs: 1, md: 2, lg: 4 }} spacing={2}>
++          {rows.map((row, slot) => (
++            <Grid item xs={1} key={row?.teamCharId ?? slot}>
++              {row && (
++                <CardThemed sx={{ height: '100%' }}>
++                  <Box display="flex" alignItems="center" gap={1} px={2} py={1}>
++                    <CharIconSide characterKey={row.characterKey} />
++                    <Typography variant="subtitle1" flexGrow={1}>
++                      <CharacterName
++                        characterKey={row.characterKey}
++                        gender={gender}
++                      />
++                    </Typography>
++                  </Box>
++                  <Divider />
++                  <Box display="flex" flexDirection="column" gap={0.5} p={1}>
++                    {!row.targets.length && (
++                      <Typography variant="body2" color="text.secondary" px={1}>
++                        {t('teamSettings.combo.noTargets')}
++                      </Typography>
++                    )}
++                    {row.targets.map((x) => (
++                      <Box
++                        key={x.index}
++                        display="flex"
++                        alignItems="center"
++                        gap={1}
++                      >
++                        <Checkbox
++                          size="small"
++                          sx={{ p: 0.5 }}
++                          checked={!!x.pick}
++                          inputProps={{ 'aria-label': x.name }}
++                          onChange={(_, on) =>
++                            toggle(row.teamCharId, x.index, on)
++                          }
++                        />
++                        <Box flexGrow={1} minWidth={0}>
++                          <Typography variant="body2" noWrap title={x.name}>
++                            {x.name}
++                          </Typography>
++                          <Typography variant="caption" color="text.secondary">
++                            {x.value === undefined ? '…' : fmt(x.value)}
++                            {x.pick &&
++                              x.pick.count !== 1 &&
++                              ` × ${x.pick.count} = ${fmt(x.total)}`}
++                          </Typography>
++                        </Box>
++                        {x.pick && (
++                          <NumberField
++                            label={t('teamSettings.combo.count')}
++                            value={x.pick.count}
++                            unit="×"
++                            width={84}
++                            onChange={(v) =>
++                              setCount(row.teamCharId, x.index, v)
++                            }
++                          />
++                        )}
++                      </Box>
++                    ))}
++                  </Box>
++                  <Divider />
++                  <Box
++                    display="flex"
++                    justifyContent="space-between"
++                    px={2}
++                    py={1}
++                  >
++                    <Typography variant="body2">
++                      {t('teamSettings.combo.subtotal')}
++                    </Typography>
++                    <Typography variant="body2">
++                      <strong>{fmt(row.total)}</strong>
++                      {total > 0 &&
++                        ` (${((row.total / total) * 100).toFixed(1)}%)`}
++                    </Typography>
++                  </Box>
++                </CardThemed>
++              )}
++            </Grid>
++          ))}
++        </Grid>
++        <CardThemed>
++          <CardContent
++            sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
++          >
++            <Box display="flex" flexWrap="wrap" alignItems="center" gap={3}>
++              <NumberField
++                label={t('teamSettings.combo.rotationTime')}
++                value={combo.rotationTime}
++                unit="s"
++                width={140}
++                onChange={setRotationTime}
++              />
++              <Box>
++                <Typography variant="caption" color="text.secondary">
++                  {t('teamSettings.combo.totalDmg')}
++                </Typography>
++                <Typography variant="h6" data-testid="team-combo-total">
++                  {fmt(total)}
++                </Typography>
++              </Box>
++              <Box>
++                <Typography variant="caption" color="text.secondary">
++                  {t('teamSettings.combo.dps', { time: combo.rotationTime })}
++                </Typography>
++                <Typography
++                  variant="h6"
++                  color="success.main"
++                  data-testid="team-combo-dps"
++                >
++                  {fmt(dps)}
++                </Typography>
++              </Box>
++            </Box>
++            {total > 0 && (
++              <Box
++                display="flex"
++                height={12}
++                borderRadius={1}
++                overflow="hidden"
++              >
++                {rows.map(
++                  (row) =>
++                    row &&
++                    row.total > 0 && (
++                      <Tooltip
++                        key={row.teamCharId}
++                        title={
++                          <span>
++                            <CharacterName
++                              characterKey={row.characterKey}
++                              gender={gender}
++                            />
++                            {`: ${fmt(row.total)} (${((row.total / total) * 100).toFixed(1)}%), ${fmt(row.total / combo.rotationTime)} DPS`}
++                          </span>
++                        }
++                      >
++                        <Box
++                          sx={{
++                            width: `${(row.total / total) * 100}%`,
++                            bgcolor: `${getCharEle(row.characterKey)}.main`,
++                          }}
++                        />
++                      </Tooltip>
++                    )
++                )}
++              </Box>
++            )}
++          </CardContent>
++        </CardThemed>
++      </CardContent>
++    </CardThemed>
++  )
++}
+diff --git a/libs/gi/page-team/src/TeamSetting/index.tsx b/libs/gi/page-team/src/TeamSetting/index.tsx
+index 1a6b5482..07fdef42 100644
+--- a/libs/gi/page-team/src/TeamSetting/index.tsx
++++ b/libs/gi/page-team/src/TeamSetting/index.tsx
+@@ -35,6 +35,7 @@ import { useNavigate } from 'react-router-dom'
+ import BuildDropdown from '../BuildDropdown'
+ import { LoadoutDropdown } from '../LoadoutDropdown'
+ import { ResonanceDisplay } from './ResonanceDisplay'
++import { TeamCombo } from './TeamCombo'
+ import { TeammateDisplay } from './TeamComponents'
+ import TeamExportModal from './TeamExportModal'
+ 
+@@ -103,6 +104,7 @@ export default function TeamSetting({
+       </Box>
+       <EnemyExpandCard teamId={teamId} />
+       <TeamEditor teamId={teamId} teamData={teamData} />
++      {!noChars && <TeamCombo teamId={teamId} />}
+     </CardContent>
+   )
+ }
+-- 
+2.43.0
+

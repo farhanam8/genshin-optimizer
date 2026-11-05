@@ -1,0 +1,1981 @@
+From 77605ddb199fcb1fb916f1d5107662dcdd01ef28 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 5 Nov 2026 12:53:48 +0000
+Subject: [PATCH] feat(gi): Danica and Torrents of Spring presets
+
+Buff amounts can come from a talent value (e.g. Burst "ATK Bonus Ratio"),
+be capped by one, be multiplied at a constellation, and depend on a second
+toggle. Buffs can come from the Elemental Skill or Burst and target the
+active character. Talent effects can add stat bonuses to matching values.
+Shields and Normal Attacks of skills are computed; "1-Hit Electro
+DMG/Stellar-Conduct DMG" rows are split into two values.
+
+Bonus effect labels no longer rename the stat everywhere (a textSuffix is
+stored per stat path).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Asb8vZRqeTYT9zLpVizGNv
+---
+ libs/gi/consts/src/customCharacter.ts         | 234 ++++++---
+ .../assets/locales/en/page_character.json     |  14 +-
+ .../assets/locales/en/page_weapon.json        |   3 +-
+ .../assets/locales/id/page_character.json     |  14 +-
+ .../assets/locales/id/page_weapon.json        |   3 +-
+ .../sheets/src/Characters/customDataSheet.tsx | 270 +++++++++--
+ .../sheets/src/Weapons/customWeaponSheet.tsx  |   2 +
+ .../character/CustomCharacterBuffEditor.tsx   | 458 +++++++++++++++---
+ .../components/weapon/CustomWeaponModal.tsx   |  13 +-
+ tools/custom-characters/buffs/10000147.json   | 325 +++++++++++++
+ tools/custom-characters/buffs/12517.json      |  42 ++
+ 11 files changed, 1210 insertions(+), 168 deletions(-)
+ create mode 100644 tools/custom-characters/buffs/10000147.json
+ create mode 100644 tools/custom-characters/buffs/12517.json
+
+diff --git a/libs/gi/consts/src/customCharacter.ts b/libs/gi/consts/src/customCharacter.ts
+index 92271615..f2d5db77 100644
+--- a/libs/gi/consts/src/customCharacter.ts
++++ b/libs/gi/consts/src/customCharacter.ts
+@@ -111,18 +111,29 @@ export function customCharacterRowLabels(
+   if (n < 2) return [row.label]
+   const parts = row.label.split('/').map((p) => p.trim())
+   if (parts.length === n && parts.every(Boolean)) {
+-    const firstWords = parts[0].split(/\s+/)
++    let firstWords = parts[0].split(/\s+/)
+     const lastWords = parts[n - 1].split(/\s+/)
+     let suffixAt = lastWords.findIndex(
+       (w, i) => i > 0 && sharedSuffixWordRe.test(w)
+     )
+     if (suffixAt === -1) suffixAt = lastWords.length
+-    const prefix = firstWords.slice(0, -1).join(' ')
+-    const suffix = lastWords.slice(suffixAt).join(' ')
++    const suffixWords = lastWords.slice(suffixAt)
++    const lastAlt = lastWords.slice(0, suffixAt)
++    // "1-Hit Electro DMG/Stellar-Conduct DMG": the first value repeats the
++    // suffix, and its alternative is as long as the last one ("Electro")
++    const firstHasSuffix =
++      suffixWords.length > 0 &&
++      firstWords.slice(-suffixWords.length).join(' ') === suffixWords.join(' ')
++    if (firstHasSuffix) firstWords = firstWords.slice(0, -suffixWords.length)
++    const firstAltLength = firstHasSuffix
++      ? Math.min(lastAlt.length, firstWords.length)
++      : 1
++    const prefix = firstWords.slice(0, -firstAltLength).join(' ')
++    const suffix = suffixWords.join(' ')
+     const alternatives = [
+-      firstWords[firstWords.length - 1],
++      firstWords.slice(-firstAltLength).join(' '),
+       ...parts.slice(1, -1),
+-      lastWords.slice(0, suffixAt).join(' '),
++      lastAlt.join(' '),
+     ]
+     return alternatives.map((alt) =>
+       [prefix, alt, suffix].filter(Boolean).join(' ')
+@@ -142,6 +153,8 @@ export type CustomCharacterText = { name: string; description: string }
+ 
+ /** Where a buff comes from; also when it unlocks (A1, A4, constellation level). */
+ export const customCharacterBuffSources = [
++  'skill',
++  'burst',
+   'passive1',
+   'passive2',
+   'passive3',
+@@ -195,6 +208,16 @@ export const customCharacterBuffStats = [
+   'stellarswirl_specialDmg_',
+   'stellarconduct_critDMG_',
+   'stellarswirl_critDMG_',
++  'stellarconduct_critRate_',
++  'stellarswirl_critRate_',
++  'stellarconduct_dmgInc',
++  'stellarswirl_dmgInc',
++  'all_dmgInc',
++  'normal_dmgInc',
++  'skill_dmgInc',
++  'burst_dmgInc',
++  'atkSPD_',
++  'shield_',
+   ...buffElements.map((e) => `${e}_enemyRes_` as const),
+ ] as const
+ export type CustomCharacterBuffStat = (typeof customCharacterBuffStats)[number]
+@@ -205,30 +228,62 @@ export type CustomCharacterBuffStat = (typeof customCharacterBuffStats)[number]
+  * `value` per `scaling.per` points of the character's own `scaling.stat`
+  * (e.g. 0.007 per 100 ATK), capped at `max`.
+  */
+-export type CustomCharacterBuff = {
+-  source: CustomCharacterBuffSource
+-  stat: CustomCharacterBuffStat
++/**
++ * How much a buff gives: `value` (a fraction for percentage stats), or
++ * `value` per `scaling.per` points of the giving character's stat, capped at
++ * `max`. With `talentParam`, `value` multiplies a talent row's value at the
++ * current talent level (e.g. "ATK Bonus Ratio" of the burst), and
++ * `maxTalentParam` reads the cap from a talent row ("Max ATK Bonus"). With
++ * `boost`, the amount and cap are multiplied by `factor` from that
++ * constellation on (e.g. C1: "increased by 80%" = 1.8).
++ */
++export type CustomCharacterAmount = {
+   value: number
+-  /**
+-   * `self`: only this character; `team`: every party member, including this
+-   * one; `others`: every party member except this one
+-   */
+-  target: CustomCharacterBuffTarget
+   scaling?: { stat: 'atk' | 'hp' | 'def' | 'eleMas'; per: number }
+   max?: number
+-  /** When set, the buff only applies while this toggle (shared by name) is on */
+-  condition?: string
+-  /**
+-   * With `condition`: the buff applies only while the toggle is in this
+-   * state. A toggle whose buffs name states becomes a choice between them.
+-   */
+-  conditionState?: string
+-  /** For team/others buffs: only party members of these elements (or all others, with `excludeEles`) */
+-  eles?: ElementKey[]
+-  excludeEles?: boolean
++  talentParam?: CustomCharacterTalentParam
++  maxTalentParam?: CustomCharacterTalentParam
++  boost?: { constellation: number; factor: number }
++}
++export type CustomCharacterTalentParam = {
++  talent: CustomCharacterTalentKey
++  index: number
++}
++
++/** The second toggle a buff or effect needs, besides `condition` */
++export type CustomCharacterCondition2 = {
++  condition2?: string
++  conditionState2?: string
+ }
+ 
+-export const customCharacterBuffTargets = ['self', 'team', 'others'] as const
++export type CustomCharacterBuff = CustomCharacterAmount &
++  CustomCharacterCondition2 & {
++    source: CustomCharacterBuffSource
++    stat: CustomCharacterBuffStat
++    /**
++     * `self`: only this character; `team`: every party member, including this
++     * one; `others`: every party member except this one; `active`: the
++     * on-field party member
++     */
++    target: CustomCharacterBuffTarget
++    /** When set, the buff only applies while this toggle (shared by name) is on */
++    condition?: string
++    /**
++     * With `condition`: the buff applies only while the toggle is in this
++     * state. A toggle whose buffs name states becomes a choice between them.
++     */
++    conditionState?: string
++    /** For team/others buffs: only party members of these elements (or all others, with `excludeEles`) */
++    eles?: ElementKey[]
++    excludeEles?: boolean
++  }
++
++export const customCharacterBuffTargets = [
++  'self',
++  'team',
++  'others',
++  'active',
++] as const
+ export type CustomCharacterBuffTarget =
+   (typeof customCharacterBuffTargets)[number]
+ 
+@@ -242,27 +297,90 @@ export type CustomCharacterBuffTarget =
+  *   DMG (e.g. 2.5), shown under `source` as "`name`: <row name>", with
+  *   `bonuses` applied to that hit only
+  */
+-export type CustomCharacterRowEffect = {
+-  source: CustomCharacterBuffSource
+-  kind: 'multiplier' | 'extraHit'
+-  match: string
+-  talent?: CustomCharacterTalentKey
+-  value: number
+-  name?: string
+-  bonuses?: { stat: CustomCharacterBuffStat; value: number }[]
+-  condition?: string
+-  conditionState?: string
+-}
++export type CustomCharacterRowEffect = Partial<CustomCharacterAmount> &
++  CustomCharacterCondition2 & {
++    source: CustomCharacterBuffSource
++    /** `bonus`: `stat` increases by the amount, for the matched values only */
++    kind: 'multiplier' | 'extraHit' | 'bonus'
++    stat?: CustomCharacterBuffStat
++    match: string
++    talent?: CustomCharacterTalentKey
++    value: number
++    name?: string
++    bonuses?: { stat: CustomCharacterBuffStat; value: number }[]
++    condition?: string
++    conditionState?: string
++  }
+ 
+ function cleanCondition(o: Record<string, unknown>) {
+-  const { condition, conditionState } = o
+-  if (typeof condition !== 'string' || !condition.trim()) return {}
++  const clean = (c: unknown, s: unknown, suffix: '' | '2') =>
++    typeof c === 'string' && c.trim()
++      ? {
++          [`condition${suffix}`]: c.trim().slice(0, 80),
++          ...(typeof s === 'string' && s.trim()
++            ? { [`conditionState${suffix}`]: s.trim().slice(0, 80) }
++            : {}),
++        }
++      : {}
+   return {
+-    condition: condition.trim().slice(0, 80),
+-    ...(typeof conditionState === 'string' && conditionState.trim()
+-      ? { conditionState: conditionState.trim().slice(0, 80) }
+-      : {}),
++    ...clean(o['condition'], o['conditionState'], ''),
++    ...clean(o['condition2'], o['conditionState2'], '2'),
++  } as Pick<
++    CustomCharacterBuff,
++    'condition' | 'conditionState' | 'condition2' | 'conditionState2'
++  >
++}
++
++function cleanTalentParam(o: unknown): CustomCharacterTalentParam | undefined {
++  if (typeof o !== 'object' || o === null) return undefined
++  const { talent, index } = o as Record<string, unknown>
++  return customCharacterTalentKeys.includes(
++    talent as CustomCharacterTalentKey
++  ) &&
++    typeof index === 'number' &&
++    Number.isInteger(index) &&
++    index >= 0
++    ? { talent: talent as CustomCharacterTalentKey, index }
++    : undefined
++}
++
++/** The amount fields of a buff or bonus (see `CustomCharacterAmount`). */
++function cleanAmount(
++  o: Record<string, unknown>
++): Omit<CustomCharacterAmount, 'value'> {
++  const out: Omit<CustomCharacterAmount, 'value'> = {}
++  const { scaling, max, boost } = o
++  if (typeof scaling === 'object' && scaling !== null) {
++    const { stat: sStat, per } = scaling as Record<string, unknown>
++    if (
++      (sStat === 'atk' ||
++        sStat === 'hp' ||
++        sStat === 'def' ||
++        sStat === 'eleMas') &&
++      typeof per === 'number' &&
++      Number.isFinite(per) &&
++      per > 0
++    )
++      out.scaling = { stat: sStat, per }
++  }
++  if (typeof max === 'number' && Number.isFinite(max)) out.max = max
++  const talentParam = cleanTalentParam(o['talentParam'])
++  if (talentParam) out.talentParam = talentParam
++  const maxTalentParam = cleanTalentParam(o['maxTalentParam'])
++  if (maxTalentParam) out.maxTalentParam = maxTalentParam
++  if (typeof boost === 'object' && boost !== null) {
++    const { constellation, factor } = boost as Record<string, unknown>
++    if (
++      typeof constellation === 'number' &&
++      Number.isInteger(constellation) &&
++      constellation >= 1 &&
++      constellation <= 6 &&
++      typeof factor === 'number' &&
++      Number.isFinite(factor)
++    )
++      out.boost = { constellation, factor }
+   }
++  return out
+ }
+ 
+ /** Sanitized copy of a row effect, or `undefined` if invalid. */
+@@ -274,7 +392,13 @@ export function validateCustomCharacterRowEffect(
+   const { source, kind, match, talent, value, name, bonuses } = r
+   if (!customCharacterBuffSources.includes(source as CustomCharacterBuffSource))
+     return undefined
+-  if (kind !== 'multiplier' && kind !== 'extraHit') return undefined
++  if (kind !== 'multiplier' && kind !== 'extraHit' && kind !== 'bonus')
++    return undefined
++  if (
++    kind === 'bonus' &&
++    !customCharacterBuffStats.includes(r['stat'] as CustomCharacterBuffStat)
++  )
++    return undefined
+   if (typeof match !== 'string' || !match.trim() || match.length > 200)
+     return undefined
+   try {
+@@ -282,7 +406,11 @@ export function validateCustomCharacterRowEffect(
+   } catch {
+     return undefined
+   }
+-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0)
++  if (
++    typeof value !== 'number' ||
++    !Number.isFinite(value) ||
++    (kind !== 'bonus' && value < 0)
++  )
+     return undefined
+   const effect: CustomCharacterRowEffect = {
+     source: source as CustomCharacterBuffSource,
+@@ -290,6 +418,9 @@ export function validateCustomCharacterRowEffect(
+     match,
+     value,
+     ...cleanCondition(r),
++    ...(kind === 'bonus'
++      ? { stat: r['stat'] as CustomCharacterBuffStat, ...cleanAmount(r) }
++      : {}),
+   }
+   if (customCharacterTalentKeys.includes(talent as CustomCharacterTalentKey))
+     effect.talent = talent as CustomCharacterTalentKey
+@@ -318,7 +449,7 @@ export function validateCustomCharacterBuff(
+ ): CustomCharacterBuff | undefined {
+   if (typeof o !== 'object' || o === null || Array.isArray(o)) return undefined
+   const b = o as Record<string, unknown>
+-  const { source, stat, value, target, scaling, max, eles } = b
++  const { source, stat, value, target, eles } = b
+   if (!customCharacterBuffSources.includes(source as CustomCharacterBuffSource))
+     return undefined
+   if (!customCharacterBuffStats.includes(stat as CustomCharacterBuffStat))
+@@ -332,21 +463,8 @@ export function validateCustomCharacterBuff(
+     value,
+     target: target as CustomCharacterBuffTarget,
+     ...cleanCondition(b),
++    ...cleanAmount(b),
+   }
+-  if (typeof scaling === 'object' && scaling !== null) {
+-    const { stat: sStat, per } = scaling as Record<string, unknown>
+-    if (
+-      (sStat === 'atk' ||
+-        sStat === 'hp' ||
+-        sStat === 'def' ||
+-        sStat === 'eleMas') &&
+-      typeof per === 'number' &&
+-      Number.isFinite(per) &&
+-      per > 0
+-    )
+-      buff.scaling = { stat: sStat, per }
+-  }
+-  if (typeof max === 'number' && Number.isFinite(max)) buff.max = max
+   if (Array.isArray(eles)) {
+     const valid = eles.filter((e): e is ElementKey =>
+       buffElements.includes(e as (typeof buffElements)[number])
+diff --git a/libs/gi/localization/assets/locales/en/page_character.json b/libs/gi/localization/assets/locales/en/page_character.json
+index ead6dc6a..2d666a1d 100644
+--- a/libs/gi/localization/assets/locales/en/page_character.json
++++ b/libs/gi/localization/assets/locales/en/page_character.json
+@@ -206,7 +206,16 @@
+       "conditionState": "Toggle option (optional)",
+       "conditionStatePlaceholder": "e.g. Love (E tap)",
+       "edit": "Edit",
+-      "close": "Close"
++      "close": "Close",
++      "none": "None",
++      "talentParam": "Value from talent",
++      "maxTalentParam": "Max from talent",
++      "boostC": "Boosted at",
++      "boostFactor": "Boost ×",
++      "condition2": "Second toggle",
++      "conditionState2": "Second toggle state",
++      "targetActive": "Active character",
++      "valueTimes": "× talent value"
+     },
+     "effects": "Talent effects",
+     "effectsHelp": "Changes to talent values from passives and constellations. Multiplier: matched values deal this % of their original DMG (125% = ×1.25 on the multiplier). Extra hit: adds a copy of each matched value dealing this % of its DMG. Rows are matched by name (a regular expression; | means or).",
+@@ -224,7 +233,8 @@
+       "matched_one": "Matches {{count}} value: {{names}}",
+       "matched_other": "Matches {{count}} values: {{names}}",
+       "noMatch": "Matches no DMG value.",
+-      "add": "Add Talent Effect"
++      "add": "Add Talent Effect",
++      "bonus": "Stat bonus"
+     }
+   }
+ }
+diff --git a/libs/gi/localization/assets/locales/en/page_weapon.json b/libs/gi/localization/assets/locales/en/page_weapon.json
+index 163396bc..6b108ad1 100644
+--- a/libs/gi/localization/assets/locales/en/page_weapon.json
++++ b/libs/gi/localization/assets/locales/en/page_weapon.json
+@@ -81,7 +81,8 @@
+       "excludeEles": "All except these",
+       "remove": "Remove buff",
+       "close": "Close",
+-      "add": "Add Buff"
++      "add": "Add Buff",
++      "targetActive": "Active character"
+     },
+     "cancel": "Cancel",
+     "save": "Save & reload"
+diff --git a/libs/gi/localization/assets/locales/id/page_character.json b/libs/gi/localization/assets/locales/id/page_character.json
+index 6e8c410d..0892099e 100644
+--- a/libs/gi/localization/assets/locales/id/page_character.json
++++ b/libs/gi/localization/assets/locales/id/page_character.json
+@@ -141,7 +141,16 @@
+       "conditionState": "Pilihan toggle (opsional)",
+       "conditionStatePlaceholder": "mis. Love (E tap)",
+       "edit": "Edit",
+-      "close": "Tutup"
++      "close": "Tutup",
++      "none": "Tidak ada",
++      "talentParam": "Nilai dari talent",
++      "maxTalentParam": "Maks dari talent",
++      "boostC": "Diperkuat di",
++      "boostFactor": "Penguat ×",
++      "condition2": "Toggle kedua",
++      "conditionState2": "State toggle kedua",
++      "targetActive": "Karakter aktif",
++      "valueTimes": "× nilai talent"
+     },
+     "effects": "Efek talent",
+     "effectsHelp": "Perubahan nilai talent dari pasif dan konstelasi. Multiplier DMG: nilai yang cocok memberi % ini dari DMG aslinya (125% = multiplier ×1,25). Hit tambahan: menambah salinan setiap nilai yang cocok dengan % ini dari DMG-nya. Baris dicocokkan lewat namanya (regular expression; | berarti atau).",
+@@ -159,7 +168,8 @@
+       "matched_one": "Cocok dengan {{count}} nilai: {{names}}",
+       "matched_other": "Cocok dengan {{count}} nilai: {{names}}",
+       "noMatch": "Tidak cocok dengan nilai DMG mana pun.",
+-      "add": "Tambah Efek Talent"
++      "add": "Tambah Efek Talent",
++      "bonus": "Bonus stat"
+     }
+   }
+ }
+diff --git a/libs/gi/localization/assets/locales/id/page_weapon.json b/libs/gi/localization/assets/locales/id/page_weapon.json
+index 464b51ec..1a7548c5 100644
+--- a/libs/gi/localization/assets/locales/id/page_weapon.json
++++ b/libs/gi/localization/assets/locales/id/page_weapon.json
+@@ -55,7 +55,8 @@
+       "excludeEles": "Semua kecuali ini",
+       "remove": "Hapus buff",
+       "close": "Tutup",
+-      "add": "Tambah Buff"
++      "add": "Tambah Buff",
++      "targetActive": "Karakter aktif"
+     },
+     "cancel": "Batal",
+     "save": "Simpan & muat ulang"
+diff --git a/libs/gi/sheets/src/Characters/customDataSheet.tsx b/libs/gi/sheets/src/Characters/customDataSheet.tsx
+index 4b764e57..3e82bed1 100644
+--- a/libs/gi/sheets/src/Characters/customDataSheet.tsx
++++ b/libs/gi/sheets/src/Characters/customDataSheet.tsx
+@@ -1,6 +1,7 @@
+ import type {
+   CharacterKey,
+   CharacterSheetKey,
++  CustomCharacterAmount,
+   CustomCharacterBuff,
+   CustomCharacterBuffSource,
+   CustomCharacterDataDef,
+@@ -10,6 +11,7 @@ import type {
+   ElementKey,
+ } from '@genshin-optimizer/gi/consts'
+ import { customCharacterRowLabels } from '@genshin-optimizer/gi/consts'
++import { KeyMap } from '@genshin-optimizer/gi/keymap'
+ import type { Data, NumNode } from '@genshin-optimizer/gi/wr'
+ import {
+   constant,
+@@ -21,6 +23,7 @@ import {
+   one,
+   percent,
+   prod,
++  subscript,
+   sum,
+   target,
+   unequal,
+@@ -34,6 +37,7 @@ import { charTemplates } from './charTemplates'
+ import {
+   dataObjForCharacterSheet,
+   dmgNode,
++  shieldNode,
+   stellarTalentDmgNode,
+ } from './dataUtil'
+ import type { TalentSheet, TalentSheetElementKey } from './ICharacterSheet.d'
+@@ -90,8 +94,13 @@ function scalingStat(after: string): 'hp' | 'atk' | 'def' | 'eleMas' {
+ }
+ 
+ function moveOf(talent: CustomCharacterTalentKey, label: string): Move {
+-  if (talent === 'skill') return 'skill'
+-  if (talent === 'burst') return 'burst'
++  if (talent !== 'auto') {
++    // e.g. "Anchor Normal Attack 1-Hit Electro DMG": Normal Attack DMG that
++    // scales with this talent's level
++    if (/normal attack/i.test(label)) return 'normal'
++    if (/charged attack/i.test(label)) return 'charged'
++    return talent
++  }
+   if (/plunge/i.test(label))
+     return /low|high/i.test(label) ? 'plunging_impact' : 'plunging_collision'
+   if (/aimed|charged/i.test(label)) return 'charged'
+@@ -150,15 +159,23 @@ const slug = (s: string) => s.replace(/[^a-z0-9]+/gi, '_').slice(0, 40)
+  * The named toggles of a character. A toggle used without states is on/off;
+  * a toggle whose users name states is a choice between those states.
+  */
+-function conditions(
+-  key: CharacterKey,
+-  users: { condition?: string; conditionState?: string }[]
+-) {
++type Gated = {
++  condition?: string
++  conditionState?: string
++  condition2?: string
++  conditionState2?: string
++}
++
++function conditions(key: CharacterKey, users: Gated[]) {
+   const all = new Map<
+     string,
+     { path: string[]; node: ReturnType<typeof cond>[1]; states: string[] }
+   >()
+-  for (const { condition, conditionState } of users) {
++  const pairs = users.flatMap((u) => [
++    { condition: u.condition, conditionState: u.conditionState },
++    { condition: u.condition2, conditionState: u.conditionState2 },
++  ])
++  for (const { condition, conditionState } of pairs) {
+     if (!condition) continue
+     let c = all.get(condition)
+     if (!c) {
+@@ -182,6 +199,14 @@ function conditions(
+       const c = condition && all.get(condition)
+       return c ? equal(stateKey(state), c.node, node) : node
+     },
++    /** `node` only while both toggles of `g` are in their states */
++    gate(g: Gated, node: NumNode) {
++      return this.when(
++        g.condition,
++        g.conditionState,
++        this.when(g.condition2, g.conditionState2, node)
++      )
++    },
+   }
+ }
+ type Conditions = ReturnType<typeof conditions>
+@@ -216,6 +241,18 @@ class SourceFields {
+     g.fields.set(s, [...(g.fields.get(s) ?? []), field])
+     this.groups.set(k, g)
+   }
++  /** Makes sure a toggle can be set from this card, even without fields of its own */
++  touch(source: CustomCharacterBuffSource, condition: string | undefined) {
++    if (!condition) return
++    const k = `${source}|${condition}`
++    if (!this.groups.has(k))
++      this.groups.set(k, {
++        source,
++        condition,
++        team: false,
++        fields: new Map<string, IFieldDisplay[]>(),
++      })
++  }
+   sections(ct: ICharacterTemplate, conds: Conditions) {
+     const sections: Partial<
+       Record<CustomCharacterBuffSource, DocumentSection[]>
+@@ -254,22 +291,84 @@ class SourceFields {
+  * Formulas for a character's buffs: stat bonuses for itself (`self`), and
+  * for the party (`team`, including itself, and `others`).
+  */
++/** Stats that buffs scaling from the giver's stats add after the other bonuses */
++const totalPhaseStats: readonly string[] = ['atk', 'hp', 'def', 'eleMas']
++
++/**
++ * The amount of a buff or bonus (see `CustomCharacterAmount`). In the
++ * `total` phase, scaling reads the giver's stat before total-phase bonuses,
++ * like GO's own sheets, so that e.g. ATK from ATK does not depend on itself.
++ */
++function amountOf(
++  a: Partial<CustomCharacterAmount>,
++  def: CustomCharacterDataDef,
++  isPercent: boolean,
++  phase: 'premod' | 'total'
++): NumNode {
++  const fixed = (v: number) => (isPercent ? percent(v) : constant(v))
++  const talentValue = ({
++    talent,
++    index,
++  }: {
++    talent: CustomCharacterTalentKey
++    index: number
++  }) =>
++    subscript(
++      input.total[`${talent}Index`],
++      def.talents[talent].params[index] ?? [0],
++      isPercent ? { unit: '%' } : undefined
++    )
++  let node: NumNode = a.talentParam
++    ? prod(talentValue(a.talentParam), a.value ?? 1)
++    : fixed(a.value ?? 0)
++  if (a.scaling)
++    node = prod(
++      node,
++      (phase === 'total' ? input.premod : input.total)[a.scaling.stat],
++      1 / a.scaling.per
++    )
++  let cap: NumNode | undefined = a.maxTalentParam
++    ? talentValue(a.maxTalentParam)
++    : a.max !== undefined
++      ? fixed(a.max)
++      : undefined
++  if (a.boost) {
++    const factor = sum(
++      one,
++      greaterEq(input.constellation, a.boost.constellation, a.boost.factor - 1)
++    )
++    node = prod(node, factor)
++    if (cap) cap = prod(cap, factor)
++  }
++  return cap ? min(node, cap) : node
++}
++
++/**
++ * Formulas for a character's buffs: stat bonuses for itself (`self`), and
++ * for the party (`team`, including itself; `others`; `active`).
++ */
+ function buffsOf(
+   key: CharacterKey,
++  def: CustomCharacterDataDef,
+   buffs: CustomCharacterBuff[],
+   conds: Conditions,
+   shown: SourceFields
+ ) {
+-  const self: Record<string, NumNode[]> = {}
+-  const team: Record<string, NumNode[]> = {}
++  const phases = {
++    self: { premod: {}, total: {} } as Record<
++      string,
++      Record<string, NumNode[]>
++    >,
++    team: { premod: {}, total: {} } as Record<
++      string,
++      Record<string, NumNode[]>
++    >,
++  }
+   for (const b of buffs) {
+     if (!(b.stat in input.premod)) continue
+-    const isPercent = b.stat.endsWith('_')
+-    const amount = (v: number) => (isPercent ? percent(v) : constant(v))
+-    let node: NumNode = amount(b.value)
+-    if (b.scaling)
+-      node = prod(node, input.total[b.scaling.stat], 1 / b.scaling.per)
+-    if (b.max !== undefined) node = min(node, amount(b.max))
++    const phase =
++      b.scaling && totalPhaseStats.includes(b.stat) ? 'total' : 'premod'
++    let node = amountOf(b, def, b.stat.endsWith('_'), phase)
+     const forParty = b.target !== 'self'
+     if (forParty && b.eles?.length) {
+       const base = node
+@@ -278,13 +377,16 @@ function buffsOf(
+         : sum(...b.eles.map((e) => equal(target.charEle, e, base)))
+     }
+     if (b.target === 'others') node = unequal(target.charKey, key, node)
+-    node = infoMut(
+-      unlocked(b.source, conds.when(b.condition, b.conditionState, node)),
+-      { path: b.stat, isTeamBuff: forParty }
+-    )
+-    const premod = forParty ? team : self
+-    premod[b.stat] = [...(premod[b.stat] ?? []), node]
++    if (b.target === 'active')
++      node = equal(input.activeCharKey, target.charKey, node)
++    node = infoMut(unlocked(b.source, conds.gate(b, node)), {
++      path: b.stat,
++      isTeamBuff: forParty,
++    })
++    const stats = phases[forParty ? 'team' : 'self'][phase]
++    stats[b.stat] = [...(stats[b.stat] ?? []), node]
+     shown.add(b.source, b.condition, b.conditionState, forParty, { node })
++    shown.touch(b.source, b.condition2)
+   }
+   const total = (nodes: Record<string, NumNode[]>) =>
+     Object.fromEntries(
+@@ -293,7 +395,16 @@ function buffsOf(
+         list.length === 1 ? list[0] : sum(...list),
+       ])
+     )
+-  return { self: total(self), team: total(team) }
++  return {
++    self: {
++      premod: total(phases.self.premod),
++      total: total(phases.self.total),
++    },
++    team: {
++      premod: total(phases.team.premod),
++      total: total(phases.team.total),
++    },
++  }
+ }
+ 
+ const effectMatches = (
+@@ -322,6 +433,24 @@ export function dataSheetForCustomCharacter(
+     const levelIndex = input.total[`${tk}Index`]
+     talent.rows.forEach((row, r) => {
+       const labels = customCharacterRowLabels(row)
++      // "Shield DMG Absorption|{param5:F1P} ATK+{param6:F1}": one shield
++      const pct = row.params.find((p) => isPercent(p.format))
++      const flat = row.params.find((p) => !isPercent(p.format))
++      if (/shield/i.test(row.label) && pct) {
++        const node = infoMut(
++          shieldNode(
++            scalingStat(textAfter(row.template, pct.index)),
++            subscript(levelIndex, talent.params[pct.index] ?? [0], {
++              unit: '%',
++            }),
++            flat ? subscript(levelIndex, talent.params[flat.index] ?? [0]) : 0
++          ),
++          { name: row.label, variant: def.ele }
++        )
++        display[tk] = { ...display[tk], [`${r}_shield`]: node }
++        fields[tk].push({ node })
++        return
++      }
+       row.params.forEach(({ index, format }, part) => {
+         const values = talent.params[index]
+         if (!values?.length) return
+@@ -359,6 +488,8 @@ export function dataSheetForCustomCharacter(
+ 
+         const move = moveOf(tk, label)
+         const section = tk === 'auto' ? move.split('_')[0] : tk
++        // Normal/Charged Attacks of a skill or burst keep the character's element
++        const attackOfTalent = tk !== 'auto' && move !== tk
+         /** This value's DMG formula, times `multiplier`, with `extra` stats for this hit only. */
+         const dmg = (multiplier?: NumNode, extra?: Data['premod']) => {
+           const additional: Data = extra ? { premod: extra } : {}
+@@ -373,9 +504,10 @@ export function dataSheetForCustomCharacter(
+               multiplier
+             )
+           if (
+-            tk === 'auto' &&
+-            (/fully[- ]charged/i.test(label) ||
+-              new RegExp(def.ele, 'i').test(label))
++            attackOfTalent ||
++            (tk === 'auto' &&
++              (/fully[- ]charged/i.test(label) ||
++                new RegExp(def.ele, 'i').test(label)))
+           )
+             additional.hit = { ele: constant(def.ele) }
+           if (move === 'plunging_collision')
+@@ -385,21 +517,60 @@ export function dataSheetForCustomCharacter(
+             values,
+             move,
+             additional,
+-            multiplier
++            multiplier,
++            attackOfTalent ? tk : undefined
+           )
+         }
+ 
++        // `bonus` effects: stat bonuses for this value only
++        const bonusStats: Record<string, NumNode[]> = {}
++        for (const e of effects) {
++          if (e.kind !== 'bonus' || !e.stat || !effectMatches(e, tk, label))
++            continue
++          const amount = unlocked(
++            e.source,
++            conds.gate(e, amountOf(e, def, e.stat.endsWith('_'), 'premod'))
++          )
++          bonusStats[e.stat] = [...(bonusStats[e.stat] ?? []), amount]
++        }
++        const bonuses = Object.keys(bonusStats).length
++          ? Object.fromEntries(
++              Object.entries(bonusStats).map(([stat, list]) => [
++                stat,
++                list.length === 1 ? list[0] : sum(...list),
++              ])
++            )
++          : undefined
++
+         // "deals 125% of its original DMG": 1 + 0.25 while active
+         const multipliers = effects
+           .filter((e) => e.kind === 'multiplier' && effectMatches(e, tk, label))
+           .map((e) =>
+             unlocked(
+               e.source,
+-              conds.when(e.condition, e.conditionState, constant(e.value - 1))
++              conds.gate(
++                e,
++                prod(
++                  constant(e.value - 1),
++                  e.boost
++                    ? sum(
++                        one,
++                        greaterEq(
++                          input.constellation,
++                          e.boost.constellation,
++                          e.boost.factor - 1
++                        )
++                      )
++                    : one
++                )
++              )
+             )
+           )
+         const node = infoMut(
+-          dmg(multipliers.length ? sum(one, ...multipliers) : undefined),
++          dmg(
++            multipliers.length ? sum(one, ...multipliers) : undefined,
++            bonuses
++          ),
+           { name }
+         )
+         display[section] = { ...display[section], [id]: node }
+@@ -418,11 +589,7 @@ export function dataSheetForCustomCharacter(
+           const hit = infoMut(
+             unlocked(
+               e.source,
+-              conds.when(
+-                e.condition,
+-                e.conditionState,
+-                dmg(constant(e.value), extra)
+-              )
++              conds.gate(e, dmg(constant(e.value), { ...bonuses, ...extra }))
+             ),
+             { name: `${e.name ?? 'Extra hit'}: ${name}` }
+           )
+@@ -430,12 +597,14 @@ export function dataSheetForCustomCharacter(
+           shown.add(e.source, e.condition, e.conditionState, false, {
+             node: hit,
+           })
++          shown.touch(e.source, e.condition2)
+         }
+       })
+     })
+   }
+ 
+-  for (const e of effects)
++  for (const e of effects) {
++    shown.touch(e.source, e.condition2)
+     if (e.kind === 'multiplier')
+       shown.add(e.source, e.condition, e.conditionState, false, {
+         text: e.name ?? e.match,
+@@ -443,6 +612,22 @@ export function dataSheetForCustomCharacter(
+         fixed: 0,
+         unit: '%',
+       })
++    if (e.kind === 'bonus' && e.stat)
++      shown.add(e.source, e.condition, e.conditionState, false, {
++        node: infoMut(
++          unlocked(
++            e.source,
++            conds.gate(e, amountOf(e, def, e.stat.endsWith('_'), 'premod'))
++          ),
++          // a name, not `path` + `textSuffix`: a suffix is stored per path and
++          // would rename the stat everywhere
++          {
++            name: `${KeyMap.get(e.stat)} (${e.name ?? e.match})`,
++            unit: e.stat.endsWith('_') ? '%' : undefined,
++          }
++        ),
++      })
++  }
+ 
+   const boosts: Partial<
+     Record<'autoBoost' | 'skillBoost' | 'burstBoost', NumNode>
+@@ -456,11 +641,12 @@ export function dataSheetForCustomCharacter(
+     constellationFields[i + 1] = [{ node }]
+   })
+ 
+-  const buffs = buffsOf(key, def.buffs ?? [], conds, shown)
++  const buffs = buffsOf(key, def, def.buffs ?? [], conds, shown)
+   const sourceSections = shown.sections(ct, conds)
+   const data = dataObjForCharacterSheet(key, display, {
+-    premod: { ...buffs.self, ...boosts },
+-    teamBuff: { premod: buffs.team },
++    premod: { ...buffs.self.premod, ...boosts },
++    total: buffs.self.total,
++    teamBuff: { premod: buffs.team.premod, total: buffs.team.total },
+   })
+   const withBuffs = (
+     k: CustomCharacterBuffSource,
+@@ -472,8 +658,14 @@ export function dataSheetForCustomCharacter(
+ 
+   const sheet: TalentSheet = {
+     auto: ct.talentTem('auto', [{ fields: fields.auto }]),
+-    skill: ct.talentTem('skill', [{ fields: fields.skill }]),
+-    burst: ct.talentTem('burst', [{ fields: fields.burst }]),
++    skill: ct.talentTem(
++      'skill',
++      withBuffs('skill', [{ fields: fields.skill }])
++    ),
++    burst: ct.talentTem(
++      'burst',
++      withBuffs('burst', [{ fields: fields.burst }])
++    ),
+   }
+   if (def.passive1 || sourceSections.passive1)
+     sheet.passive1 = ct.talentTem('passive1', withBuffs('passive1'))
+diff --git a/libs/gi/sheets/src/Weapons/customWeaponSheet.tsx b/libs/gi/sheets/src/Weapons/customWeaponSheet.tsx
+index f2555ad1..3791ec7c 100644
+--- a/libs/gi/sheets/src/Weapons/customWeaponSheet.tsx
++++ b/libs/gi/sheets/src/Weapons/customWeaponSheet.tsx
+@@ -58,6 +58,8 @@ export function sheetForCustomWeapon(def: CustomWeaponDef): WeaponSheet {
+     }
+     if (b.target === 'others')
+       node = unequal(target.charKey, input.charKey, node)
++    if (b.target === 'active')
++      node = equal(input.activeCharKey, target.charKey, node)
+     const c = b.condition ? conds.get(b.condition) : undefined
+     if (c) node = equal(stateKey(b.conditionState), c.node, node)
+     node = infoMut(node, { path: b.stat, isTeamBuff: forParty })
+diff --git a/libs/gi/ui/src/components/character/CustomCharacterBuffEditor.tsx b/libs/gi/ui/src/components/character/CustomCharacterBuffEditor.tsx
+index 85c65253..6b0217c5 100644
+--- a/libs/gi/ui/src/components/character/CustomCharacterBuffEditor.tsx
++++ b/libs/gi/ui/src/components/character/CustomCharacterBuffEditor.tsx
+@@ -1,13 +1,16 @@
+ import { iconInlineProps } from '@genshin-optimizer/common/svgicons'
+ import { CardThemed } from '@genshin-optimizer/common/ui'
+ import type {
++  CustomCharacterAmount,
+   CustomCharacterBuff,
+   CustomCharacterBuffSource,
+   CustomCharacterBuffStat,
+   CustomCharacterBuffTarget,
++  CustomCharacterCondition2,
+   CustomCharacterDataDef,
+   CustomCharacterRowEffect,
+   CustomCharacterTalentKey,
++  CustomCharacterTalentParam,
+   ElementKey,
+ } from '@genshin-optimizer/gi/consts'
+ import {
+@@ -42,15 +45,29 @@ import type { ReactNode } from 'react'
+ import { useState } from 'react'
+ import { useTranslation } from 'react-i18next'
+ 
+-/** A buff as edited: numbers as typed, percentages in % */
+-export type BuffRow = {
+-  source: CustomCharacterBuffSource
+-  stat: CustomCharacterBuffStat
++/**
++ * The amount and second-toggle fields shared by buffs and bonus effects, as
++ * edited. Talent rows are written "talent:index" ("burst:5"); with one, the
++ * value is a multiplier of that row's value, not a percentage.
++ */
++type AmountRow = {
+   value: string
+-  target: CustomCharacterBuffTarget
+   scalingStat: '' | 'atk' | 'hp' | 'def' | 'eleMas'
+   scalingPer: string
+   max: string
++  talentParam: string
++  maxTalentParam: string
++  boostC: string
++  boostFactor: string
++  condition2: string
++  conditionState2: string
++}
++
++/** A buff as edited: numbers as typed, percentages in % */
++export type BuffRow = AmountRow & {
++  source: CustomCharacterBuffSource
++  stat: CustomCharacterBuffStat
++  target: CustomCharacterBuffTarget
+   condition: string
+   conditionState: string
+   eles: ElementKey[]
+@@ -63,16 +80,82 @@ const show = (n: number) => `${+n.toFixed(6)}`
+ /** % to fraction without float noise: 0.7 -> 0.007, not 0.006999999999999999 */
+ const fromPercent = (n: number) => Number((n / 100).toPrecision(12))
+ 
++const paramKey = (p?: CustomCharacterTalentParam) =>
++  p ? `${p.talent}:${p.index}` : ''
++const parseParamKey = (k: string): CustomCharacterTalentParam | undefined => {
++  const [talent, index] = k.split(':')
++  return talent && index !== undefined
++    ? { talent: talent as CustomCharacterTalentKey, index: Number(index) }
++    : undefined
++}
++
++function amountToRow(
++  a: Partial<CustomCharacterAmount> & CustomCharacterCondition2,
++  stat: string
++): AmountRow {
++  const pct = isPercentStat(stat)
++  const value = a.value ?? 0
++  return {
++    value: show(pct && !a.talentParam ? value * 100 : value),
++    scalingStat: a.scaling?.stat ?? '',
++    scalingPer: a.scaling ? show(a.scaling.per) : '100',
++    max: a.max === undefined ? '' : show(pct ? a.max * 100 : a.max),
++    talentParam: paramKey(a.talentParam),
++    maxTalentParam: paramKey(a.maxTalentParam),
++    boostC: a.boost ? `${a.boost.constellation}` : '',
++    boostFactor: a.boost ? show(a.boost.factor) : '1',
++    condition2: a.condition2 ?? '',
++    conditionState2: a.conditionState2 ?? '',
++  }
++}
++
++/** The amount fields of a row, or `undefined` if a number is invalid. */
++function rowToAmount(
++  r: AmountRow,
++  stat: string
++): (CustomCharacterAmount & CustomCharacterCondition2) | undefined {
++  const pct = isPercentStat(stat)
++  const talentParam = parseParamKey(r.talentParam)
++  const value = num(r.value)
++  if (!Number.isFinite(value)) return undefined
++  const maxTalentParam = parseParamKey(r.maxTalentParam)
++  const max = maxTalentParam || r.max.trim() === '' ? undefined : num(r.max)
++  if (max !== undefined && !Number.isFinite(max)) return undefined
++  const per = num(r.scalingPer)
++  if (r.scalingStat && !(Number.isFinite(per) && per > 0)) return undefined
++  const factor = num(r.boostFactor)
++  if (r.boostC && !Number.isFinite(factor)) return undefined
++  return {
++    value: pct && !talentParam ? fromPercent(value) : value,
++    ...(r.scalingStat ? { scaling: { stat: r.scalingStat, per } } : {}),
++    ...(max !== undefined ? { max: pct ? fromPercent(max) : max } : {}),
++    ...(talentParam ? { talentParam } : {}),
++    ...(maxTalentParam ? { maxTalentParam } : {}),
++    ...(r.boostC ? { boost: { constellation: Number(r.boostC), factor } } : {}),
++    condition2: r.condition2,
++    conditionState2: r.conditionState2,
++  }
++}
++
++const newAmountRow = (): AmountRow => ({
++  value: '',
++  scalingStat: '',
++  scalingPer: '100',
++  max: '',
++  talentParam: '',
++  maxTalentParam: '',
++  boostC: '',
++  boostFactor: '1',
++  condition2: '',
++  conditionState2: '',
++})
++
+ export function buffToRow(b: CustomCharacterBuff): BuffRow {
+-  const pct = isPercentStat(b.stat)
+   return {
++    ...amountToRow(b, b.stat),
+     source: b.source,
+     stat: b.stat,
+-    value: show(pct ? b.value * 100 : b.value),
+     target: b.target,
+-    scalingStat: b.scaling?.stat ?? '',
+-    scalingPer: b.scaling ? show(b.scaling.per) : '100',
+-    max: b.max === undefined ? '' : show(pct ? b.max * 100 : b.max),
+     condition: b.condition ?? '',
+     conditionState: b.conditionState ?? '',
+     eles: b.eles ?? [],
+@@ -82,20 +165,13 @@ export function buffToRow(b: CustomCharacterBuff): BuffRow {
+ 
+ /** The buff a row describes, or `undefined` if a number is invalid. */
+ export function rowToBuff(r: BuffRow): CustomCharacterBuff | undefined {
+-  const pct = isPercentStat(r.stat)
+-  const value = num(r.value)
+-  if (!Number.isFinite(value)) return undefined
+-  const max = r.max.trim() === '' ? undefined : num(r.max)
+-  if (max !== undefined && !Number.isFinite(max)) return undefined
+-  const per = num(r.scalingPer)
+-  if (r.scalingStat && !(Number.isFinite(per) && per > 0)) return undefined
++  const amount = rowToAmount(r, r.stat)
++  if (!amount) return undefined
+   return validateCustomCharacterBuff({
++    ...amount,
+     source: r.source,
+     stat: r.stat,
+-    value: pct ? fromPercent(value) : value,
+     target: r.target,
+-    scaling: r.scalingStat ? { stat: r.scalingStat, per } : undefined,
+-    max: max === undefined ? undefined : pct ? fromPercent(max) : max,
+     condition: r.condition,
+     conditionState: r.conditionState,
+     eles: r.target === 'self' ? undefined : r.eles,
+@@ -104,13 +180,10 @@ export function rowToBuff(r: BuffRow): CustomCharacterBuff | undefined {
+ }
+ 
+ const newRow = (): BuffRow => ({
++  ...newAmountRow(),
+   source: 'passive1',
+   stat: 'atk_',
+-  value: '',
+   target: 'team',
+-  scalingStat: '',
+-  scalingPer: '100',
+-  max: '',
+   condition: '',
+   conditionState: '',
+   eles: [],
+@@ -121,6 +194,8 @@ const newRow = (): BuffRow => ({
+ function sourceLabels(def: CustomCharacterDataDef) {
+   const name = (t?: { name: string }) => (t?.name ? ` · ${t.name}` : '')
+   return {
++    skill: `E${name(def.talents.skill)}`,
++    burst: `Q${name(def.talents.burst)}`,
+     passive1: `A1${name(def.passive1)}`,
+     passive2: `A4${name(def.passive2)}`,
+     passive3: `P3${name(def.passive3)}`,
+@@ -135,15 +210,127 @@ function sourceLabels(def: CustomCharacterDataDef) {
+ }
+ 
+ const sourceShort = (s: CustomCharacterBuffSource) =>
+-  s === 'passive1'
+-    ? 'A1'
+-    : s === 'passive2'
+-      ? 'A4'
+-      : s === 'passive3'
+-        ? 'P3'
+-        : s === 'passive'
+-          ? 'P4'
+-          : `C${s.slice(-1)}`
++  s === 'skill'
++    ? 'E'
++    : s === 'burst'
++      ? 'Q'
++      : s === 'passive1'
++        ? 'A1'
++        : s === 'passive2'
++          ? 'A4'
++          : s === 'passive3'
++            ? 'P3'
++            : s === 'passive'
++              ? 'P4'
++              : `C${s.slice(-1)}`
++
++/** Talent rows that can give a buff's value or cap: "Burst · ATK Bonus Ratio" */
++function talentParamOptions(def: CustomCharacterDataDef) {
++  return customCharacterTalentKeys.flatMap((tk) =>
++    def.talents[tk].rows.flatMap((row) => {
++      const labels = customCharacterRowLabels(row)
++      return row.params.map(({ index }, part) => ({
++        key: `${tk}:${index}`,
++        label: `${def.talents[tk].name || tk} · ${labels[part] ?? row.label}`,
++      }))
++    })
++  )
++}
++
++/**
++ * Value from a talent row, cap from a talent row, constellation multiplier
++ * and second toggle: shared by buffs and bonus effects.
++ */
++function AdvancedAmountFields({
++  def,
++  row,
++  update,
++}: {
++  def: CustomCharacterDataDef
++  row: AmountRow
++  update: (partial: Partial<AmountRow>) => void
++}) {
++  const { t } = useTranslation('page_character')
++  const options = talentParamOptions(def)
++  const paramSelect = (
++    field: 'talentParam' | 'maxTalentParam',
++    label: string
++  ) => (
++    <TextField
++      select
++      fullWidth
++      size="small"
++      label={label}
++      value={row[field]}
++      onChange={(e) => update({ [field]: e.target.value })}
++    >
++      <MenuItem value="">{t('customChar.buff.none')}</MenuItem>
++      {options.map((o) => (
++        <MenuItem key={o.key} value={o.key}>
++          {o.label}
++        </MenuItem>
++      ))}
++    </TextField>
++  )
++  return (
++    <Grid container spacing={1}>
++      <Grid item xs={12} md={6}>
++        {paramSelect('talentParam', t('customChar.buff.talentParam'))}
++      </Grid>
++      <Grid item xs={12} md={6}>
++        {paramSelect('maxTalentParam', t('customChar.buff.maxTalentParam'))}
++      </Grid>
++      <Grid item xs={6} md={3}>
++        <TextField
++          select
++          fullWidth
++          size="small"
++          label={t('customChar.buff.boostC')}
++          value={row.boostC}
++          onChange={(e) => update({ boostC: e.target.value })}
++        >
++          <MenuItem value="">{t('customChar.buff.none')}</MenuItem>
++          {[1, 2, 3, 4, 5, 6].map((c) => (
++            <MenuItem key={c} value={`${c}`}>
++              C{c}
++            </MenuItem>
++          ))}
++        </TextField>
++      </Grid>
++      <Grid item xs={6} md={3}>
++        <TextField
++          fullWidth
++          size="small"
++          disabled={!row.boostC}
++          label={t('customChar.buff.boostFactor')}
++          value={row.boostFactor}
++          error={!!row.boostC && !Number.isFinite(num(row.boostFactor))}
++          onChange={(e) => update({ boostFactor: e.target.value })}
++          inputProps={{ inputMode: 'decimal' }}
++        />
++      </Grid>
++      <Grid item xs={12} md={3}>
++        <TextField
++          fullWidth
++          size="small"
++          label={t('customChar.buff.condition2')}
++          value={row.condition2}
++          onChange={(e) => update({ condition2: e.target.value })}
++        />
++      </Grid>
++      <Grid item xs={12} md={3}>
++        <TextField
++          fullWidth
++          size="small"
++          disabled={!row.condition2.trim()}
++          label={t('customChar.buff.conditionState2')}
++          value={row.conditionState2}
++          onChange={(e) => update({ conditionState2: e.target.value })}
++        />
++      </Grid>
++    </Grid>
++  )
++}
+ 
+ /**
+  * One line per item, opened for editing on click: an editor with all items
+@@ -219,10 +406,20 @@ export function CustomCharacterBuffEditor({
+     setRows(rows.filter((_, j) => j !== i))
+     setOpen(null)
+   }
++  const valueLabel = (r: AmountRow) =>
++    r.talentParam
++      ? t('customChar.buff.valueTimes')
++      : r.scalingStat
++        ? t('customChar.buff.valuePer', {
++            per: r.scalingPer,
++            stat: KeyMap.get(r.scalingStat),
++          })
++        : t('customChar.buff.value')
+   const targetLabel = {
+     self: t('customChar.buff.targetSelf'),
+     team: t('customChar.buff.targetTeam'),
+     others: t('customChar.buff.targetOthers'),
++    active: t('customChar.buff.targetActive'),
+   }
+ 
+   return (
+@@ -233,7 +430,18 @@ export function CustomCharacterBuffEditor({
+           const scaling = r.scalingStat
+             ? ` / ${r.scalingPer} ${KeyMap.get(r.scalingStat)}`
+             : ''
+-          const max = r.max.trim() ? ` (max ${r.max}${unit})` : ''
++          const max = r.maxTalentParam
++            ? ` (max ${r.maxTalentParam})`
++            : r.max.trim()
++              ? ` (max ${r.max}${unit})`
++              : ''
++          const amount = r.talentParam
++            ? `${r.value} × ${r.talentParam}`
++            : `${r.value}${unit}`
++          const boost = r.boostC ? ` · C${r.boostC} ×${r.boostFactor}` : ''
++          const cond2 = r.condition2
++            ? ` · ${r.condition2}${r.conditionState2 ? `: ${r.conditionState2}` : ''}`
++            : ''
+           const eles =
+             r.target !== 'self' && r.eles.length
+               ? ` (${r.excludeEles ? '≠ ' : ''}${r.eles.join('/')})`
+@@ -244,7 +452,7 @@ export function CustomCharacterBuffEditor({
+           return (
+             <SummaryRow
+               key={i}
+-              text={`${sourceShort(r.source)} · ${KeyMap.get(r.stat)} ${r.value}${unit}${scaling}${max} · ${targetLabel[r.target]}${eles}${cond}`}
++              text={`${sourceShort(r.source)} · ${KeyMap.get(r.stat)} ${amount}${scaling}${max} · ${targetLabel[r.target]}${eles}${cond}${cond2}${boost}`}
+               invalid={!rowToBuff(r)}
+               onOpen={() => setOpen(i)}
+               onRemove={() => remove(i)}
+@@ -306,18 +514,11 @@ export function CustomCharacterBuffEditor({
+                   <TextField
+                     fullWidth
+                     size="small"
+-                    label={
+-                      r.scalingStat
+-                        ? t('customChar.buff.valuePer', {
+-                            per: r.scalingPer,
+-                            stat: KeyMap.get(r.scalingStat),
+-                          })
+-                        : t('customChar.buff.value')
+-                    }
++                    label={valueLabel(r)}
+                     value={r.value}
+                     error={!Number.isFinite(num(r.value))}
+                     onChange={(e) => update(i, { value: e.target.value })}
+-                    InputProps={percentAdornment}
++                    InputProps={r.talentParam ? undefined : percentAdornment}
+                     inputProps={{ inputMode: 'decimal' }}
+                   />
+                 </Grid>
+@@ -343,6 +544,9 @@ export function CustomCharacterBuffEditor({
+                     <MenuItem value="others">
+                       {t('customChar.buff.targetOthers')}
+                     </MenuItem>
++                    <MenuItem value="active">
++                      {t('customChar.buff.targetActive')}
++                    </MenuItem>
+                   </TextField>
+                 </Grid>
+                 <Grid item xs={12} md={3}>
+@@ -408,6 +612,7 @@ export function CustomCharacterBuffEditor({
+                     fullWidth
+                     size="small"
+                     label={t('customChar.buff.max')}
++                    disabled={!!r.maxTalentParam}
+                     value={r.max}
+                     error={r.max.trim() !== '' && !Number.isFinite(num(r.max))}
+                     onChange={(e) => update(i, { max: e.target.value })}
+@@ -479,6 +684,13 @@ export function CustomCharacterBuffEditor({
+                     </Box>
+                   </Grid>
+                 )}
++                <Grid item xs={12}>
++                  <AdvancedAmountFields
++                    def={def}
++                    row={r}
++                    update={(p) => update(i, p)}
++                  />
++                </Grid>
+                 {invalid && (
+                   <Grid item xs={12}>
+                     <Typography variant="body2" color="error">
+@@ -504,10 +716,14 @@ export function CustomCharacterBuffEditor({
+   )
+ }
+ 
+-/** A row effect as edited: numbers as typed, `value` in % */
+-export type RowEffectRow = {
++/**
++ * A row effect as edited: numbers as typed. `value` is in % for multipliers
++ * and extra hits; a stat bonus uses the amount fields like a buff.
++ */
++export type RowEffectRow = AmountRow & {
+   source: CustomCharacterBuffSource
+-  kind: 'multiplier' | 'extraHit'
++  kind: 'multiplier' | 'extraHit' | 'bonus'
++  stat: CustomCharacterBuffStat
+   talent: '' | CustomCharacterTalentKey
+   match: string
+   value: string
+@@ -518,12 +734,16 @@ export type RowEffectRow = {
+ }
+ 
+ export function rowEffectToRow(e: CustomCharacterRowEffect): RowEffectRow {
++  const stat = e.stat ?? 'all_dmg_'
+   return {
++    ...(e.kind === 'bonus'
++      ? amountToRow(e, stat)
++      : { ...newAmountRow(), value: show(e.value * 100) }),
+     source: e.source,
+     kind: e.kind,
++    stat,
+     talent: e.talent ?? '',
+     match: e.match,
+-    value: show(e.value * 100),
+     name: e.name ?? '',
+     condition: e.condition ?? '',
+     conditionState: e.conditionState ?? '',
+@@ -537,6 +757,21 @@ export function rowEffectToRow(e: CustomCharacterRowEffect): RowEffectRow {
+ export function rowToRowEffect(
+   r: RowEffectRow
+ ): CustomCharacterRowEffect | undefined {
++  if (r.kind === 'bonus') {
++    const amount = rowToAmount(r, r.stat)
++    if (!amount) return undefined
++    return validateCustomCharacterRowEffect({
++      ...amount,
++      source: r.source,
++      kind: r.kind,
++      stat: r.stat,
++      talent: r.talent || undefined,
++      match: r.match,
++      name: r.name,
++      condition: r.condition,
++      conditionState: r.conditionState,
++    })
++  }
+   const value = num(r.value)
+   if (!Number.isFinite(value) || value < 0) return undefined
+   const bonuses = r.bonuses.map((b) => ({
+@@ -558,8 +793,10 @@ export function rowToRowEffect(
+ }
+ 
+ const newEffectRow = (): RowEffectRow => ({
++  ...newAmountRow(),
+   source: 'constellation2',
+   kind: 'multiplier',
++  stat: 'all_dmg_',
+   talent: '',
+   match: '',
+   value: '100',
+@@ -621,14 +858,14 @@ export function CustomCharacterRowEffectEditor({
+           const cond = r.condition
+             ? ` · ${r.condition}${r.conditionState ? `: ${r.conditionState}` : ''}`
+             : ''
+-          const kind =
+-            r.kind === 'multiplier'
+-              ? t('customChar.effect.multiplier')
+-              : t('customChar.effect.extraHit')
++          const what =
++            r.kind === 'bonus'
++              ? `${KeyMap.get(r.stat)} ${r.talentParam ? `${r.value} × ${r.talentParam}` : `${r.value}${isPercentStat(r.stat) ? '%' : ''}`}${r.boostC ? ` (C${r.boostC} ×${r.boostFactor})` : ''}`
++              : `${r.kind === 'multiplier' ? t('customChar.effect.multiplier') : t('customChar.effect.extraHit')} ${r.value}%`
+           return (
+             <SummaryRow
+               key={i}
+-              text={`${sourceShort(r.source)} · ${kind} ${r.value}% · ${r.name || r.match}${cond}`}
++              text={`${sourceShort(r.source)} · ${what} · ${r.name || r.match}${cond}`}
+               detail={
+                 matched.length
+                   ? t('customChar.effect.matched', {
+@@ -689,6 +926,9 @@ export function CustomCharacterRowEffectEditor({
+                     <MenuItem value="extraHit">
+                       {t('customChar.effect.extraHit')}
+                     </MenuItem>
++                    <MenuItem value="bonus">
++                      {t('customChar.effect.bonus')}
++                    </MenuItem>
+                   </TextField>
+                 </Grid>
+                 <Grid item xs={6} md={2}>
+@@ -729,15 +969,30 @@ export function CustomCharacterRowEffectEditor({
+                   <TextField
+                     fullWidth
+                     size="small"
+-                    label={t('customChar.effect.value')}
++                    label={
++                      r.kind !== 'bonus'
++                        ? t('customChar.effect.value')
++                        : r.talentParam
++                          ? t('customChar.buff.valueTimes')
++                          : t('customChar.buff.value')
++                    }
+                     value={r.value}
+-                    error={!(num(r.value) >= 0)}
++                    error={
++                      r.kind === 'bonus'
++                        ? !Number.isFinite(num(r.value))
++                        : !(num(r.value) >= 0)
++                    }
+                     onChange={(e) => update(i, { value: e.target.value })}
+-                    InputProps={{
+-                      endAdornment: (
+-                        <InputAdornment position="end">%</InputAdornment>
+-                      ),
+-                    }}
++                    InputProps={
++                      r.kind === 'bonus' &&
++                      (r.talentParam || !isPercentStat(r.stat))
++                        ? undefined
++                        : {
++                            endAdornment: (
++                              <InputAdornment position="end">%</InputAdornment>
++                            ),
++                          }
++                    }
+                     inputProps={{ inputMode: 'decimal' }}
+                   />
+                 </Grid>
+@@ -788,6 +1043,89 @@ export function CustomCharacterRowEffectEditor({
+                     <DeleteForeverIcon />
+                   </IconButton>
+                 </Grid>
++                {r.kind === 'bonus' && (
++                  <>
++                    <Grid item xs={12} md={4}>
++                      <TextField
++                        select
++                        fullWidth
++                        size="small"
++                        label={t('customChar.buff.stat')}
++                        value={r.stat}
++                        onChange={(e) =>
++                          update(i, {
++                            stat: e.target.value as CustomCharacterBuffStat,
++                          })
++                        }
++                      >
++                        {customCharacterBuffStats.map((s) => (
++                          <MenuItem key={s} value={s}>
++                            {KeyMap.get(s)}
++                          </MenuItem>
++                        ))}
++                      </TextField>
++                    </Grid>
++                    <Grid item xs={6} md={2}>
++                      <TextField
++                        select
++                        fullWidth
++                        size="small"
++                        label={t('customChar.buff.scaling')}
++                        value={r.scalingStat}
++                        onChange={(e) =>
++                          update(i, {
++                            scalingStat: e.target
++                              .value as AmountRow['scalingStat'],
++                          })
++                        }
++                      >
++                        <MenuItem value="">
++                          {t('customChar.buff.noScaling')}
++                        </MenuItem>
++                        {(['atk', 'hp', 'def', 'eleMas'] as const).map((s) => (
++                          <MenuItem key={s} value={s}>
++                            {KeyMap.get(s)}
++                          </MenuItem>
++                        ))}
++                      </TextField>
++                    </Grid>
++                    <Grid item xs={6} md={2}>
++                      <TextField
++                        fullWidth
++                        size="small"
++                        disabled={!r.scalingStat}
++                        label={t('customChar.buff.per')}
++                        value={r.scalingPer}
++                        error={!!r.scalingStat && !(num(r.scalingPer) > 0)}
++                        onChange={(e) =>
++                          update(i, { scalingPer: e.target.value })
++                        }
++                        inputProps={{ inputMode: 'decimal' }}
++                      />
++                    </Grid>
++                    <Grid item xs={6} md={2}>
++                      <TextField
++                        fullWidth
++                        size="small"
++                        disabled={!!r.maxTalentParam}
++                        label={t('customChar.buff.max')}
++                        value={r.max}
++                        error={
++                          r.max.trim() !== '' && !Number.isFinite(num(r.max))
++                        }
++                        onChange={(e) => update(i, { max: e.target.value })}
++                        inputProps={{ inputMode: 'decimal' }}
++                      />
++                    </Grid>
++                    <Grid item xs={12}>
++                      <AdvancedAmountFields
++                        def={def}
++                        row={r}
++                        update={(p) => update(i, p)}
++                      />
++                    </Grid>
++                  </>
++                )}
+                 {r.kind === 'extraHit' && (
+                   <Grid item xs={12}>
+                     <Box
+diff --git a/libs/gi/ui/src/components/weapon/CustomWeaponModal.tsx b/libs/gi/ui/src/components/weapon/CustomWeaponModal.tsx
+index 58050f2e..049220c8 100644
+--- a/libs/gi/ui/src/components/weapon/CustomWeaponModal.tsx
++++ b/libs/gi/ui/src/components/weapon/CustomWeaponModal.tsx
+@@ -419,6 +419,7 @@ function CustomWeaponForm({
+     self: t('customWeapon.buff.targetSelf'),
+     team: t('customWeapon.buff.targetTeam'),
+     others: t('customWeapon.buff.targetOthers'),
++    active: t('customWeapon.buff.targetActive'),
+   }
+ 
+   return (
+@@ -676,11 +677,13 @@ function CustomWeaponForm({
+                       })
+                     }
+                   >
+-                    {(['self', 'team', 'others'] as const).map((k) => (
+-                      <MenuItem key={k} value={k}>
+-                        {targetLabel[k]}
+-                      </MenuItem>
+-                    ))}
++                    {(['self', 'team', 'others', 'active'] as const).map(
++                      (k) => (
++                        <MenuItem key={k} value={k}>
++                          {targetLabel[k]}
++                        </MenuItem>
++                      )
++                    )}
+                   </TextField>
+                 </Grid>
+                 <Grid item xs={12} md={4} textAlign="right">
+diff --git a/tools/custom-characters/buffs/10000147.json b/tools/custom-characters/buffs/10000147.json
+new file mode 100644
+index 00000000..d91dffbf
+--- /dev/null
++++ b/tools/custom-characters/buffs/10000147.json
+@@ -0,0 +1,325 @@
++{
++  "name": "Danica",
++  "notes": [
++    "Written by hand from the talent descriptions and how the kit plays.",
++    "Maid state: Defense Maid = Elemental Burst used off-field with full Excitement; Battle Maid = on-field with full Excitement.",
++    "Defense Maid: party ATK + ATK Bonus Ratio x Danica's ATK (before this buff), up to Max ATK Bonus (500 at Burst Lv10). C1 multiplies both by 1.8 (900 at Lv10).",
++    "Battle Maid: On-Field E2 Stellar-Conduct DMG + On-Field E2 DMG Increase (70.27% at Lv10), x2.2 at C1 (154.6%).",
++    "A4: Defense Maid ATK +20% per stack, Battle Maid ATK SPD +20% per stack, up to 3 stacks.",
++    "P3: Base Stellar-Conduct DMG +0.7% per 100 ATK, up to 14%.",
++    "C2 Toast: other members' Stellar-Conduct DMG + 100% of Danica's ATK (Danica herself in Defense Maid). In Battle Maid, Danica consumes all her stacks: +150% ATK each, up to 7 (1050%).",
++    "C6: party Stellar-Conduct DMG +20%; Defense Maid: active character +10% per 1000 ATK (max 40%); Battle Maid: On-Field E2 CRIT Rate +2.5% / CRIT DMG +25% per 500 ATK (max 10% / 100%).",
++    "Not included: Energy restoration (Battle Maid, C1, C4), C4 shield in Battle Maid, A4 extra Excited points."
++  ],
++  "buffs": [
++    {
++      "source": "burst",
++      "stat": "atk",
++      "talentParam": {
++        "talent": "burst",
++        "index": 5
++      },
++      "value": 1,
++      "scaling": {
++        "stat": "atk",
++        "per": 1
++      },
++      "maxTalentParam": {
++        "talent": "burst",
++        "index": 6
++      },
++      "boost": {
++        "constellation": 1,
++        "factor": 1.8
++      },
++      "target": "team",
++      "condition": "Maid state",
++      "conditionState": "Defense Maid (Q off-field)"
++    },
++    {
++      "source": "passive1",
++      "stat": "electro_enemyRes_",
++      "value": -0.15,
++      "target": "team"
++    },
++    {
++      "source": "passive1",
++      "stat": "electro_enemyRes_",
++      "value": -0.15,
++      "target": "team",
++      "condition": "Radiance: Stellar-Conduct"
++    },
++    {
++      "source": "passive1",
++      "stat": "cryo_enemyRes_",
++      "value": -0.3,
++      "target": "team",
++      "condition": "Radiance: Stellar-Conduct"
++    },
++    {
++      "source": "passive2",
++      "stat": "atk_",
++      "value": 0.2,
++      "target": "self",
++      "condition": "Maid state",
++      "conditionState": "Defense Maid (Q off-field)",
++      "condition2": "A4 stacks",
++      "conditionState2": "1 stack"
++    },
++    {
++      "source": "passive2",
++      "stat": "atkSPD_",
++      "value": 0.2,
++      "target": "self",
++      "condition": "Maid state",
++      "conditionState": "Battle Maid (Q on-field)",
++      "condition2": "A4 stacks",
++      "conditionState2": "1 stack"
++    },
++    {
++      "source": "passive2",
++      "stat": "atk_",
++      "value": 0.4,
++      "target": "self",
++      "condition": "Maid state",
++      "conditionState": "Defense Maid (Q off-field)",
++      "condition2": "A4 stacks",
++      "conditionState2": "2 stacks"
++    },
++    {
++      "source": "passive2",
++      "stat": "atkSPD_",
++      "value": 0.4,
++      "target": "self",
++      "condition": "Maid state",
++      "conditionState": "Battle Maid (Q on-field)",
++      "condition2": "A4 stacks",
++      "conditionState2": "2 stacks"
++    },
++    {
++      "source": "passive2",
++      "stat": "atk_",
++      "value": 0.6,
++      "target": "self",
++      "condition": "Maid state",
++      "conditionState": "Defense Maid (Q off-field)",
++      "condition2": "A4 stacks",
++      "conditionState2": "3 stacks"
++    },
++    {
++      "source": "passive2",
++      "stat": "atkSPD_",
++      "value": 0.6,
++      "target": "self",
++      "condition": "Maid state",
++      "conditionState": "Battle Maid (Q on-field)",
++      "condition2": "A4 stacks",
++      "conditionState2": "3 stacks"
++    },
++    {
++      "source": "passive3",
++      "stat": "stellarconduct_baseDmg_",
++      "value": 0.007,
++      "scaling": {
++        "stat": "atk",
++        "per": 100
++      },
++      "max": 0.14,
++      "target": "team"
++    },
++    {
++      "source": "constellation2",
++      "stat": "stellarconduct_dmgInc",
++      "value": 1,
++      "scaling": {
++        "stat": "atk",
++        "per": 1
++      },
++      "target": "others",
++      "condition": "Toast (C2)"
++    },
++    {
++      "source": "constellation2",
++      "stat": "stellarconduct_dmgInc",
++      "value": 1,
++      "scaling": {
++        "stat": "atk",
++        "per": 1
++      },
++      "target": "self",
++      "condition": "Toast (C2)",
++      "condition2": "Maid state",
++      "conditionState2": "Defense Maid (Q off-field)"
++    },
++    {
++      "source": "constellation2",
++      "stat": "stellarconduct_dmgInc",
++      "value": 1.5,
++      "scaling": {
++        "stat": "atk",
++        "per": 1
++      },
++      "target": "self",
++      "condition": "Maid state",
++      "conditionState": "Battle Maid (Q on-field)",
++      "condition2": "Toast consumed by Danica (C2)",
++      "conditionState2": "1 stack"
++    },
++    {
++      "source": "constellation2",
++      "stat": "stellarconduct_dmgInc",
++      "value": 3.0,
++      "scaling": {
++        "stat": "atk",
++        "per": 1
++      },
++      "target": "self",
++      "condition": "Maid state",
++      "conditionState": "Battle Maid (Q on-field)",
++      "condition2": "Toast consumed by Danica (C2)",
++      "conditionState2": "2 stacks"
++    },
++    {
++      "source": "constellation2",
++      "stat": "stellarconduct_dmgInc",
++      "value": 4.5,
++      "scaling": {
++        "stat": "atk",
++        "per": 1
++      },
++      "target": "self",
++      "condition": "Maid state",
++      "conditionState": "Battle Maid (Q on-field)",
++      "condition2": "Toast consumed by Danica (C2)",
++      "conditionState2": "3 stacks"
++    },
++    {
++      "source": "constellation2",
++      "stat": "stellarconduct_dmgInc",
++      "value": 6.0,
++      "scaling": {
++        "stat": "atk",
++        "per": 1
++      },
++      "target": "self",
++      "condition": "Maid state",
++      "conditionState": "Battle Maid (Q on-field)",
++      "condition2": "Toast consumed by Danica (C2)",
++      "conditionState2": "4 stacks"
++    },
++    {
++      "source": "constellation2",
++      "stat": "stellarconduct_dmgInc",
++      "value": 7.5,
++      "scaling": {
++        "stat": "atk",
++        "per": 1
++      },
++      "target": "self",
++      "condition": "Maid state",
++      "conditionState": "Battle Maid (Q on-field)",
++      "condition2": "Toast consumed by Danica (C2)",
++      "conditionState2": "5 stacks"
++    },
++    {
++      "source": "constellation2",
++      "stat": "stellarconduct_dmgInc",
++      "value": 9.0,
++      "scaling": {
++        "stat": "atk",
++        "per": 1
++      },
++      "target": "self",
++      "condition": "Maid state",
++      "conditionState": "Battle Maid (Q on-field)",
++      "condition2": "Toast consumed by Danica (C2)",
++      "conditionState2": "6 stacks"
++    },
++    {
++      "source": "constellation2",
++      "stat": "stellarconduct_dmgInc",
++      "value": 10.5,
++      "scaling": {
++        "stat": "atk",
++        "per": 1
++      },
++      "target": "self",
++      "condition": "Maid state",
++      "conditionState": "Battle Maid (Q on-field)",
++      "condition2": "Toast consumed by Danica (C2)",
++      "conditionState2": "7 stacks"
++    },
++    {
++      "source": "constellation6",
++      "stat": "stellarconduct_dmg_",
++      "value": 0.2,
++      "target": "team"
++    },
++    {
++      "source": "constellation6",
++      "stat": "stellarconduct_dmg_",
++      "value": 0.1,
++      "scaling": {
++        "stat": "atk",
++        "per": 1000
++      },
++      "max": 0.4,
++      "target": "active",
++      "condition": "Maid state",
++      "conditionState": "Defense Maid (Q off-field)"
++    }
++  ],
++  "rowEffects": [
++    {
++      "source": "burst",
++      "kind": "bonus",
++      "stat": "stellarconduct_dmg_",
++      "talent": "skill",
++      "match": "On-Field E2",
++      "talentParam": {
++        "talent": "burst",
++        "index": 7
++      },
++      "value": 1,
++      "boost": {
++        "constellation": 1,
++        "factor": 2.2
++      },
++      "name": "Battle Maid: On-Field E2 DMG",
++      "condition": "Maid state",
++      "conditionState": "Battle Maid (Q on-field)"
++    },
++    {
++      "source": "constellation6",
++      "kind": "bonus",
++      "stat": "critRate_",
++      "talent": "skill",
++      "match": "On-Field E2",
++      "value": 0.025,
++      "scaling": {
++        "stat": "atk",
++        "per": 500
++      },
++      "max": 0.1,
++      "name": "C6 On-Field E2 CRIT Rate",
++      "condition": "Maid state",
++      "conditionState": "Battle Maid (Q on-field)"
++    },
++    {
++      "source": "constellation6",
++      "kind": "bonus",
++      "stat": "critDMG_",
++      "talent": "skill",
++      "match": "On-Field E2",
++      "value": 0.25,
++      "scaling": {
++        "stat": "atk",
++        "per": 500
++      },
++      "max": 1.0,
++      "name": "C6 On-Field E2 CRIT DMG",
++      "condition": "Maid state",
++      "conditionState": "Battle Maid (Q on-field)"
++    }
++  ]
++}
+diff --git a/tools/custom-characters/buffs/12517.json b/tools/custom-characters/buffs/12517.json
+new file mode 100644
+index 00000000..a0952a87
+--- /dev/null
++++ b/tools/custom-characters/buffs/12517.json
+@@ -0,0 +1,42 @@
++{
++  "name": "Torrents of Spring",
++  "notes": [
++    "Wavebreaking Thunder: ATK +16% always. Royal Decree (after the wielder's Electro hit): Stellar-Conduct DMG of the active character +20%. Completed (after an Electro Stellar-Conduct hit): wielder ATK +16% more and active character Stellar-Conduct DMG +20% more.",
++    "`param` is the index of the value in the passive's parameters (0: ATK, 2: Stellar-Conduct DMG, 3: extra ATK, 4: extra Stellar-Conduct DMG)."
++  ],
++  "buffs": [
++    {
++      "stat": "atk_",
++      "param": 0,
++      "target": "self"
++    },
++    {
++      "stat": "stellarconduct_dmg_",
++      "param": 2,
++      "target": "active",
++      "condition": "Royal Decree",
++      "conditionState": "Active (after Electro hit)"
++    },
++    {
++      "stat": "stellarconduct_dmg_",
++      "param": 2,
++      "target": "active",
++      "condition": "Royal Decree",
++      "conditionState": "Completed (after Electro Stellar-Conduct hit)"
++    },
++    {
++      "stat": "atk_",
++      "param": 3,
++      "target": "self",
++      "condition": "Royal Decree",
++      "conditionState": "Completed (after Electro Stellar-Conduct hit)"
++    },
++    {
++      "stat": "stellarconduct_dmg_",
++      "param": 4,
++      "target": "active",
++      "condition": "Royal Decree",
++      "conditionState": "Completed (after Electro Stellar-Conduct hit)"
++    }
++  ]
++}
+-- 
+2.43.0
+
