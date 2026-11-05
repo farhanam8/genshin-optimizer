@@ -1,13 +1,16 @@
 import { iconInlineProps } from '@genshin-optimizer/common/svgicons'
 import { CardThemed } from '@genshin-optimizer/common/ui'
 import type {
+  CustomCharacterAmount,
   CustomCharacterBuff,
   CustomCharacterBuffSource,
   CustomCharacterBuffStat,
   CustomCharacterBuffTarget,
+  CustomCharacterCondition2,
   CustomCharacterDataDef,
   CustomCharacterRowEffect,
   CustomCharacterTalentKey,
+  CustomCharacterTalentParam,
   ElementKey,
 } from '@genshin-optimizer/gi/consts'
 import {
@@ -42,15 +45,29 @@ import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-/** A buff as edited: numbers as typed, percentages in % */
-export type BuffRow = {
-  source: CustomCharacterBuffSource
-  stat: CustomCharacterBuffStat
+/**
+ * The amount and second-toggle fields shared by buffs and bonus effects, as
+ * edited. Talent rows are written "talent:index" ("burst:5"); with one, the
+ * value is a multiplier of that row's value, not a percentage.
+ */
+type AmountRow = {
   value: string
-  target: CustomCharacterBuffTarget
   scalingStat: '' | 'atk' | 'hp' | 'def' | 'eleMas'
   scalingPer: string
   max: string
+  talentParam: string
+  maxTalentParam: string
+  boostC: string
+  boostFactor: string
+  condition2: string
+  conditionState2: string
+}
+
+/** A buff as edited: numbers as typed, percentages in % */
+export type BuffRow = AmountRow & {
+  source: CustomCharacterBuffSource
+  stat: CustomCharacterBuffStat
+  target: CustomCharacterBuffTarget
   condition: string
   conditionState: string
   eles: ElementKey[]
@@ -63,16 +80,82 @@ const show = (n: number) => `${+n.toFixed(6)}`
 /** % to fraction without float noise: 0.7 -> 0.007, not 0.006999999999999999 */
 const fromPercent = (n: number) => Number((n / 100).toPrecision(12))
 
-export function buffToRow(b: CustomCharacterBuff): BuffRow {
-  const pct = isPercentStat(b.stat)
+const paramKey = (p?: CustomCharacterTalentParam) =>
+  p ? `${p.talent}:${p.index}` : ''
+const parseParamKey = (k: string): CustomCharacterTalentParam | undefined => {
+  const [talent, index] = k.split(':')
+  return talent && index !== undefined
+    ? { talent: talent as CustomCharacterTalentKey, index: Number(index) }
+    : undefined
+}
+
+function amountToRow(
+  a: Partial<CustomCharacterAmount> & CustomCharacterCondition2,
+  stat: string
+): AmountRow {
+  const pct = isPercentStat(stat)
+  const value = a.value ?? 0
   return {
+    value: show(pct && !a.talentParam ? value * 100 : value),
+    scalingStat: a.scaling?.stat ?? '',
+    scalingPer: a.scaling ? show(a.scaling.per) : '100',
+    max: a.max === undefined ? '' : show(pct ? a.max * 100 : a.max),
+    talentParam: paramKey(a.talentParam),
+    maxTalentParam: paramKey(a.maxTalentParam),
+    boostC: a.boost ? `${a.boost.constellation}` : '',
+    boostFactor: a.boost ? show(a.boost.factor) : '1',
+    condition2: a.condition2 ?? '',
+    conditionState2: a.conditionState2 ?? '',
+  }
+}
+
+/** The amount fields of a row, or `undefined` if a number is invalid. */
+function rowToAmount(
+  r: AmountRow,
+  stat: string
+): (CustomCharacterAmount & CustomCharacterCondition2) | undefined {
+  const pct = isPercentStat(stat)
+  const talentParam = parseParamKey(r.talentParam)
+  const value = num(r.value)
+  if (!Number.isFinite(value)) return undefined
+  const maxTalentParam = parseParamKey(r.maxTalentParam)
+  const max = maxTalentParam || r.max.trim() === '' ? undefined : num(r.max)
+  if (max !== undefined && !Number.isFinite(max)) return undefined
+  const per = num(r.scalingPer)
+  if (r.scalingStat && !(Number.isFinite(per) && per > 0)) return undefined
+  const factor = num(r.boostFactor)
+  if (r.boostC && !Number.isFinite(factor)) return undefined
+  return {
+    value: pct && !talentParam ? fromPercent(value) : value,
+    ...(r.scalingStat ? { scaling: { stat: r.scalingStat, per } } : {}),
+    ...(max !== undefined ? { max: pct ? fromPercent(max) : max } : {}),
+    ...(talentParam ? { talentParam } : {}),
+    ...(maxTalentParam ? { maxTalentParam } : {}),
+    ...(r.boostC ? { boost: { constellation: Number(r.boostC), factor } } : {}),
+    condition2: r.condition2,
+    conditionState2: r.conditionState2,
+  }
+}
+
+const newAmountRow = (): AmountRow => ({
+  value: '',
+  scalingStat: '',
+  scalingPer: '100',
+  max: '',
+  talentParam: '',
+  maxTalentParam: '',
+  boostC: '',
+  boostFactor: '1',
+  condition2: '',
+  conditionState2: '',
+})
+
+export function buffToRow(b: CustomCharacterBuff): BuffRow {
+  return {
+    ...amountToRow(b, b.stat),
     source: b.source,
     stat: b.stat,
-    value: show(pct ? b.value * 100 : b.value),
     target: b.target,
-    scalingStat: b.scaling?.stat ?? '',
-    scalingPer: b.scaling ? show(b.scaling.per) : '100',
-    max: b.max === undefined ? '' : show(pct ? b.max * 100 : b.max),
     condition: b.condition ?? '',
     conditionState: b.conditionState ?? '',
     eles: b.eles ?? [],
@@ -82,20 +165,13 @@ export function buffToRow(b: CustomCharacterBuff): BuffRow {
 
 /** The buff a row describes, or `undefined` if a number is invalid. */
 export function rowToBuff(r: BuffRow): CustomCharacterBuff | undefined {
-  const pct = isPercentStat(r.stat)
-  const value = num(r.value)
-  if (!Number.isFinite(value)) return undefined
-  const max = r.max.trim() === '' ? undefined : num(r.max)
-  if (max !== undefined && !Number.isFinite(max)) return undefined
-  const per = num(r.scalingPer)
-  if (r.scalingStat && !(Number.isFinite(per) && per > 0)) return undefined
+  const amount = rowToAmount(r, r.stat)
+  if (!amount) return undefined
   return validateCustomCharacterBuff({
+    ...amount,
     source: r.source,
     stat: r.stat,
-    value: pct ? fromPercent(value) : value,
     target: r.target,
-    scaling: r.scalingStat ? { stat: r.scalingStat, per } : undefined,
-    max: max === undefined ? undefined : pct ? fromPercent(max) : max,
     condition: r.condition,
     conditionState: r.conditionState,
     eles: r.target === 'self' ? undefined : r.eles,
@@ -104,13 +180,10 @@ export function rowToBuff(r: BuffRow): CustomCharacterBuff | undefined {
 }
 
 const newRow = (): BuffRow => ({
+  ...newAmountRow(),
   source: 'passive1',
   stat: 'atk_',
-  value: '',
   target: 'team',
-  scalingStat: '',
-  scalingPer: '100',
-  max: '',
   condition: '',
   conditionState: '',
   eles: [],
@@ -121,6 +194,8 @@ const newRow = (): BuffRow => ({
 function sourceLabels(def: CustomCharacterDataDef) {
   const name = (t?: { name: string }) => (t?.name ? ` · ${t.name}` : '')
   return {
+    skill: `E${name(def.talents.skill)}`,
+    burst: `Q${name(def.talents.burst)}`,
     passive1: `A1${name(def.passive1)}`,
     passive2: `A4${name(def.passive2)}`,
     passive3: `P3${name(def.passive3)}`,
@@ -135,15 +210,127 @@ function sourceLabels(def: CustomCharacterDataDef) {
 }
 
 const sourceShort = (s: CustomCharacterBuffSource) =>
-  s === 'passive1'
-    ? 'A1'
-    : s === 'passive2'
-      ? 'A4'
-      : s === 'passive3'
-        ? 'P3'
-        : s === 'passive'
-          ? 'P4'
-          : `C${s.slice(-1)}`
+  s === 'skill'
+    ? 'E'
+    : s === 'burst'
+      ? 'Q'
+      : s === 'passive1'
+        ? 'A1'
+        : s === 'passive2'
+          ? 'A4'
+          : s === 'passive3'
+            ? 'P3'
+            : s === 'passive'
+              ? 'P4'
+              : `C${s.slice(-1)}`
+
+/** Talent rows that can give a buff's value or cap: "Burst · ATK Bonus Ratio" */
+function talentParamOptions(def: CustomCharacterDataDef) {
+  return customCharacterTalentKeys.flatMap((tk) =>
+    def.talents[tk].rows.flatMap((row) => {
+      const labels = customCharacterRowLabels(row)
+      return row.params.map(({ index }, part) => ({
+        key: `${tk}:${index}`,
+        label: `${def.talents[tk].name || tk} · ${labels[part] ?? row.label}`,
+      }))
+    })
+  )
+}
+
+/**
+ * Value from a talent row, cap from a talent row, constellation multiplier
+ * and second toggle: shared by buffs and bonus effects.
+ */
+function AdvancedAmountFields({
+  def,
+  row,
+  update,
+}: {
+  def: CustomCharacterDataDef
+  row: AmountRow
+  update: (partial: Partial<AmountRow>) => void
+}) {
+  const { t } = useTranslation('page_character')
+  const options = talentParamOptions(def)
+  const paramSelect = (
+    field: 'talentParam' | 'maxTalentParam',
+    label: string
+  ) => (
+    <TextField
+      select
+      fullWidth
+      size="small"
+      label={label}
+      value={row[field]}
+      onChange={(e) => update({ [field]: e.target.value })}
+    >
+      <MenuItem value="">{t('customChar.buff.none')}</MenuItem>
+      {options.map((o) => (
+        <MenuItem key={o.key} value={o.key}>
+          {o.label}
+        </MenuItem>
+      ))}
+    </TextField>
+  )
+  return (
+    <Grid container spacing={1}>
+      <Grid item xs={12} md={6}>
+        {paramSelect('talentParam', t('customChar.buff.talentParam'))}
+      </Grid>
+      <Grid item xs={12} md={6}>
+        {paramSelect('maxTalentParam', t('customChar.buff.maxTalentParam'))}
+      </Grid>
+      <Grid item xs={6} md={3}>
+        <TextField
+          select
+          fullWidth
+          size="small"
+          label={t('customChar.buff.boostC')}
+          value={row.boostC}
+          onChange={(e) => update({ boostC: e.target.value })}
+        >
+          <MenuItem value="">{t('customChar.buff.none')}</MenuItem>
+          {[1, 2, 3, 4, 5, 6].map((c) => (
+            <MenuItem key={c} value={`${c}`}>
+              C{c}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Grid>
+      <Grid item xs={6} md={3}>
+        <TextField
+          fullWidth
+          size="small"
+          disabled={!row.boostC}
+          label={t('customChar.buff.boostFactor')}
+          value={row.boostFactor}
+          error={!!row.boostC && !Number.isFinite(num(row.boostFactor))}
+          onChange={(e) => update({ boostFactor: e.target.value })}
+          inputProps={{ inputMode: 'decimal' }}
+        />
+      </Grid>
+      <Grid item xs={12} md={3}>
+        <TextField
+          fullWidth
+          size="small"
+          label={t('customChar.buff.condition2')}
+          value={row.condition2}
+          onChange={(e) => update({ condition2: e.target.value })}
+        />
+      </Grid>
+      <Grid item xs={12} md={3}>
+        <TextField
+          fullWidth
+          size="small"
+          disabled={!row.condition2.trim()}
+          label={t('customChar.buff.conditionState2')}
+          value={row.conditionState2}
+          onChange={(e) => update({ conditionState2: e.target.value })}
+        />
+      </Grid>
+    </Grid>
+  )
+}
 
 /**
  * One line per item, opened for editing on click: an editor with all items
@@ -219,10 +406,20 @@ export function CustomCharacterBuffEditor({
     setRows(rows.filter((_, j) => j !== i))
     setOpen(null)
   }
+  const valueLabel = (r: AmountRow) =>
+    r.talentParam
+      ? t('customChar.buff.valueTimes')
+      : r.scalingStat
+        ? t('customChar.buff.valuePer', {
+            per: r.scalingPer,
+            stat: KeyMap.get(r.scalingStat),
+          })
+        : t('customChar.buff.value')
   const targetLabel = {
     self: t('customChar.buff.targetSelf'),
     team: t('customChar.buff.targetTeam'),
     others: t('customChar.buff.targetOthers'),
+    active: t('customChar.buff.targetActive'),
   }
 
   return (
@@ -233,7 +430,18 @@ export function CustomCharacterBuffEditor({
           const scaling = r.scalingStat
             ? ` / ${r.scalingPer} ${KeyMap.get(r.scalingStat)}`
             : ''
-          const max = r.max.trim() ? ` (max ${r.max}${unit})` : ''
+          const max = r.maxTalentParam
+            ? ` (max ${r.maxTalentParam})`
+            : r.max.trim()
+              ? ` (max ${r.max}${unit})`
+              : ''
+          const amount = r.talentParam
+            ? `${r.value} × ${r.talentParam}`
+            : `${r.value}${unit}`
+          const boost = r.boostC ? ` · C${r.boostC} ×${r.boostFactor}` : ''
+          const cond2 = r.condition2
+            ? ` · ${r.condition2}${r.conditionState2 ? `: ${r.conditionState2}` : ''}`
+            : ''
           const eles =
             r.target !== 'self' && r.eles.length
               ? ` (${r.excludeEles ? '≠ ' : ''}${r.eles.join('/')})`
@@ -244,7 +452,7 @@ export function CustomCharacterBuffEditor({
           return (
             <SummaryRow
               key={i}
-              text={`${sourceShort(r.source)} · ${KeyMap.get(r.stat)} ${r.value}${unit}${scaling}${max} · ${targetLabel[r.target]}${eles}${cond}`}
+              text={`${sourceShort(r.source)} · ${KeyMap.get(r.stat)} ${amount}${scaling}${max} · ${targetLabel[r.target]}${eles}${cond}${cond2}${boost}`}
               invalid={!rowToBuff(r)}
               onOpen={() => setOpen(i)}
               onRemove={() => remove(i)}
@@ -306,18 +514,11 @@ export function CustomCharacterBuffEditor({
                   <TextField
                     fullWidth
                     size="small"
-                    label={
-                      r.scalingStat
-                        ? t('customChar.buff.valuePer', {
-                            per: r.scalingPer,
-                            stat: KeyMap.get(r.scalingStat),
-                          })
-                        : t('customChar.buff.value')
-                    }
+                    label={valueLabel(r)}
                     value={r.value}
                     error={!Number.isFinite(num(r.value))}
                     onChange={(e) => update(i, { value: e.target.value })}
-                    InputProps={percentAdornment}
+                    InputProps={r.talentParam ? undefined : percentAdornment}
                     inputProps={{ inputMode: 'decimal' }}
                   />
                 </Grid>
@@ -342,6 +543,9 @@ export function CustomCharacterBuffEditor({
                     </MenuItem>
                     <MenuItem value="others">
                       {t('customChar.buff.targetOthers')}
+                    </MenuItem>
+                    <MenuItem value="active">
+                      {t('customChar.buff.targetActive')}
                     </MenuItem>
                   </TextField>
                 </Grid>
@@ -408,6 +612,7 @@ export function CustomCharacterBuffEditor({
                     fullWidth
                     size="small"
                     label={t('customChar.buff.max')}
+                    disabled={!!r.maxTalentParam}
                     value={r.max}
                     error={r.max.trim() !== '' && !Number.isFinite(num(r.max))}
                     onChange={(e) => update(i, { max: e.target.value })}
@@ -479,6 +684,13 @@ export function CustomCharacterBuffEditor({
                     </Box>
                   </Grid>
                 )}
+                <Grid item xs={12}>
+                  <AdvancedAmountFields
+                    def={def}
+                    row={r}
+                    update={(p) => update(i, p)}
+                  />
+                </Grid>
                 {invalid && (
                   <Grid item xs={12}>
                     <Typography variant="body2" color="error">
@@ -504,10 +716,14 @@ export function CustomCharacterBuffEditor({
   )
 }
 
-/** A row effect as edited: numbers as typed, `value` in % */
-export type RowEffectRow = {
+/**
+ * A row effect as edited: numbers as typed. `value` is in % for multipliers
+ * and extra hits; a stat bonus uses the amount fields like a buff.
+ */
+export type RowEffectRow = AmountRow & {
   source: CustomCharacterBuffSource
-  kind: 'multiplier' | 'extraHit'
+  kind: 'multiplier' | 'extraHit' | 'bonus'
+  stat: CustomCharacterBuffStat
   talent: '' | CustomCharacterTalentKey
   match: string
   value: string
@@ -518,12 +734,16 @@ export type RowEffectRow = {
 }
 
 export function rowEffectToRow(e: CustomCharacterRowEffect): RowEffectRow {
+  const stat = e.stat ?? 'all_dmg_'
   return {
+    ...(e.kind === 'bonus'
+      ? amountToRow(e, stat)
+      : { ...newAmountRow(), value: show(e.value * 100) }),
     source: e.source,
     kind: e.kind,
+    stat,
     talent: e.talent ?? '',
     match: e.match,
-    value: show(e.value * 100),
     name: e.name ?? '',
     condition: e.condition ?? '',
     conditionState: e.conditionState ?? '',
@@ -537,6 +757,21 @@ export function rowEffectToRow(e: CustomCharacterRowEffect): RowEffectRow {
 export function rowToRowEffect(
   r: RowEffectRow
 ): CustomCharacterRowEffect | undefined {
+  if (r.kind === 'bonus') {
+    const amount = rowToAmount(r, r.stat)
+    if (!amount) return undefined
+    return validateCustomCharacterRowEffect({
+      ...amount,
+      source: r.source,
+      kind: r.kind,
+      stat: r.stat,
+      talent: r.talent || undefined,
+      match: r.match,
+      name: r.name,
+      condition: r.condition,
+      conditionState: r.conditionState,
+    })
+  }
   const value = num(r.value)
   if (!Number.isFinite(value) || value < 0) return undefined
   const bonuses = r.bonuses.map((b) => ({
@@ -558,8 +793,10 @@ export function rowToRowEffect(
 }
 
 const newEffectRow = (): RowEffectRow => ({
+  ...newAmountRow(),
   source: 'constellation2',
   kind: 'multiplier',
+  stat: 'all_dmg_',
   talent: '',
   match: '',
   value: '100',
@@ -621,14 +858,14 @@ export function CustomCharacterRowEffectEditor({
           const cond = r.condition
             ? ` · ${r.condition}${r.conditionState ? `: ${r.conditionState}` : ''}`
             : ''
-          const kind =
-            r.kind === 'multiplier'
-              ? t('customChar.effect.multiplier')
-              : t('customChar.effect.extraHit')
+          const what =
+            r.kind === 'bonus'
+              ? `${KeyMap.get(r.stat)} ${r.talentParam ? `${r.value} × ${r.talentParam}` : `${r.value}${isPercentStat(r.stat) ? '%' : ''}`}${r.boostC ? ` (C${r.boostC} ×${r.boostFactor})` : ''}`
+              : `${r.kind === 'multiplier' ? t('customChar.effect.multiplier') : t('customChar.effect.extraHit')} ${r.value}%`
           return (
             <SummaryRow
               key={i}
-              text={`${sourceShort(r.source)} · ${kind} ${r.value}% · ${r.name || r.match}${cond}`}
+              text={`${sourceShort(r.source)} · ${what} · ${r.name || r.match}${cond}`}
               detail={
                 matched.length
                   ? t('customChar.effect.matched', {
@@ -689,6 +926,9 @@ export function CustomCharacterRowEffectEditor({
                     <MenuItem value="extraHit">
                       {t('customChar.effect.extraHit')}
                     </MenuItem>
+                    <MenuItem value="bonus">
+                      {t('customChar.effect.bonus')}
+                    </MenuItem>
                   </TextField>
                 </Grid>
                 <Grid item xs={6} md={2}>
@@ -729,15 +969,30 @@ export function CustomCharacterRowEffectEditor({
                   <TextField
                     fullWidth
                     size="small"
-                    label={t('customChar.effect.value')}
+                    label={
+                      r.kind !== 'bonus'
+                        ? t('customChar.effect.value')
+                        : r.talentParam
+                          ? t('customChar.buff.valueTimes')
+                          : t('customChar.buff.value')
+                    }
                     value={r.value}
-                    error={!(num(r.value) >= 0)}
+                    error={
+                      r.kind === 'bonus'
+                        ? !Number.isFinite(num(r.value))
+                        : !(num(r.value) >= 0)
+                    }
                     onChange={(e) => update(i, { value: e.target.value })}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">%</InputAdornment>
-                      ),
-                    }}
+                    InputProps={
+                      r.kind === 'bonus' &&
+                      (r.talentParam || !isPercentStat(r.stat))
+                        ? undefined
+                        : {
+                            endAdornment: (
+                              <InputAdornment position="end">%</InputAdornment>
+                            ),
+                          }
+                    }
                     inputProps={{ inputMode: 'decimal' }}
                   />
                 </Grid>
@@ -788,6 +1043,89 @@ export function CustomCharacterRowEffectEditor({
                     <DeleteForeverIcon />
                   </IconButton>
                 </Grid>
+                {r.kind === 'bonus' && (
+                  <>
+                    <Grid item xs={12} md={4}>
+                      <TextField
+                        select
+                        fullWidth
+                        size="small"
+                        label={t('customChar.buff.stat')}
+                        value={r.stat}
+                        onChange={(e) =>
+                          update(i, {
+                            stat: e.target.value as CustomCharacterBuffStat,
+                          })
+                        }
+                      >
+                        {customCharacterBuffStats.map((s) => (
+                          <MenuItem key={s} value={s}>
+                            {KeyMap.get(s)}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    </Grid>
+                    <Grid item xs={6} md={2}>
+                      <TextField
+                        select
+                        fullWidth
+                        size="small"
+                        label={t('customChar.buff.scaling')}
+                        value={r.scalingStat}
+                        onChange={(e) =>
+                          update(i, {
+                            scalingStat: e.target
+                              .value as AmountRow['scalingStat'],
+                          })
+                        }
+                      >
+                        <MenuItem value="">
+                          {t('customChar.buff.noScaling')}
+                        </MenuItem>
+                        {(['atk', 'hp', 'def', 'eleMas'] as const).map((s) => (
+                          <MenuItem key={s} value={s}>
+                            {KeyMap.get(s)}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    </Grid>
+                    <Grid item xs={6} md={2}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        disabled={!r.scalingStat}
+                        label={t('customChar.buff.per')}
+                        value={r.scalingPer}
+                        error={!!r.scalingStat && !(num(r.scalingPer) > 0)}
+                        onChange={(e) =>
+                          update(i, { scalingPer: e.target.value })
+                        }
+                        inputProps={{ inputMode: 'decimal' }}
+                      />
+                    </Grid>
+                    <Grid item xs={6} md={2}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        disabled={!!r.maxTalentParam}
+                        label={t('customChar.buff.max')}
+                        value={r.max}
+                        error={
+                          r.max.trim() !== '' && !Number.isFinite(num(r.max))
+                        }
+                        onChange={(e) => update(i, { max: e.target.value })}
+                        inputProps={{ inputMode: 'decimal' }}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <AdvancedAmountFields
+                        def={def}
+                        row={r}
+                        update={(p) => update(i, p)}
+                      />
+                    </Grid>
+                  </>
+                )}
                 {r.kind === 'extraHit' && (
                   <Grid item xs={12}>
                     <Box

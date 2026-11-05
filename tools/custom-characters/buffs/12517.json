@@ -1,0 +1,42 @@
+{
+  "name": "Torrents of Spring",
+  "notes": [
+    "Wavebreaking Thunder: ATK +16% always. Royal Decree (after the wielder's Electro hit): Stellar-Conduct DMG of the active character +20%. Completed (after an Electro Stellar-Conduct hit): wielder ATK +16% more and active character Stellar-Conduct DMG +20% more.",
+    "`param` is the index of the value in the passive's parameters (0: ATK, 2: Stellar-Conduct DMG, 3: extra ATK, 4: extra Stellar-Conduct DMG)."
+  ],
+  "buffs": [
+    {
+      "stat": "atk_",
+      "param": 0,
+      "target": "self"
+    },
+    {
+      "stat": "stellarconduct_dmg_",
+      "param": 2,
+      "target": "active",
+      "condition": "Royal Decree",
+      "conditionState": "Active (after Electro hit)"
+    },
+    {
+      "stat": "stellarconduct_dmg_",
+      "param": 2,
+      "target": "active",
+      "condition": "Royal Decree",
+      "conditionState": "Completed (after Electro Stellar-Conduct hit)"
+    },
+    {
+      "stat": "atk_",
+      "param": 3,
+      "target": "self",
+      "condition": "Royal Decree",
+      "conditionState": "Completed (after Electro Stellar-Conduct hit)"
+    },
+    {
+      "stat": "stellarconduct_dmg_",
+      "param": 4,
+      "target": "active",
+      "condition": "Royal Decree",
+      "conditionState": "Completed (after Electro Stellar-Conduct hit)"
+    }
+  ]
+}

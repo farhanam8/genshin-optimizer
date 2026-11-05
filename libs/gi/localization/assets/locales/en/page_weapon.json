@@ -81,7 +81,8 @@
       "excludeEles": "All except these",
       "remove": "Remove buff",
       "close": "Close",
-      "add": "Add Buff"
+      "add": "Add Buff",
+      "targetActive": "Active character"
     },
     "cancel": "Cancel",
     "save": "Save & reload"

@@ -58,6 +58,8 @@ export function sheetForCustomWeapon(def: CustomWeaponDef): WeaponSheet {
     }
     if (b.target === 'others')
       node = unequal(target.charKey, input.charKey, node)
+    if (b.target === 'active')
+      node = equal(input.activeCharKey, target.charKey, node)
     const c = b.condition ? conds.get(b.condition) : undefined
     if (c) node = equal(stateKey(b.conditionState), c.node, node)
     node = infoMut(node, { path: b.stat, isTeamBuff: forParty })

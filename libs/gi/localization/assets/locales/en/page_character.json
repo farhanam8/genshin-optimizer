@@ -206,7 +206,16 @@
       "conditionState": "Toggle option (optional)",
       "conditionStatePlaceholder": "e.g. Love (E tap)",
       "edit": "Edit",
-      "close": "Close"
+      "close": "Close",
+      "none": "None",
+      "talentParam": "Value from talent",
+      "maxTalentParam": "Max from talent",
+      "boostC": "Boosted at",
+      "boostFactor": "Boost ×",
+      "condition2": "Second toggle",
+      "conditionState2": "Second toggle state",
+      "targetActive": "Active character",
+      "valueTimes": "× talent value"
     },
     "effects": "Talent effects",
     "effectsHelp": "Changes to talent values from passives and constellations. Multiplier: matched values deal this % of their original DMG (125% = ×1.25 on the multiplier). Extra hit: adds a copy of each matched value dealing this % of its DMG. Rows are matched by name (a regular expression; | means or).",
@@ -224,7 +233,8 @@
       "matched_one": "Matches {{count}} value: {{names}}",
       "matched_other": "Matches {{count}} values: {{names}}",
       "noMatch": "Matches no DMG value.",
-      "add": "Add Talent Effect"
+      "add": "Add Talent Effect",
+      "bonus": "Stat bonus"
     }
   }
 }

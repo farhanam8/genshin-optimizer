@@ -141,7 +141,16 @@
       "conditionState": "Pilihan toggle (opsional)",
       "conditionStatePlaceholder": "mis. Love (E tap)",
       "edit": "Edit",
-      "close": "Tutup"
+      "close": "Tutup",
+      "none": "Tidak ada",
+      "talentParam": "Nilai dari talent",
+      "maxTalentParam": "Maks dari talent",
+      "boostC": "Diperkuat di",
+      "boostFactor": "Penguat ×",
+      "condition2": "Toggle kedua",
+      "conditionState2": "State toggle kedua",
+      "targetActive": "Karakter aktif",
+      "valueTimes": "× nilai talent"
     },
     "effects": "Efek talent",
     "effectsHelp": "Perubahan nilai talent dari pasif dan konstelasi. Multiplier DMG: nilai yang cocok memberi % ini dari DMG aslinya (125% = multiplier ×1,25). Hit tambahan: menambah salinan setiap nilai yang cocok dengan % ini dari DMG-nya. Baris dicocokkan lewat namanya (regular expression; | berarti atau).",
@@ -159,7 +168,8 @@
       "matched_one": "Cocok dengan {{count}} nilai: {{names}}",
       "matched_other": "Cocok dengan {{count}} nilai: {{names}}",
       "noMatch": "Tidak cocok dengan nilai DMG mana pun.",
-      "add": "Tambah Efek Talent"
+      "add": "Tambah Efek Talent",
+      "bonus": "Bonus stat"
     }
   }
 }

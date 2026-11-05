@@ -419,6 +419,7 @@ function CustomWeaponForm({
     self: t('customWeapon.buff.targetSelf'),
     team: t('customWeapon.buff.targetTeam'),
     others: t('customWeapon.buff.targetOthers'),
+    active: t('customWeapon.buff.targetActive'),
   }
 
   return (
@@ -676,11 +677,13 @@ function CustomWeaponForm({
                       })
                     }
                   >
-                    {(['self', 'team', 'others'] as const).map((k) => (
-                      <MenuItem key={k} value={k}>
-                        {targetLabel[k]}
-                      </MenuItem>
-                    ))}
+                    {(['self', 'team', 'others', 'active'] as const).map(
+                      (k) => (
+                        <MenuItem key={k} value={k}>
+                          {targetLabel[k]}
+                        </MenuItem>
+                      )
+                    )}
                   </TextField>
                 </Grid>
                 <Grid item xs={12} md={4} textAlign="right">

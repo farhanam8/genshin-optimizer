@@ -111,18 +111,29 @@ export function customCharacterRowLabels(
   if (n < 2) return [row.label]
   const parts = row.label.split('/').map((p) => p.trim())
   if (parts.length === n && parts.every(Boolean)) {
-    const firstWords = parts[0].split(/\s+/)
+    let firstWords = parts[0].split(/\s+/)
     const lastWords = parts[n - 1].split(/\s+/)
     let suffixAt = lastWords.findIndex(
       (w, i) => i > 0 && sharedSuffixWordRe.test(w)
     )
     if (suffixAt === -1) suffixAt = lastWords.length
-    const prefix = firstWords.slice(0, -1).join(' ')
-    const suffix = lastWords.slice(suffixAt).join(' ')
+    const suffixWords = lastWords.slice(suffixAt)
+    const lastAlt = lastWords.slice(0, suffixAt)
+    // "1-Hit Electro DMG/Stellar-Conduct DMG": the first value repeats the
+    // suffix, and its alternative is as long as the last one ("Electro")
+    const firstHasSuffix =
+      suffixWords.length > 0 &&
+      firstWords.slice(-suffixWords.length).join(' ') === suffixWords.join(' ')
+    if (firstHasSuffix) firstWords = firstWords.slice(0, -suffixWords.length)
+    const firstAltLength = firstHasSuffix
+      ? Math.min(lastAlt.length, firstWords.length)
+      : 1
+    const prefix = firstWords.slice(0, -firstAltLength).join(' ')
+    const suffix = suffixWords.join(' ')
     const alternatives = [
-      firstWords[firstWords.length - 1],
+      firstWords.slice(-firstAltLength).join(' '),
       ...parts.slice(1, -1),
-      lastWords.slice(0, suffixAt).join(' '),
+      lastAlt.join(' '),
     ]
     return alternatives.map((alt) =>
       [prefix, alt, suffix].filter(Boolean).join(' ')
@@ -142,6 +153,8 @@ export type CustomCharacterText = { name: string; description: string }
 
 /** Where a buff comes from; also when it unlocks (A1, A4, constellation level). */
 export const customCharacterBuffSources = [
+  'skill',
+  'burst',
   'passive1',
   'passive2',
   'passive3',
@@ -195,6 +208,16 @@ export const customCharacterBuffStats = [
   'stellarswirl_specialDmg_',
   'stellarconduct_critDMG_',
   'stellarswirl_critDMG_',
+  'stellarconduct_critRate_',
+  'stellarswirl_critRate_',
+  'stellarconduct_dmgInc',
+  'stellarswirl_dmgInc',
+  'all_dmgInc',
+  'normal_dmgInc',
+  'skill_dmgInc',
+  'burst_dmgInc',
+  'atkSPD_',
+  'shield_',
   ...buffElements.map((e) => `${e}_enemyRes_` as const),
 ] as const
 export type CustomCharacterBuffStat = (typeof customCharacterBuffStats)[number]
@@ -205,30 +228,62 @@ export type CustomCharacterBuffStat = (typeof customCharacterBuffStats)[number]
  * `value` per `scaling.per` points of the character's own `scaling.stat`
  * (e.g. 0.007 per 100 ATK), capped at `max`.
  */
-export type CustomCharacterBuff = {
-  source: CustomCharacterBuffSource
-  stat: CustomCharacterBuffStat
+/**
+ * How much a buff gives: `value` (a fraction for percentage stats), or
+ * `value` per `scaling.per` points of the giving character's stat, capped at
+ * `max`. With `talentParam`, `value` multiplies a talent row's value at the
+ * current talent level (e.g. "ATK Bonus Ratio" of the burst), and
+ * `maxTalentParam` reads the cap from a talent row ("Max ATK Bonus"). With
+ * `boost`, the amount and cap are multiplied by `factor` from that
+ * constellation on (e.g. C1: "increased by 80%" = 1.8).
+ */
+export type CustomCharacterAmount = {
   value: number
-  /**
-   * `self`: only this character; `team`: every party member, including this
-   * one; `others`: every party member except this one
-   */
-  target: CustomCharacterBuffTarget
   scaling?: { stat: 'atk' | 'hp' | 'def' | 'eleMas'; per: number }
   max?: number
-  /** When set, the buff only applies while this toggle (shared by name) is on */
-  condition?: string
-  /**
-   * With `condition`: the buff applies only while the toggle is in this
-   * state. A toggle whose buffs name states becomes a choice between them.
-   */
-  conditionState?: string
-  /** For team/others buffs: only party members of these elements (or all others, with `excludeEles`) */
-  eles?: ElementKey[]
-  excludeEles?: boolean
+  talentParam?: CustomCharacterTalentParam
+  maxTalentParam?: CustomCharacterTalentParam
+  boost?: { constellation: number; factor: number }
+}
+export type CustomCharacterTalentParam = {
+  talent: CustomCharacterTalentKey
+  index: number
 }
 
-export const customCharacterBuffTargets = ['self', 'team', 'others'] as const
+/** The second toggle a buff or effect needs, besides `condition` */
+export type CustomCharacterCondition2 = {
+  condition2?: string
+  conditionState2?: string
+}
+
+export type CustomCharacterBuff = CustomCharacterAmount &
+  CustomCharacterCondition2 & {
+    source: CustomCharacterBuffSource
+    stat: CustomCharacterBuffStat
+    /**
+     * `self`: only this character; `team`: every party member, including this
+     * one; `others`: every party member except this one; `active`: the
+     * on-field party member
+     */
+    target: CustomCharacterBuffTarget
+    /** When set, the buff only applies while this toggle (shared by name) is on */
+    condition?: string
+    /**
+     * With `condition`: the buff applies only while the toggle is in this
+     * state. A toggle whose buffs name states becomes a choice between them.
+     */
+    conditionState?: string
+    /** For team/others buffs: only party members of these elements (or all others, with `excludeEles`) */
+    eles?: ElementKey[]
+    excludeEles?: boolean
+  }
+
+export const customCharacterBuffTargets = [
+  'self',
+  'team',
+  'others',
+  'active',
+] as const
 export type CustomCharacterBuffTarget =
   (typeof customCharacterBuffTargets)[number]
 
@@ -242,27 +297,90 @@ export type CustomCharacterBuffTarget =
  *   DMG (e.g. 2.5), shown under `source` as "`name`: <row name>", with
  *   `bonuses` applied to that hit only
  */
-export type CustomCharacterRowEffect = {
-  source: CustomCharacterBuffSource
-  kind: 'multiplier' | 'extraHit'
-  match: string
-  talent?: CustomCharacterTalentKey
-  value: number
-  name?: string
-  bonuses?: { stat: CustomCharacterBuffStat; value: number }[]
-  condition?: string
-  conditionState?: string
-}
+export type CustomCharacterRowEffect = Partial<CustomCharacterAmount> &
+  CustomCharacterCondition2 & {
+    source: CustomCharacterBuffSource
+    /** `bonus`: `stat` increases by the amount, for the matched values only */
+    kind: 'multiplier' | 'extraHit' | 'bonus'
+    stat?: CustomCharacterBuffStat
+    match: string
+    talent?: CustomCharacterTalentKey
+    value: number
+    name?: string
+    bonuses?: { stat: CustomCharacterBuffStat; value: number }[]
+    condition?: string
+    conditionState?: string
+  }
 
 function cleanCondition(o: Record<string, unknown>) {
-  const { condition, conditionState } = o
-  if (typeof condition !== 'string' || !condition.trim()) return {}
+  const clean = (c: unknown, s: unknown, suffix: '' | '2') =>
+    typeof c === 'string' && c.trim()
+      ? {
+          [`condition${suffix}`]: c.trim().slice(0, 80),
+          ...(typeof s === 'string' && s.trim()
+            ? { [`conditionState${suffix}`]: s.trim().slice(0, 80) }
+            : {}),
+        }
+      : {}
   return {
-    condition: condition.trim().slice(0, 80),
-    ...(typeof conditionState === 'string' && conditionState.trim()
-      ? { conditionState: conditionState.trim().slice(0, 80) }
-      : {}),
+    ...clean(o['condition'], o['conditionState'], ''),
+    ...clean(o['condition2'], o['conditionState2'], '2'),
+  } as Pick<
+    CustomCharacterBuff,
+    'condition' | 'conditionState' | 'condition2' | 'conditionState2'
+  >
+}
+
+function cleanTalentParam(o: unknown): CustomCharacterTalentParam | undefined {
+  if (typeof o !== 'object' || o === null) return undefined
+  const { talent, index } = o as Record<string, unknown>
+  return customCharacterTalentKeys.includes(
+    talent as CustomCharacterTalentKey
+  ) &&
+    typeof index === 'number' &&
+    Number.isInteger(index) &&
+    index >= 0
+    ? { talent: talent as CustomCharacterTalentKey, index }
+    : undefined
+}
+
+/** The amount fields of a buff or bonus (see `CustomCharacterAmount`). */
+function cleanAmount(
+  o: Record<string, unknown>
+): Omit<CustomCharacterAmount, 'value'> {
+  const out: Omit<CustomCharacterAmount, 'value'> = {}
+  const { scaling, max, boost } = o
+  if (typeof scaling === 'object' && scaling !== null) {
+    const { stat: sStat, per } = scaling as Record<string, unknown>
+    if (
+      (sStat === 'atk' ||
+        sStat === 'hp' ||
+        sStat === 'def' ||
+        sStat === 'eleMas') &&
+      typeof per === 'number' &&
+      Number.isFinite(per) &&
+      per > 0
+    )
+      out.scaling = { stat: sStat, per }
   }
+  if (typeof max === 'number' && Number.isFinite(max)) out.max = max
+  const talentParam = cleanTalentParam(o['talentParam'])
+  if (talentParam) out.talentParam = talentParam
+  const maxTalentParam = cleanTalentParam(o['maxTalentParam'])
+  if (maxTalentParam) out.maxTalentParam = maxTalentParam
+  if (typeof boost === 'object' && boost !== null) {
+    const { constellation, factor } = boost as Record<string, unknown>
+    if (
+      typeof constellation === 'number' &&
+      Number.isInteger(constellation) &&
+      constellation >= 1 &&
+      constellation <= 6 &&
+      typeof factor === 'number' &&
+      Number.isFinite(factor)
+    )
+      out.boost = { constellation, factor }
+  }
+  return out
 }
 
 /** Sanitized copy of a row effect, or `undefined` if invalid. */
@@ -274,7 +392,13 @@ export function validateCustomCharacterRowEffect(
   const { source, kind, match, talent, value, name, bonuses } = r
   if (!customCharacterBuffSources.includes(source as CustomCharacterBuffSource))
     return undefined
-  if (kind !== 'multiplier' && kind !== 'extraHit') return undefined
+  if (kind !== 'multiplier' && kind !== 'extraHit' && kind !== 'bonus')
+    return undefined
+  if (
+    kind === 'bonus' &&
+    !customCharacterBuffStats.includes(r['stat'] as CustomCharacterBuffStat)
+  )
+    return undefined
   if (typeof match !== 'string' || !match.trim() || match.length > 200)
     return undefined
   try {
@@ -282,7 +406,11 @@ export function validateCustomCharacterRowEffect(
   } catch {
     return undefined
   }
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0)
+  if (
+    typeof value !== 'number' ||
+    !Number.isFinite(value) ||
+    (kind !== 'bonus' && value < 0)
+  )
     return undefined
   const effect: CustomCharacterRowEffect = {
     source: source as CustomCharacterBuffSource,
@@ -290,6 +418,9 @@ export function validateCustomCharacterRowEffect(
     match,
     value,
     ...cleanCondition(r),
+    ...(kind === 'bonus'
+      ? { stat: r['stat'] as CustomCharacterBuffStat, ...cleanAmount(r) }
+      : {}),
   }
   if (customCharacterTalentKeys.includes(talent as CustomCharacterTalentKey))
     effect.talent = talent as CustomCharacterTalentKey
@@ -318,7 +449,7 @@ export function validateCustomCharacterBuff(
 ): CustomCharacterBuff | undefined {
   if (typeof o !== 'object' || o === null || Array.isArray(o)) return undefined
   const b = o as Record<string, unknown>
-  const { source, stat, value, target, scaling, max, eles } = b
+  const { source, stat, value, target, eles } = b
   if (!customCharacterBuffSources.includes(source as CustomCharacterBuffSource))
     return undefined
   if (!customCharacterBuffStats.includes(stat as CustomCharacterBuffStat))
@@ -332,21 +463,8 @@ export function validateCustomCharacterBuff(
     value,
     target: target as CustomCharacterBuffTarget,
     ...cleanCondition(b),
+    ...cleanAmount(b),
   }
-  if (typeof scaling === 'object' && scaling !== null) {
-    const { stat: sStat, per } = scaling as Record<string, unknown>
-    if (
-      (sStat === 'atk' ||
-        sStat === 'hp' ||
-        sStat === 'def' ||
-        sStat === 'eleMas') &&
-      typeof per === 'number' &&
-      Number.isFinite(per) &&
-      per > 0
-    )
-      buff.scaling = { stat: sStat, per }
-  }
-  if (typeof max === 'number' && Number.isFinite(max)) buff.max = max
   if (Array.isArray(eles)) {
     const valid = eles.filter((e): e is ElementKey =>
       buffElements.includes(e as (typeof buffElements)[number])

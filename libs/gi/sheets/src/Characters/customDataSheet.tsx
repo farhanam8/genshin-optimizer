@@ -1,6 +1,7 @@
 import type {
   CharacterKey,
   CharacterSheetKey,
+  CustomCharacterAmount,
   CustomCharacterBuff,
   CustomCharacterBuffSource,
   CustomCharacterDataDef,
@@ -10,6 +11,7 @@ import type {
   ElementKey,
 } from '@genshin-optimizer/gi/consts'
 import { customCharacterRowLabels } from '@genshin-optimizer/gi/consts'
+import { KeyMap } from '@genshin-optimizer/gi/keymap'
 import type { Data, NumNode } from '@genshin-optimizer/gi/wr'
 import {
   constant,
@@ -21,6 +23,7 @@ import {
   one,
   percent,
   prod,
+  subscript,
   sum,
   target,
   unequal,
@@ -34,6 +37,7 @@ import { charTemplates } from './charTemplates'
 import {
   dataObjForCharacterSheet,
   dmgNode,
+  shieldNode,
   stellarTalentDmgNode,
 } from './dataUtil'
 import type { TalentSheet, TalentSheetElementKey } from './ICharacterSheet.d'
@@ -90,8 +94,13 @@ function scalingStat(after: string): 'hp' | 'atk' | 'def' | 'eleMas' {
 }
 
 function moveOf(talent: CustomCharacterTalentKey, label: string): Move {
-  if (talent === 'skill') return 'skill'
-  if (talent === 'burst') return 'burst'
+  if (talent !== 'auto') {
+    // e.g. "Anchor Normal Attack 1-Hit Electro DMG": Normal Attack DMG that
+    // scales with this talent's level
+    if (/normal attack/i.test(label)) return 'normal'
+    if (/charged attack/i.test(label)) return 'charged'
+    return talent
+  }
   if (/plunge/i.test(label))
     return /low|high/i.test(label) ? 'plunging_impact' : 'plunging_collision'
   if (/aimed|charged/i.test(label)) return 'charged'
@@ -150,15 +159,23 @@ const slug = (s: string) => s.replace(/[^a-z0-9]+/gi, '_').slice(0, 40)
  * The named toggles of a character. A toggle used without states is on/off;
  * a toggle whose users name states is a choice between those states.
  */
-function conditions(
-  key: CharacterKey,
-  users: { condition?: string; conditionState?: string }[]
-) {
+type Gated = {
+  condition?: string
+  conditionState?: string
+  condition2?: string
+  conditionState2?: string
+}
+
+function conditions(key: CharacterKey, users: Gated[]) {
   const all = new Map<
     string,
     { path: string[]; node: ReturnType<typeof cond>[1]; states: string[] }
   >()
-  for (const { condition, conditionState } of users) {
+  const pairs = users.flatMap((u) => [
+    { condition: u.condition, conditionState: u.conditionState },
+    { condition: u.condition2, conditionState: u.conditionState2 },
+  ])
+  for (const { condition, conditionState } of pairs) {
     if (!condition) continue
     let c = all.get(condition)
     if (!c) {
@@ -181,6 +198,14 @@ function conditions(
     ) {
       const c = condition && all.get(condition)
       return c ? equal(stateKey(state), c.node, node) : node
+    },
+    /** `node` only while both toggles of `g` are in their states */
+    gate(g: Gated, node: NumNode) {
+      return this.when(
+        g.condition,
+        g.conditionState,
+        this.when(g.condition2, g.conditionState2, node)
+      )
     },
   }
 }
@@ -215,6 +240,18 @@ class SourceFields {
     const s = state ?? ''
     g.fields.set(s, [...(g.fields.get(s) ?? []), field])
     this.groups.set(k, g)
+  }
+  /** Makes sure a toggle can be set from this card, even without fields of its own */
+  touch(source: CustomCharacterBuffSource, condition: string | undefined) {
+    if (!condition) return
+    const k = `${source}|${condition}`
+    if (!this.groups.has(k))
+      this.groups.set(k, {
+        source,
+        condition,
+        team: false,
+        fields: new Map<string, IFieldDisplay[]>(),
+      })
   }
   sections(ct: ICharacterTemplate, conds: Conditions) {
     const sections: Partial<
@@ -254,22 +291,84 @@ class SourceFields {
  * Formulas for a character's buffs: stat bonuses for itself (`self`), and
  * for the party (`team`, including itself, and `others`).
  */
+/** Stats that buffs scaling from the giver's stats add after the other bonuses */
+const totalPhaseStats: readonly string[] = ['atk', 'hp', 'def', 'eleMas']
+
+/**
+ * The amount of a buff or bonus (see `CustomCharacterAmount`). In the
+ * `total` phase, scaling reads the giver's stat before total-phase bonuses,
+ * like GO's own sheets, so that e.g. ATK from ATK does not depend on itself.
+ */
+function amountOf(
+  a: Partial<CustomCharacterAmount>,
+  def: CustomCharacterDataDef,
+  isPercent: boolean,
+  phase: 'premod' | 'total'
+): NumNode {
+  const fixed = (v: number) => (isPercent ? percent(v) : constant(v))
+  const talentValue = ({
+    talent,
+    index,
+  }: {
+    talent: CustomCharacterTalentKey
+    index: number
+  }) =>
+    subscript(
+      input.total[`${talent}Index`],
+      def.talents[talent].params[index] ?? [0],
+      isPercent ? { unit: '%' } : undefined
+    )
+  let node: NumNode = a.talentParam
+    ? prod(talentValue(a.talentParam), a.value ?? 1)
+    : fixed(a.value ?? 0)
+  if (a.scaling)
+    node = prod(
+      node,
+      (phase === 'total' ? input.premod : input.total)[a.scaling.stat],
+      1 / a.scaling.per
+    )
+  let cap: NumNode | undefined = a.maxTalentParam
+    ? talentValue(a.maxTalentParam)
+    : a.max !== undefined
+      ? fixed(a.max)
+      : undefined
+  if (a.boost) {
+    const factor = sum(
+      one,
+      greaterEq(input.constellation, a.boost.constellation, a.boost.factor - 1)
+    )
+    node = prod(node, factor)
+    if (cap) cap = prod(cap, factor)
+  }
+  return cap ? min(node, cap) : node
+}
+
+/**
+ * Formulas for a character's buffs: stat bonuses for itself (`self`), and
+ * for the party (`team`, including itself; `others`; `active`).
+ */
 function buffsOf(
   key: CharacterKey,
+  def: CustomCharacterDataDef,
   buffs: CustomCharacterBuff[],
   conds: Conditions,
   shown: SourceFields
 ) {
-  const self: Record<string, NumNode[]> = {}
-  const team: Record<string, NumNode[]> = {}
+  const phases = {
+    self: { premod: {}, total: {} } as Record<
+      string,
+      Record<string, NumNode[]>
+    >,
+    team: { premod: {}, total: {} } as Record<
+      string,
+      Record<string, NumNode[]>
+    >,
+  }
   for (const b of buffs) {
     if (!(b.stat in input.premod)) continue
-    const isPercent = b.stat.endsWith('_')
-    const amount = (v: number) => (isPercent ? percent(v) : constant(v))
-    let node: NumNode = amount(b.value)
-    if (b.scaling)
-      node = prod(node, input.total[b.scaling.stat], 1 / b.scaling.per)
-    if (b.max !== undefined) node = min(node, amount(b.max))
+    const phase =
+      b.scaling && totalPhaseStats.includes(b.stat) ? 'total' : 'premod'
+    let node = amountOf(b, def, b.stat.endsWith('_'), phase)
     const forParty = b.target !== 'self'
     if (forParty && b.eles?.length) {
       const base = node
@@ -278,13 +377,16 @@ function buffsOf(
         : sum(...b.eles.map((e) => equal(target.charEle, e, base)))
     }
     if (b.target === 'others') node = unequal(target.charKey, key, node)
-    node = infoMut(
-      unlocked(b.source, conds.when(b.condition, b.conditionState, node)),
-      { path: b.stat, isTeamBuff: forParty }
-    )
-    const premod = forParty ? team : self
-    premod[b.stat] = [...(premod[b.stat] ?? []), node]
+    if (b.target === 'active')
+      node = equal(input.activeCharKey, target.charKey, node)
+    node = infoMut(unlocked(b.source, conds.gate(b, node)), {
+      path: b.stat,
+      isTeamBuff: forParty,
+    })
+    const stats = phases[forParty ? 'team' : 'self'][phase]
+    stats[b.stat] = [...(stats[b.stat] ?? []), node]
     shown.add(b.source, b.condition, b.conditionState, forParty, { node })
+    shown.touch(b.source, b.condition2)
   }
   const total = (nodes: Record<string, NumNode[]>) =>
     Object.fromEntries(
@@ -293,7 +395,16 @@ function buffsOf(
         list.length === 1 ? list[0] : sum(...list),
       ])
     )
-  return { self: total(self), team: total(team) }
+  return {
+    self: {
+      premod: total(phases.self.premod),
+      total: total(phases.self.total),
+    },
+    team: {
+      premod: total(phases.team.premod),
+      total: total(phases.team.total),
+    },
+  }
 }
 
 const effectMatches = (
@@ -322,6 +433,24 @@ export function dataSheetForCustomCharacter(
     const levelIndex = input.total[`${tk}Index`]
     talent.rows.forEach((row, r) => {
       const labels = customCharacterRowLabels(row)
+      // "Shield DMG Absorption|{param5:F1P} ATK+{param6:F1}": one shield
+      const pct = row.params.find((p) => isPercent(p.format))
+      const flat = row.params.find((p) => !isPercent(p.format))
+      if (/shield/i.test(row.label) && pct) {
+        const node = infoMut(
+          shieldNode(
+            scalingStat(textAfter(row.template, pct.index)),
+            subscript(levelIndex, talent.params[pct.index] ?? [0], {
+              unit: '%',
+            }),
+            flat ? subscript(levelIndex, talent.params[flat.index] ?? [0]) : 0
+          ),
+          { name: row.label, variant: def.ele }
+        )
+        display[tk] = { ...display[tk], [`${r}_shield`]: node }
+        fields[tk].push({ node })
+        return
+      }
       row.params.forEach(({ index, format }, part) => {
         const values = talent.params[index]
         if (!values?.length) return
@@ -359,6 +488,8 @@ export function dataSheetForCustomCharacter(
 
         const move = moveOf(tk, label)
         const section = tk === 'auto' ? move.split('_')[0] : tk
+        // Normal/Charged Attacks of a skill or burst keep the character's element
+        const attackOfTalent = tk !== 'auto' && move !== tk
         /** This value's DMG formula, times `multiplier`, with `extra` stats for this hit only. */
         const dmg = (multiplier?: NumNode, extra?: Data['premod']) => {
           const additional: Data = extra ? { premod: extra } : {}
@@ -373,9 +504,10 @@ export function dataSheetForCustomCharacter(
               multiplier
             )
           if (
-            tk === 'auto' &&
-            (/fully[- ]charged/i.test(label) ||
-              new RegExp(def.ele, 'i').test(label))
+            attackOfTalent ||
+            (tk === 'auto' &&
+              (/fully[- ]charged/i.test(label) ||
+                new RegExp(def.ele, 'i').test(label)))
           )
             additional.hit = { ele: constant(def.ele) }
           if (move === 'plunging_collision')
@@ -385,9 +517,30 @@ export function dataSheetForCustomCharacter(
             values,
             move,
             additional,
-            multiplier
+            multiplier,
+            attackOfTalent ? tk : undefined
           )
         }
+
+        // `bonus` effects: stat bonuses for this value only
+        const bonusStats: Record<string, NumNode[]> = {}
+        for (const e of effects) {
+          if (e.kind !== 'bonus' || !e.stat || !effectMatches(e, tk, label))
+            continue
+          const amount = unlocked(
+            e.source,
+            conds.gate(e, amountOf(e, def, e.stat.endsWith('_'), 'premod'))
+          )
+          bonusStats[e.stat] = [...(bonusStats[e.stat] ?? []), amount]
+        }
+        const bonuses = Object.keys(bonusStats).length
+          ? Object.fromEntries(
+              Object.entries(bonusStats).map(([stat, list]) => [
+                stat,
+                list.length === 1 ? list[0] : sum(...list),
+              ])
+            )
+          : undefined
 
         // "deals 125% of its original DMG": 1 + 0.25 while active
         const multipliers = effects
@@ -395,11 +548,29 @@ export function dataSheetForCustomCharacter(
           .map((e) =>
             unlocked(
               e.source,
-              conds.when(e.condition, e.conditionState, constant(e.value - 1))
+              conds.gate(
+                e,
+                prod(
+                  constant(e.value - 1),
+                  e.boost
+                    ? sum(
+                        one,
+                        greaterEq(
+                          input.constellation,
+                          e.boost.constellation,
+                          e.boost.factor - 1
+                        )
+                      )
+                    : one
+                )
+              )
             )
           )
         const node = infoMut(
-          dmg(multipliers.length ? sum(one, ...multipliers) : undefined),
+          dmg(
+            multipliers.length ? sum(one, ...multipliers) : undefined,
+            bonuses
+          ),
           { name }
         )
         display[section] = { ...display[section], [id]: node }
@@ -418,11 +589,7 @@ export function dataSheetForCustomCharacter(
           const hit = infoMut(
             unlocked(
               e.source,
-              conds.when(
-                e.condition,
-                e.conditionState,
-                dmg(constant(e.value), extra)
-              )
+              conds.gate(e, dmg(constant(e.value), { ...bonuses, ...extra }))
             ),
             { name: `${e.name ?? 'Extra hit'}: ${name}` }
           )
@@ -430,12 +597,14 @@ export function dataSheetForCustomCharacter(
           shown.add(e.source, e.condition, e.conditionState, false, {
             node: hit,
           })
+          shown.touch(e.source, e.condition2)
         }
       })
     })
   }
 
-  for (const e of effects)
+  for (const e of effects) {
+    shown.touch(e.source, e.condition2)
     if (e.kind === 'multiplier')
       shown.add(e.source, e.condition, e.conditionState, false, {
         text: e.name ?? e.match,
@@ -443,6 +612,22 @@ export function dataSheetForCustomCharacter(
         fixed: 0,
         unit: '%',
       })
+    if (e.kind === 'bonus' && e.stat)
+      shown.add(e.source, e.condition, e.conditionState, false, {
+        node: infoMut(
+          unlocked(
+            e.source,
+            conds.gate(e, amountOf(e, def, e.stat.endsWith('_'), 'premod'))
+          ),
+          // a name, not `path` + `textSuffix`: a suffix is stored per path and
+          // would rename the stat everywhere
+          {
+            name: `${KeyMap.get(e.stat)} (${e.name ?? e.match})`,
+            unit: e.stat.endsWith('_') ? '%' : undefined,
+          }
+        ),
+      })
+  }
 
   const boosts: Partial<
     Record<'autoBoost' | 'skillBoost' | 'burstBoost', NumNode>
@@ -456,11 +641,12 @@ export function dataSheetForCustomCharacter(
     constellationFields[i + 1] = [{ node }]
   })
 
-  const buffs = buffsOf(key, def.buffs ?? [], conds, shown)
+  const buffs = buffsOf(key, def, def.buffs ?? [], conds, shown)
   const sourceSections = shown.sections(ct, conds)
   const data = dataObjForCharacterSheet(key, display, {
-    premod: { ...buffs.self, ...boosts },
-    teamBuff: { premod: buffs.team },
+    premod: { ...buffs.self.premod, ...boosts },
+    total: buffs.self.total,
+    teamBuff: { premod: buffs.team.premod, total: buffs.team.total },
   })
   const withBuffs = (
     k: CustomCharacterBuffSource,
@@ -472,8 +658,14 @@ export function dataSheetForCustomCharacter(
 
   const sheet: TalentSheet = {
     auto: ct.talentTem('auto', [{ fields: fields.auto }]),
-    skill: ct.talentTem('skill', [{ fields: fields.skill }]),
-    burst: ct.talentTem('burst', [{ fields: fields.burst }]),
+    skill: ct.talentTem(
+      'skill',
+      withBuffs('skill', [{ fields: fields.skill }])
+    ),
+    burst: ct.talentTem(
+      'burst',
+      withBuffs('burst', [{ fields: fields.burst }])
+    ),
   }
   if (def.passive1 || sourceSections.passive1)
     sheet.passive1 = ct.talentTem('passive1', withBuffs('passive1'))

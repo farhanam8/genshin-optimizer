@@ -55,7 +55,8 @@
       "excludeEles": "Semua kecuali ini",
       "remove": "Hapus buff",
       "close": "Tutup",
-      "add": "Tambah Buff"
+      "add": "Tambah Buff",
+      "targetActive": "Karakter aktif"
     },
     "cancel": "Batal",
     "save": "Simpan & muat ulang"
