@@ -1,0 +1,1675 @@
+From 8c98bff3a85d203f23d7b29471a32b4840217c29 Mon Sep 17 00:00:00 2001
+From: Farhan <farhanabdm@gmail.com>
+Date: Thu, 5 Nov 2026 01:34:21 +0000
+Subject: [PATCH] feat(gi): import custom character packs
+
+Add "Import Characters (.json)" to the Custom Characters dialog. It reads
+packs made by tools/custom-characters/nanoka-to-go.mjs and adds each
+character as an imported custom character; a character imported before
+(same source id) is updated.
+
+Imported characters keep their own level curves, ascension stats and
+per-level talent multipliers. Their sheet is built from the talent rows:
+Normal Attack rows and rows named "... DMG" become damage formulas, other
+rows are shown as values, and constellations that raise a talent level
+are applied. Images come from an existing character of the same element
+and weapon type. A new editor changes their base stats at level 90 and
+every talent multiplier per level.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Asb8vZRqeTYT9zLpVizGNv
+---
+ libs/gi/consts/src/customCharacter.ts         | 271 +++++++++++-
+ libs/gi/i18n/src/i18n.ts                      |  54 ++-
+ .../assets/locales/en/page_character.json     |  22 +-
+ .../assets/locales/id/page_character.json     |  22 +-
+ .../sheets/src/Characters/customDataSheet.tsx | 190 ++++++++
+ libs/gi/sheets/src/Characters/index.ts        |  25 +-
+ libs/gi/stats/src/index.ts                    | 106 ++++-
+ .../character/CustomCharacterDataForm.tsx     | 407 ++++++++++++++++++
+ .../character/CustomCharacterModal.tsx        | 230 ++++++++--
+ tools/custom-characters/nanoka-to-go.mjs      |   4 +-
+ 10 files changed, 1258 insertions(+), 73 deletions(-)
+ create mode 100644 libs/gi/sheets/src/Characters/customDataSheet.tsx
+ create mode 100644 libs/gi/ui/src/components/character/CustomCharacterDataForm.tsx
+
+diff --git a/libs/gi/consts/src/customCharacter.ts b/libs/gi/consts/src/customCharacter.ts
+index 1e19bbaa..7de2f854 100644
+--- a/libs/gi/consts/src/customCharacter.ts
++++ b/libs/gi/consts/src/customCharacter.ts
+@@ -2,25 +2,38 @@ import type { ElementKey } from './character'
+ import type { WeaponTypeKey } from './weapon'
+ 
+ /**
+- * Custom characters are user-defined characters that reuse the kit
+- * (talents, passives, constellations, conditionals and formulas) of an
+- * existing "template" character, but with their own name, element, weapon
+- * type, rarity and base stats.
++ * Custom characters are user-defined characters. There are two kinds:
++ *
++ * - `template` (default): reuses the kit (talents, passives, constellations,
++ *   conditionals and formulas) of an existing "template" character, with its
++ *   own name, element, weapon type, rarity and base stats.
++ * - `data`: imported from a custom character pack (see
++ *   `tools/custom-characters`). It has its own level curves, ascension stats
++ *   and per-level talent multipliers; every talent row is shown as a formula.
++ *   `template` is then only used for images.
+  *
+  * Definitions are stored in the browser's localStorage and are read once
+  * when this module is first evaluated. Creating, editing or deleting a custom
+  * character therefore requires a page reload to take effect.
+  */
+-export type CustomCharacterDef = {
++export type CustomCharacterDef =
++  | CustomCharacterTemplateDef
++  | CustomCharacterDataDef
++
++type CustomCharacterBase = {
+   /** Character key used everywhere in GO, e.g. `CustomChar1` */
+   key: string
+   /** Display name */
+   name: string
+-  /** Existing (non-Traveler) character whose kit is reused */
++  /** Existing (non-Traveler) character whose kit (template kind) or images (data kind) are reused */
+   template: string
+   ele: ElementKey
+   weaponType: WeaponTypeKey
+   rarity: 4 | 5
++}
++
++export type CustomCharacterTemplateDef = CustomCharacterBase & {
++  kind?: 'template'
+   /** Base HP/ATK/DEF at level 90 (including ascension bonus) */
+   hp: number
+   atk: number
+@@ -30,6 +43,63 @@ export type CustomCharacterDef = {
+   ascValue: number
+ }
+ 
++export const customCharacterTalentKeys = ['auto', 'skill', 'burst'] as const
++export type CustomCharacterTalentKey =
++  (typeof customCharacterTalentKeys)[number]
++
++export type CustomCharacterTalentRow = {
++  /** Row label as shown in game, e.g. "Low/High Plunge DMG" */
++  label: string
++  /** Value template as shown in game, e.g. "{param9:F1P}/{param10:F1P}" */
++  template: string
++  /** Params used by this row; `format` ends with `P` for percentages */
++  params: { index: number; format: string }[]
++}
++export type CustomCharacterTalent = {
++  name: string
++  description: string
++  rows: CustomCharacterTalentRow[]
++  /** For each param, its value at talent levels 1..15 */
++  params: number[][]
++}
++export type CustomCharacterText = { name: string; description: string }
++
++export const customCharacterGrowCurves = [
++  'GROW_CURVE_HP_S4',
++  'GROW_CURVE_ATTACK_S4',
++  'GROW_CURVE_HP_S5',
++  'GROW_CURVE_ATTACK_S5',
++] as const
++export type CustomCharacterGrowCurve =
++  (typeof customCharacterGrowCurves)[number]
++
++export type CustomCharacterDataDef = CustomCharacterBase & {
++  kind: 'data'
++  /** Character id on the source site, used to update a character on re-import */
++  sourceId?: number
++  region?: string
++  title?: string
++  birthday?: { month?: number; day?: number }
++  lvlCurves: {
++    key: 'hp' | 'atk' | 'def'
++    base: number
++    curve: CustomCharacterGrowCurve
++  }[]
++  /** Stat bonus at ascension phases 0..6 */
++  ascensionBonus: Record<string, number[]>
++  talents: Record<CustomCharacterTalentKey, CustomCharacterTalent>
++  passive1?: CustomCharacterText
++  passive2?: CustomCharacterText
++  passive3?: CustomCharacterText
++  constellations: CustomCharacterText[]
++}
++
++export function isCustomCharacterDataDef(
++  def: CustomCharacterDef
++): def is CustomCharacterDataDef {
++  return def.kind === 'data'
++}
++
+ export const customCharacterStorageKey = 'go_customCharacters'
+ export const customCharacterKeyPrefix = 'CustomChar'
+ 
+@@ -75,19 +145,148 @@ function isFiniteNonNeg(n: unknown): n is number {
+   return typeof n === 'number' && Number.isFinite(n) && n >= 0
+ }
+ 
+-/** Returns a sanitized copy of `obj`, or `undefined` if it is not a valid definition. */
+-export function validateCustomCharacterDef(
+-  obj: unknown
+-): CustomCharacterDef | undefined {
+-  if (typeof obj !== 'object' || obj === null) return undefined
+-  const o = obj as Record<string, unknown>
+-  const { key, name, template, ele, weaponType, rarity, hp, atk, def } = o
+-  const { ascStat, ascValue } = o
++const isObj = (o: unknown): o is Record<string, unknown> =>
++  typeof o === 'object' && o !== null && !Array.isArray(o)
++const isNumArr = (a: unknown): a is number[] =>
++  Array.isArray(a) &&
++  a.every((n) => typeof n === 'number' && Number.isFinite(n))
++const str = (s: unknown) => (typeof s === 'string' ? s : '')
++
++function validateBase(o: Record<string, unknown>) {
++  const { key, name, template, ele, weaponType, rarity } = o
+   if (typeof key !== 'string' || !/^CustomChar\d+$/.test(key)) return undefined
+   if (typeof template !== 'string' || !template) return undefined
+   if (!customElements.includes(ele as ElementKey)) return undefined
+   if (!customWeaponTypes.includes(weaponType as WeaponTypeKey)) return undefined
+   if (rarity !== 4 && rarity !== 5) return undefined
++  return {
++    key,
++    name: typeof name === 'string' && name.trim() ? name.trim() : key,
++    template,
++    ele: ele as ElementKey,
++    weaponType: weaponType as WeaponTypeKey,
++    rarity: rarity as 4 | 5,
++  }
++}
++
++function validateText(o: unknown): CustomCharacterText | undefined {
++  if (!isObj(o)) return undefined
++  return { name: str(o['name']), description: str(o['description']) }
++}
++
++function validateTalent(o: unknown): CustomCharacterTalent | undefined {
++  if (!isObj(o)) return undefined
++  const { params, rows } = o
++  if (!Array.isArray(params) || !params.every(isNumArr)) return undefined
++  if (!Array.isArray(rows)) return undefined
++  const validRows: CustomCharacterTalentRow[] = []
++  for (const row of rows) {
++    if (!isObj(row) || !Array.isArray(row['params'])) return undefined
++    const rowParams: CustomCharacterTalentRow['params'] = []
++    for (const p of row['params']) {
++      if (!isObj(p)) return undefined
++      const { index, format } = p
++      if (
++        typeof index !== 'number' ||
++        !Number.isInteger(index) ||
++        index < 0 ||
++        index >= params.length
++      )
++        return undefined
++      rowParams.push({ index, format: str(format) })
++    }
++    validRows.push({
++      label: str(row['label']),
++      template: str(row['template']),
++      params: rowParams,
++    })
++  }
++  return {
++    name: str(o['name']),
++    description: str(o['description']),
++    rows: validRows,
++    params: params.map((p) => [...p]),
++  }
++}
++
++const dataStatKeys: readonly string[] = [
++  'hp',
++  'atk',
++  'def',
++  ...customCharacterAscStatKeys,
++]
++
++function validateDataDef(
++  o: Record<string, unknown>
++): CustomCharacterDataDef | undefined {
++  const base = validateBase(o)
++  if (!base) return undefined
++  const { lvlCurves, ascensionBonus, talents, constellations } = o
++  if (!Array.isArray(lvlCurves)) return undefined
++  const curves: CustomCharacterDataDef['lvlCurves'] = []
++  for (const lc of lvlCurves) {
++    if (!isObj(lc)) return undefined
++    const { key, base: b, curve } = lc
++    if (key !== 'hp' && key !== 'atk' && key !== 'def') return undefined
++    if (!isFiniteNonNeg(b)) return undefined
++    if (!customCharacterGrowCurves.includes(curve as CustomCharacterGrowCurve))
++      return undefined
++    curves.push({ key, base: b, curve: curve as CustomCharacterGrowCurve })
++  }
++  if (!isObj(ascensionBonus)) return undefined
++  const asc: Record<string, number[]> = {}
++  for (const [stat, values] of Object.entries(ascensionBonus)) {
++    if (
++      !dataStatKeys.includes(stat) ||
++      !isNumArr(values) ||
++      values.length !== 7
++    )
++      return undefined
++    asc[stat] = [...values]
++  }
++  if (!isObj(talents)) return undefined
++  const validTalents = {} as CustomCharacterDataDef['talents']
++  for (const tk of customCharacterTalentKeys) {
++    const talent = validateTalent(talents[tk])
++    if (!talent) return undefined
++    validTalents[tk] = talent
++  }
++  const birthday = isObj(o['birthday']) ? o['birthday'] : {}
++  return {
++    ...base,
++    kind: 'data',
++    sourceId: typeof o['sourceId'] === 'number' ? o['sourceId'] : undefined,
++    region: str(o['region']) || undefined,
++    title: str(o['title']) || undefined,
++    birthday: {
++      month:
++        typeof birthday['month'] === 'number' ? birthday['month'] : undefined,
++      day: typeof birthday['day'] === 'number' ? birthday['day'] : undefined,
++    },
++    lvlCurves: curves,
++    ascensionBonus: asc,
++    talents: validTalents,
++    passive1: validateText(o['passive1']),
++    passive2: validateText(o['passive2']),
++    passive3: validateText(o['passive3']),
++    constellations: Array.isArray(constellations)
++      ? constellations
++          .map(validateText)
++          .filter((c) => !!c)
++          .slice(0, 6)
++      : [],
++  }
++}
++
++/** Returns a sanitized copy of `obj`, or `undefined` if it is not a valid definition. */
++export function validateCustomCharacterDef(
++  obj: unknown
++): CustomCharacterDef | undefined {
++  if (!isObj(obj)) return undefined
++  if (obj['kind'] === 'data') return validateDataDef(obj)
++  const base = validateBase(obj)
++  if (!base) return undefined
++  const { hp, atk, def, ascStat, ascValue } = obj
+   if (!isFiniteNonNeg(hp) || !isFiniteNonNeg(atk) || !isFiniteNonNeg(def))
+     return undefined
+   if (
+@@ -96,12 +295,7 @@ export function validateCustomCharacterDef(
+     return undefined
+   if (!isFiniteNonNeg(ascValue)) return undefined
+   return {
+-    key,
+-    name: typeof name === 'string' && name.trim() ? name.trim() : key,
+-    template,
+-    ele: ele as ElementKey,
+-    weaponType: weaponType as WeaponTypeKey,
+-    rarity,
++    ...base,
+     hp,
+     atk,
+     def,
+@@ -110,6 +304,43 @@ export function validateCustomCharacterDef(
+   }
+ }
+ 
++export const customCharacterPackFormat = 'genshin-optimizer-custom-characters'
++
++/**
++ * Reads a custom character pack (as written by
++ * `tools/custom-characters/nanoka-to-go.mjs`). Returns its characters as data
++ * definitions without a key or template yet, or an error message.
++ */
++export function parseCustomCharacterPack(
++  json: string
++):
++  | { characters: Omit<CustomCharacterDataDef, 'key' | 'template'>[] }
++  | { error: string } {
++  let pack: unknown
++  try {
++    pack = JSON.parse(json)
++  } catch {
++    return { error: 'invalidJson' }
++  }
++  if (!isObj(pack) || pack['format'] !== customCharacterPackFormat)
++    return { error: 'notAPack' }
++  if (!Array.isArray(pack['characters'])) return { error: 'notAPack' }
++  const characters: Omit<CustomCharacterDataDef, 'key' | 'template'>[] = []
++  for (const char of pack['characters']) {
++    if (!isObj(char)) return { error: 'invalidCharacter' }
++    const def = validateDataDef({
++      ...char,
++      kind: 'data',
++      key: `${customCharacterKeyPrefix}0`,
++      template: '-',
++    })
++    if (!def) return { error: 'invalidCharacter' }
++    const { key: _key, template: _template, ...rest } = def
++    characters.push(rest)
++  }
++  return { characters }
++}
++
+ /** Reads the raw definitions from localStorage. Safe to call outside a browser. */
+ export function readCustomCharacterDefs(): CustomCharacterDef[] {
+   try {
+diff --git a/libs/gi/i18n/src/i18n.ts b/libs/gi/i18n/src/i18n.ts
+index 3338dc51..94d33098 100644
+--- a/libs/gi/i18n/src/i18n.ts
++++ b/libs/gi/i18n/src/i18n.ts
+@@ -1,4 +1,11 @@
+-import { customCharacterDefs } from '@genshin-optimizer/gi/consts'
++import type {
++  CustomCharacterDataDef,
++  CustomCharacterText,
++} from '@genshin-optimizer/gi/consts'
++import {
++  customCharacterDefs,
++  isCustomCharacterDataDef,
++} from '@genshin-optimizer/gi/consts'
+ import i18n from 'i18next'
+ import LanguageDetector from 'i18next-browser-languagedetector'
+ import Backend from 'i18next-http-backend'
+@@ -78,6 +85,17 @@ i18n.store.on('added', (lng: string, ns: string) => {
+       i18n.addResource(lng, ns, 'name', name, { silent: true })
+   }
+ })
++// Imported custom characters bring their own talent texts, in every language.
++for (const def of customCharacterDefs)
++  if (isCustomCharacterDataDef(def))
++    for (const lng of languageCodeList)
++      i18n.addResourceBundle(
++        lng,
++        `char_${def.key}_gen`,
++        dataCharacterTexts(def),
++        true,
++        true
++      )
+ i18n.services.formatter?.add('percent', (value, _lng, options) => {
+   return (value * 100).toFixed(options.fixed)
+ })
+@@ -88,11 +106,41 @@ console.log('i18n initialized')
+ 
+ export { i18n }
+ 
+-/** Maps a custom character's text namespace to its template's namespace. */
++/** Maps a template custom character's text namespace to its template's namespace. */
+ function customCharacterNamespace(ns: string): string {
+-  for (const { key, template } of customCharacterDefs) {
++  for (const def of customCharacterDefs) {
++    if (isCustomCharacterDataDef(def)) continue
++    const { key, template } = def
+     if (ns === `char_${key}_gen`) return `char_${template}_gen`
+     if (ns === `char_${key}`) return `char_${template}`
+   }
+   return ns
+ }
++
++/** Talent texts of an imported custom character, in the `char_<key>_gen` layout. */
++function dataCharacterTexts(def: CustomCharacterDataDef) {
++  const lines = (text: string) =>
++    Object.fromEntries(
++      text
++        .split('\n')
++        .filter((line) => line.trim())
++        .map((line, i) => [i, line])
++    )
++  const entry = (t?: CustomCharacterText) =>
++    t ? { name: t.name, description: lines(t.description) } : undefined
++  return {
++    name: def.name,
++    title: def.title ?? '',
++    description: '',
++    constellationName: '',
++    auto: entry(def.talents.auto),
++    skill: entry(def.talents.skill),
++    burst: entry(def.talents.burst),
++    passive1: entry(def.passive1),
++    passive2: entry(def.passive2),
++    passive3: entry(def.passive3),
++    ...Object.fromEntries(
++      def.constellations.map((c, i) => [`constellation${i + 1}`, entry(c)])
++    ),
++  }
++}
+diff --git a/libs/gi/localization/assets/locales/en/page_character.json b/libs/gi/localization/assets/locales/en/page_character.json
+index 645bedb3..a117c7d1 100644
+--- a/libs/gi/localization/assets/locales/en/page_character.json
++++ b/libs/gi/localization/assets/locales/en/page_character.json
+@@ -121,7 +121,7 @@
+   "customChar": {
+     "button": "Custom Character",
+     "title": "Custom Characters",
+-    "info": "A custom character uses the talents, passives and constellations of a template character, with its own name, element, weapon type, rarity and base stats. GO reloads after saving. Custom characters are stored only in this browser.",
++    "info": "A custom character either uses the talents, passives and constellations of a template character with its own stats, or is imported from a custom character pack. GO reloads after saving. Custom characters are stored only in this browser.",
+     "empty": "No custom characters yet.",
+     "create": "Create Custom Character",
+     "edit": "Edit",
+@@ -138,6 +138,24 @@
+     "ascStat": "Ascension stat",
+     "ascValue": "Value at max ascension",
+     "cancel": "Cancel",
+-    "save": "Save & reload"
++    "save": "Save & reload",
++    "import": "Import Characters (.json)",
++    "importHelp": "Import a custom character pack, e.g. made with tools/custom-characters/nanoka-to-go.mjs. Characters imported before are updated.",
++    "importPreview": "These characters will be imported:",
++    "importNew": "New character",
++    "importUpdate": "Updates an imported character (keeps its name and images)",
++    "importConfirm": "Import & reload",
++    "importErrors": {
++      "invalidJson": "This file is not valid JSON.",
++      "notAPack": "This file is not a custom character pack.",
++      "invalidCharacter": "A character in this pack has invalid data."
++    },
++    "importedFrom": "Imported · images from {{name}}",
++    "imageTemplate": "Images from",
++    "imageTemplateHelp": "Imported characters have no images in GO, so they use this character's images.",
++    "talentMultipliers": "Talent multipliers per level",
++    "talentMultipliersHelp": "Rows marked (%) are percentages, e.g. 39.6 means 39.6%. Damage rows become formulas; other rows are shown as values.",
++    "param": "Row",
++    "level": "Lv. {{level}}"
+   }
+ }
+diff --git a/libs/gi/localization/assets/locales/id/page_character.json b/libs/gi/localization/assets/locales/id/page_character.json
+index 59781973..e32085ff 100644
+--- a/libs/gi/localization/assets/locales/id/page_character.json
++++ b/libs/gi/localization/assets/locales/id/page_character.json
+@@ -56,7 +56,7 @@
+   "customChar": {
+     "button": "Karakter Custom",
+     "title": "Karakter Custom",
+-    "info": "Karakter custom memakai talent, pasif, dan konstelasi dari karakter template, dengan nama, elemen, jenis senjata, rarity, dan stat dasarnya sendiri. GO akan dimuat ulang setelah disimpan. Karakter custom hanya tersimpan di browser ini.",
++    "info": "Karakter custom bisa memakai talent, pasif, dan konstelasi dari karakter template dengan stat-nya sendiri, atau di-import dari paket karakter custom. GO akan dimuat ulang setelah disimpan. Karakter custom hanya tersimpan di browser ini.",
+     "empty": "Belum ada karakter custom.",
+     "create": "Buat Karakter Custom",
+     "edit": "Edit",
+@@ -73,6 +73,24 @@
+     "ascStat": "Stat ascension",
+     "ascValue": "Nilai di ascension maks",
+     "cancel": "Batal",
+-    "save": "Simpan & muat ulang"
++    "save": "Simpan & muat ulang",
++    "import": "Import Karakter (.json)",
++    "importHelp": "Import paket karakter custom, misalnya hasil tools/custom-characters/nanoka-to-go.mjs. Karakter yang pernah di-import akan diperbarui.",
++    "importPreview": "Karakter berikut akan di-import:",
++    "importNew": "Karakter baru",
++    "importUpdate": "Memperbarui karakter yang sudah di-import (nama dan gambar tetap)",
++    "importConfirm": "Import & muat ulang",
++    "importErrors": {
++      "invalidJson": "File ini bukan JSON yang valid.",
++      "notAPack": "File ini bukan paket karakter custom.",
++      "invalidCharacter": "Ada karakter di paket ini yang datanya tidak valid."
++    },
++    "importedFrom": "Hasil import · gambar dari {{name}}",
++    "imageTemplate": "Gambar dari",
++    "imageTemplateHelp": "Karakter hasil import tidak punya gambar di GO, jadi memakai gambar karakter ini.",
++    "talentMultipliers": "Multiplier talent per level",
++    "talentMultipliersHelp": "Baris bertanda (%) adalah persen, misalnya 39.6 berarti 39,6%. Baris damage menjadi formula; baris lain ditampilkan sebagai nilai.",
++    "param": "Baris",
++    "level": "Lv. {{level}}"
+   }
+ }
+diff --git a/libs/gi/sheets/src/Characters/customDataSheet.tsx b/libs/gi/sheets/src/Characters/customDataSheet.tsx
+new file mode 100644
+index 00000000..50a414dc
+--- /dev/null
++++ b/libs/gi/sheets/src/Characters/customDataSheet.tsx
+@@ -0,0 +1,190 @@
++import type {
++  CharacterKey,
++  CharacterSheetKey,
++  CustomCharacterDataDef,
++  CustomCharacterTalent,
++  CustomCharacterTalentKey,
++  CustomCharacterTalentRow,
++} from '@genshin-optimizer/gi/consts'
++import type { Data, NumNode } from '@genshin-optimizer/gi/wr'
++import { constant, greaterEq, infoMut, input } from '@genshin-optimizer/gi/wr'
++import type { IFieldDisplay } from '../fieldDisplay'
++import { CharacterSheet } from './CharacterSheet'
++import { charTemplates } from './charTemplates'
++import { dataObjForCharacterSheet, dmgNode } from './dataUtil'
++import type { TalentSheet, TalentSheetElementKey } from './ICharacterSheet.d'
++
++/*
++ * Character sheet of an imported (data kind) custom character.
++ *
++ * The imported data only has the talent rows shown in game ("1-Hit DMG",
++ * "CD", ...) and their values per talent level, not how the game uses them.
++ * So every percentage row whose label is a damage row (any Normal Attack
++ * row, or a row named "... DMG") becomes a damage formula, scaling from the stat named in the row (ATK by default); every
++ * other row is shown as a value for the current talent level. Passives and
++ * constellations are shown as text, except constellations that increase a
++ * talent level (usually C3/C5), which are applied.
++ */
++
++type Move =
++  | 'normal'
++  | 'charged'
++  | 'plunging_collision'
++  | 'plunging_impact'
++  | 'skill'
++  | 'burst'
++
++const paramRe = /\{param(\d+):([A-Z0-9]+)\}/g
++/** Rows with these words are special reactions; their formula is unknown. */
++const reactionRe =
++  /stellar|lunar|moonsign|bloom|burgeon|hyperbloom|swirl|electro-charged|overloaded|superconduct|shatter|burning/i
++const notDamageRe = /increase|bonus|reduction|ratio|cost|interval|duration/i
++
++const isPercent = (format: string) => /P$/.test(format)
++
++/** The text between this param and the next one, e.g. " Max HP" or "×2". */
++function textAfter(template: string, index: number): string {
++  const re = new RegExp(`\\{param${index + 1}:[A-Z0-9]+\\}`)
++  const match = re.exec(template)
++  if (!match) return ''
++  const rest = template.slice(match.index + match[0].length)
++  const next = rest.search(/\{param|\//)
++  return next === -1 ? rest : rest.slice(0, next)
++}
++
++function scalingStat(after: string): 'hp' | 'atk' | 'def' | 'eleMas' {
++  if (/\bHP\b/i.test(after)) return 'hp'
++  if (/\bDEF\b/i.test(after)) return 'def'
++  if (/Elemental Mastery|\bEM\b/i.test(after)) return 'eleMas'
++  return 'atk'
++}
++
++function moveOf(talent: CustomCharacterTalentKey, label: string): Move {
++  if (talent === 'skill') return 'skill'
++  if (talent === 'burst') return 'burst'
++  if (/plunge/i.test(label))
++    return /low|high/i.test(label) ? 'plunging_impact' : 'plunging_collision'
++  if (/aimed|charged/i.test(label)) return 'charged'
++  return 'normal'
++}
++
++function rowName(row: CustomCharacterTalentRow, part: number, after: string) {
++  const hits = after.match(/[×x]\s*(\d+)/)?.[1]
++  const parts =
++    row.params.length > 1 ? ` (${part + 1}/${row.params.length})` : ''
++  return `${row.label}${parts}${hits ? ` ×${hits}` : ''}`
++}
++
++/** Which talent a constellation description boosts by 3 levels, if any. */
++function boostedTalent(
++  description: string,
++  talents: Record<CustomCharacterTalentKey, CustomCharacterTalent>
++): CustomCharacterTalentKey | undefined {
++  if (!/increases the level of/i.test(description)) return undefined
++  if (talents.skill.name && description.includes(talents.skill.name))
++    return 'skill'
++  if (talents.burst.name && description.includes(talents.burst.name))
++    return 'burst'
++  if (/elemental skill/i.test(description)) return 'skill'
++  if (/elemental burst/i.test(description)) return 'burst'
++  if (/normal attack/i.test(description)) return 'auto'
++  return undefined
++}
++
++export function dataSheetForCustomCharacter(
++  def: CustomCharacterDataDef
++): CharacterSheet {
++  const key = def.key as CharacterKey
++  const ct = charTemplates(key as CharacterSheetKey)
++  const display: Record<string, Record<string, NumNode>> = {}
++  const fields: Record<CustomCharacterTalentKey, IFieldDisplay[]> = {
++    auto: [],
++    skill: [],
++    burst: [],
++  }
++
++  for (const tk of ['auto', 'skill', 'burst'] as const) {
++    const talent = def.talents[tk]
++    const levelIndex = input.total[`${tk}Index`]
++    talent.rows.forEach((row, r) => {
++      row.params.forEach(({ index, format }, part) => {
++        const values = talent.params[index]
++        if (!values?.length) return
++        const after = textAfter(row.template, index)
++        const name = rowName(row, part, after)
++        // Normal Attack rows are damage ("Aimed Shot"); other talents name it ("... DMG")
++        const isDamage =
++          isPercent(format) &&
++          (tk === 'auto' || /DMG/i.test(row.label)) &&
++          !notDamageRe.test(row.label) &&
++          !reactionRe.test(row.label)
++        if (!isDamage) {
++          const unit = isPercent(format)
++            ? '%'
++            : /^\s*s\b/.test(after)
++              ? 's'
++              : undefined
++          fields[tk].push({
++            text: name,
++            value: (data) => {
++              const lvl = data.get(levelIndex).value
++              const v = values[Math.min(lvl, values.length - 1)] ?? 0
++              return isPercent(format) ? v * 100 : v
++            },
++            fixed: isPercent(format) ? 1 : format === 'I' ? 0 : 1,
++            unit,
++          })
++          return
++        }
++        const move = moveOf(tk, row.label)
++        const additional: Data = {}
++        if (
++          tk === 'auto' &&
++          (/fully[- ]charged/i.test(row.label) ||
++            new RegExp(def.ele, 'i').test(row.label))
++        )
++          additional.hit = { ele: constant(def.ele) }
++        if (move === 'plunging_collision')
++          additional.hit = { ...additional.hit, reaction: constant('') }
++        const node = infoMut(
++          dmgNode(scalingStat(after), values, move, additional),
++          {
++            name,
++          }
++        )
++        const section = tk === 'auto' ? move.split('_')[0] : tk
++        display[section] = { ...display[section], [`${r}_${part}`]: node }
++        fields[tk].push({ node })
++      })
++    })
++  }
++
++  const boosts: Partial<
++    Record<'autoBoost' | 'skillBoost' | 'burstBoost', NumNode>
++  > = {}
++  const constellationFields: Record<number, IFieldDisplay[]> = {}
++  def.constellations.forEach((c, i) => {
++    const boosted = boostedTalent(c.description, def.talents)
++    if (!boosted) return
++    const node = greaterEq(input.constellation, i + 1, 3)
++    boosts[`${boosted}Boost`] = node
++    constellationFields[i + 1] = [{ node }]
++  })
++
++  const data = dataObjForCharacterSheet(key, display, { premod: boosts })
++
++  const sheet: TalentSheet = {
++    auto: ct.talentTem('auto', [{ fields: fields.auto }]),
++    skill: ct.talentTem('skill', [{ fields: fields.skill }]),
++    burst: ct.talentTem('burst', [{ fields: fields.burst }]),
++  }
++  if (def.passive1) sheet.passive1 = ct.talentTem('passive1')
++  if (def.passive2) sheet.passive2 = ct.talentTem('passive2')
++  if (def.passive3) sheet.passive3 = ct.talentTem('passive3')
++  def.constellations.forEach((_, i) => {
++    const ck = `constellation${i + 1}` as TalentSheetElementKey
++    const cFields = constellationFields[i + 1]
++    sheet[ck] = ct.talentTem(ck, cFields ? [{ fields: cFields }] : undefined)
++  })
++  return new CharacterSheet(sheet, data)
++}
+diff --git a/libs/gi/sheets/src/Characters/index.ts b/libs/gi/sheets/src/Characters/index.ts
+index 5ecb2228..c568f924 100644
+--- a/libs/gi/sheets/src/Characters/index.ts
++++ b/libs/gi/sheets/src/Characters/index.ts
+@@ -7,6 +7,7 @@ import type {
+ import {
+   allTravelerKeys,
+   customCharacterDefs,
++  isCustomCharacterDataDef,
+ } from '@genshin-optimizer/gi/consts'
+ import Aino from './Aino'
+ import Albedo from './Albedo'
+@@ -32,6 +33,7 @@ import Clorinde from './Clorinde'
+ import Collei from './Collei'
+ import Columbina from './Columbina'
+ import Cyno from './Cyno'
++import { dataSheetForCustomCharacter } from './customDataSheet'
+ import Dahlia from './Dahlia'
+ import Dehya from './Dehya'
+ import Diluc from './Diluc'
+@@ -284,14 +286,21 @@ const characters: Record<CharacterSheetKey, CharacterSheet> = {
+   Zibai,
+ } as const
+ 
+-// Custom characters reuse the talents, passives, constellations and formulas
+-// of their template character, with their own stats (see `gi/stats`).
+-for (const { key, template } of customCharacterDefs) {
+-  const templateSheet = characters[template as CharacterSheetKey]
+-  ;(characters as Record<string, CharacterSheet>)[key] = new CharacterSheet(
+-    templateSheet.sheet,
+-    dataObjForCustomCharacter(key as CharacterKey, template as CharacterKey)
+-  )
++// Template custom characters reuse the talents, passives, constellations and
++// formulas of their template character, with their own stats (see `gi/stats`).
++// Imported custom characters get a sheet built from their talent data.
++for (const def of customCharacterDefs) {
++  const { key, template } = def
++  ;(characters as Record<string, CharacterSheet>)[key] =
++    isCustomCharacterDataDef(def)
++      ? dataSheetForCustomCharacter(def)
++      : new CharacterSheet(
++          characters[template as CharacterSheetKey].sheet,
++          dataObjForCustomCharacter(
++            key as CharacterKey,
++            template as CharacterKey
++          )
++        )
+ }
+ 
+ export function getCharSheet(charKey: CharacterKey, gender: GenderKey) {
+diff --git a/libs/gi/stats/src/index.ts b/libs/gi/stats/src/index.ts
+index 73f4264c..0d781876 100644
+--- a/libs/gi/stats/src/index.ts
++++ b/libs/gi/stats/src/index.ts
+@@ -2,14 +2,18 @@ import type {
+   ArtifactSetKey,
+   CharacterKey,
+   CharacterSheetKey,
+-  CustomCharacterDef,
++  CustomCharacterDataDef,
++  CustomCharacterTemplateDef,
+   ElementKey,
+   NonTravelerCharacterKey,
+   WeaponKey,
+ } from '@genshin-optimizer/gi/consts'
+ import {
++  allRegionKeys,
+   charKeyToLocCharKey,
++  customCharacterAscStatKeys,
+   customCharacterDefs,
++  isCustomCharacterDataDef,
+ } from '@genshin-optimizer/gi/consts'
+ import * as allStat_gen from './allStat_gen.json'
+ import type { AllStats, CharacterDataGen } from './executors/gen-stats/executor'
+@@ -38,16 +42,23 @@ function curveAt(curve: CharGrowCurveKey, level: number): number {
+ 
+ /**
+  * Base HP/ATK/DEF at level 90/90 and the ascension special stat at max
+- * ascension, as shown in-game. Used to prefill the custom character editor.
++ * ascension, as shown in-game. Used to prefill the custom character editors.
+  */
+-export function getCharRefStats(ck: CharacterKey): {
++export function getCharRefStats(ck: CharacterKey) {
++  return getRefStatsFromData(getCharStat(ck))
++}
++
++/** Same as `getCharRefStats`, from level curves and ascension stats. */
++export function getRefStatsFromData({
++  lvlCurves,
++  ascensionBonus,
++}: Pick<CharacterDataGen, 'lvlCurves' | 'ascensionBonus'>): {
+   hp: number
+   atk: number
+   def: number
+   ascStat?: string
+   ascValue: number
+ } {
+-  const { lvlCurves, ascensionBonus } = getCharStat(ck)
+   const base = (stat: BaseStatKey) => {
+     const lc = lvlCurves.find(({ key }) => key === stat)
+     const fromCurve = lc ? lc.base * curveAt(lc.curve, refLevel) : 0
+@@ -71,7 +82,9 @@ export function getCharRefStats(ck: CharacterKey): {
+  * ascension are kept, then scaled so that the level 90/90 value matches the
+  * custom definition.
+  */
+-function customCharacterData(def: CustomCharacterDef): CharacterDataGen {
++function customCharacterData(
++  def: CustomCharacterTemplateDef
++): CharacterDataGen {
+   const tmpl = (allStats.char.data as Record<string, CharacterDataGen>)[
+     def.template
+   ]
+@@ -115,12 +128,89 @@ function customCharacterData(def: CustomCharacterDef): CharacterDataGen {
+   }
+ }
+ 
++/** Stat data of an imported (data kind) custom character, used as is. */
++function customCharacterDataFromDef(
++  def: CustomCharacterDataDef
++): CharacterDataGen {
++  const region = (allRegionKeys as readonly string[]).includes(def.region ?? '')
++    ? (def.region as CharacterDataGen['region'])
++    : undefined
++  return {
++    key: def.key as CharacterDataGen['key'],
++    ele: def.ele,
++    region,
++    weaponType: def.weaponType,
++    rarity: def.rarity,
++    birthday: def.birthday ?? {},
++    lvlCurves: def.lvlCurves.map((lc) => ({ ...lc })),
++    ascensionBonus: Object.fromEntries(
++      Object.entries(def.ascensionBonus).map(([k, v]) => [k, [...v]])
++    ),
++  }
++}
++
++/**
++ * Rescales an imported character's level curves and ascension stats so that
++ * its level 90/90 base stats and max ascension special stat match `target`,
++ * keeping the shape of its curves.
++ */
++export function scaleCustomCharacterStats(
++  def: Pick<CustomCharacterDataDef, 'lvlCurves' | 'ascensionBonus'>,
++  target: {
++    hp: number
++    atk: number
++    def: number
++    ascStat: string
++    ascValue: number
++  }
++): Pick<CustomCharacterDataDef, 'lvlCurves' | 'ascensionBonus'> {
++  const ascensionBonus: Record<string, number[]> = {}
++  const lvlCurves = def.lvlCurves.map((lc) => {
++    const asc = def.ascensionBonus[lc.key] ?? [0, 0, 0, 0, 0, 0, 0]
++    const current = lc.base * curveAt(lc.curve, refLevel) + asc[6]
++    const factor = current > 0 ? target[lc.key] / current : 0
++    ascensionBonus[lc.key] = asc.map((v) => v * factor)
++    return { ...lc, base: lc.base * factor }
++  })
++  const special = Object.entries(def.ascensionBonus).find(
++    ([key]) => !(baseStatKeys as readonly string[]).includes(key)
++  )
++  const pattern =
++    special && special[1][6] > 0
++      ? special[1].map((v) => v / special[1][6])
++      : specialStatAscPattern
++  if (
++    (customCharacterAscStatKeys as readonly string[]).includes(target.ascStat)
++  )
++    ascensionBonus[target.ascStat] = pattern.map((f) => f * target.ascValue)
++  return { lvlCurves, ascensionBonus }
++}
++
+ // Register custom characters, so every lookup by key finds them.
+ for (const def of customCharacterDefs) {
+-  ;(allStats.char.data as Record<string, CharacterDataGen>)[def.key] =
+-    customCharacterData(def)
++  const charData = allStats.char.data as Record<string, CharacterDataGen>
+   const skillParam = allStats.char.skillParam as Record<string, unknown>
+-  skillParam[def.key] = skillParam[def.template]
++  if (isCustomCharacterDataDef(def)) {
++    charData[def.key] = customCharacterDataFromDef(def)
++    skillParam[def.key] = {
++      auto: def.talents.auto.params,
++      skill: def.talents.skill.params,
++      burst: def.talents.burst.params,
++      passive1: [],
++      passive2: [],
++      passive3: [],
++      constellation1: [],
++      constellation2: [],
++      constellation3: [],
++      constellation4: [],
++      constellation5: [],
++      constellation6: [],
++      upgradeableSkills: [],
++    }
++  } else {
++    charData[def.key] = customCharacterData(def)
++    skillParam[def.key] = skillParam[def.template]
++  }
+ }
+ 
+ export function getCharEle(ck: CharacterSheetKey | CharacterKey): ElementKey {
+diff --git a/libs/gi/ui/src/components/character/CustomCharacterDataForm.tsx b/libs/gi/ui/src/components/character/CustomCharacterDataForm.tsx
+new file mode 100644
+index 00000000..f9e4d9b7
+--- /dev/null
++++ b/libs/gi/ui/src/components/character/CustomCharacterDataForm.tsx
+@@ -0,0 +1,407 @@
++import { iconInlineProps } from '@genshin-optimizer/common/svgicons'
++import { ImgIcon } from '@genshin-optimizer/common/ui'
++import { characterAsset, imgAssets } from '@genshin-optimizer/gi/assets'
++import type {
++  CharacterKey,
++  CustomCharacterAscStatKey,
++  CustomCharacterDataDef,
++  CustomCharacterTalent,
++  CustomCharacterTalentKey,
++  ElementKey,
++  WeaponTypeKey,
++} from '@genshin-optimizer/gi/consts'
++import {
++  allElementKeys,
++  allWeaponTypeKeys,
++  customCharacterAscStatKeys,
++  customCharacterTalentKeys,
++  isCustomCharacterKey,
++  nonTravelerCharacterKeys,
++} from '@genshin-optimizer/gi/consts'
++import {
++  getRefStatsFromData,
++  scaleCustomCharacterStats,
++} from '@genshin-optimizer/gi/stats'
++import { ElementIcon } from '@genshin-optimizer/gi/svgicons'
++import {
++  Autocomplete,
++  Box,
++  Button,
++  Grid,
++  InputAdornment,
++  MenuItem,
++  Tab,
++  Table,
++  TableBody,
++  TableCell,
++  TableHead,
++  TableRow,
++  Tabs,
++  TextField,
++  Typography,
++} from '@mui/material'
++import { useMemo, useState } from 'react'
++import { useTranslation } from 'react-i18next'
++import { ArtifactIconStatWithUnit } from '../artifact/ArtifactStatKeyDisplay'
++
++const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
++const isPercentStat = (stat: string) => stat.endsWith('_')
++const num = (s: string) => (s.trim() === '' ? Number.NaN : Number(s))
++const valid = (n: number) => Number.isFinite(n) && n >= 0
++/** Shows a value without float noise, e.g. 0.396193 * 100 -> "39.6193" */
++const show = (n: number, digits = 4) => `${+n.toFixed(digits)}`
++
++/** Existing (non-custom, non-Traveler) characters, for images. */
++export function imageTemplateKeys(): CharacterKey[] {
++  return (nonTravelerCharacterKeys as readonly string[]).filter(
++    (key) => !isCustomCharacterKey(key)
++  ) as CharacterKey[]
++}
++
++type ParamInfo = { label: string; percent: boolean }
++
++/** A label and unit for each param of a talent, from the rows that use it. */
++function paramInfos(talent: CustomCharacterTalent): ParamInfo[] {
++  const infos: ParamInfo[] = talent.params.map((_, i) => ({
++    label: `Param ${i + 1}`,
++    percent: false,
++  }))
++  for (const row of talent.rows)
++    row.params.forEach(({ index, format }, part) => {
++      if (!infos[index]) return
++      infos[index] = {
++        label:
++          row.params.length > 1
++            ? `${row.label} (${part + 1}/${row.params.length})`
++            : row.label,
++        percent: format.endsWith('P'),
++      }
++    })
++  return infos
++}
++
++type TalentStrings = Record<CustomCharacterTalentKey, string[][]>
++
++/**
++ * Edits an imported custom character: name, images, element, weapon type,
++ * rarity, level 90 base stats, ascension stat and talent multipliers per level.
++ */
++export function CustomCharacterDataForm({
++  def,
++  onCancel,
++  onSave,
++}: {
++  def: CustomCharacterDataDef
++  onCancel: () => void
++  onSave: (def: CustomCharacterDataDef) => void
++}) {
++  const { t } = useTranslation(['page_character', 'charNames_gen'])
++  const { t: tk } = useTranslation('statKey_gen')
++  const options = useMemo(() => imageTemplateKeys(), [])
++  const infos = useMemo(
++    () =>
++      Object.fromEntries(
++        customCharacterTalentKeys.map((k) => [k, paramInfos(def.talents[k])])
++      ) as Record<CustomCharacterTalentKey, ParamInfo[]>,
++    [def]
++  )
++
++  const ref = useMemo(() => getRefStatsFromData(def), [def])
++  const [name, setName] = useState(def.name)
++  const [template, setTemplate] = useState(def.template as CharacterKey)
++  const [ele, setEle] = useState<ElementKey>(def.ele)
++  const [weaponType, setWeaponType] = useState<WeaponTypeKey>(def.weaponType)
++  const [rarity, setRarity] = useState<4 | 5>(def.rarity)
++  const [stats, setStats] = useState(() => {
++    const ascStat = (
++      (customCharacterAscStatKeys as readonly string[]).includes(
++        ref.ascStat ?? ''
++      )
++        ? ref.ascStat
++        : 'critRate_'
++    ) as CustomCharacterAscStatKey
++    return {
++      hp: show(ref.hp, 2),
++      atk: show(ref.atk, 2),
++      def: show(ref.def, 2),
++      ascStat,
++      ascValue: show(
++        isPercentStat(ascStat) ? ref.ascValue * 100 : ref.ascValue,
++        2
++      ),
++    }
++  })
++  const [params, setParams] = useState<TalentStrings>(
++    () =>
++      Object.fromEntries(
++        customCharacterTalentKeys.map((k) => [
++          k,
++          def.talents[k].params.map((values, i) =>
++            values.map((v) => show(infos[k][i]?.percent ? v * 100 : v))
++          ),
++        ])
++      ) as TalentStrings
++  )
++  const [tab, setTab] = useState<CustomCharacterTalentKey>('auto')
++
++  const statNums = {
++    hp: num(stats.hp),
++    atk: num(stats.atk),
++    def: num(stats.def),
++    ascValue: num(stats.ascValue),
++  }
++  const paramsValid = customCharacterTalentKeys.every((k) =>
++    params[k].every((row) => row.every((v) => valid(num(v))))
++  )
++  const canSave = Object.values(statNums).every(valid) && paramsValid
++
++  const save = () => {
++    if (!canSave) return
++    const scaled = scaleCustomCharacterStats(def, {
++      ...statNums,
++      ascStat: stats.ascStat,
++      ascValue: isPercentStat(stats.ascStat)
++        ? statNums.ascValue / 100
++        : statNums.ascValue,
++    })
++    const talents = Object.fromEntries(
++      customCharacterTalentKeys.map((k) => [
++        k,
++        {
++          ...def.talents[k],
++          params: params[k].map((row, i) =>
++            row.map((v) => (infos[k][i]?.percent ? num(v) / 100 : num(v)))
++          ),
++        },
++      ])
++    ) as CustomCharacterDataDef['talents']
++    onSave({
++      ...def,
++      name: name.trim() || def.name,
++      template,
++      ele,
++      weaponType,
++      rarity,
++      ...scaled,
++      talents,
++    })
++  }
++
++  const setParam = (row: number, lvl: number, value: string) =>
++    setParams((prev) => ({
++      ...prev,
++      [tab]: prev[tab].map((r, i) =>
++        i === row ? r.map((v, j) => (j === lvl ? value : v)) : r
++      ),
++    }))
++
++  const statField = (field: 'hp' | 'atk' | 'def', label: string) => (
++    <TextField
++      fullWidth
++      type="number"
++      label={label}
++      value={stats[field]}
++      onChange={(e) => setStats({ ...stats, [field]: e.target.value })}
++      error={!valid(num(stats[field]))}
++      inputProps={{ min: 0, step: 'any' }}
++    />
++  )
++
++  return (
++    <Box display="flex" flexDirection="column" gap={2}>
++      <TextField
++        label={t('customChar.name')}
++        value={name}
++        onChange={(e) => setName(e.target.value)}
++      />
++      <Autocomplete
++        options={options}
++        value={template}
++        disableClearable
++        onChange={(_, key) => setTemplate(key)}
++        getOptionLabel={(key) => t(`charNames_gen:${key}`)}
++        renderOption={(props, key) => (
++          <Box
++            component="li"
++            {...props}
++            key={key}
++            sx={{ display: 'flex', gap: 1 }}
++          >
++            <ImgIcon src={characterAsset(key, 'iconSide')} size={2} />
++            {t(`charNames_gen:${key}`)}
++          </Box>
++        )}
++        renderInput={(inputParams) => (
++          <TextField
++            {...inputParams}
++            InputLabelProps={{ ...inputParams.InputLabelProps, shrink: true }}
++            label={t('customChar.imageTemplate')}
++            helperText={t('customChar.imageTemplateHelp')}
++          />
++        )}
++      />
++      <Grid container spacing={2}>
++        <Grid item xs={12} sm={4}>
++          <TextField
++            select
++            fullWidth
++            label={t('customChar.element')}
++            value={ele}
++            onChange={(e) => setEle(e.target.value as ElementKey)}
++          >
++            {allElementKeys.map((e) => (
++              <MenuItem key={e} value={e}>
++                <ElementIcon ele={e} iconProps={iconInlineProps} />
++                &nbsp;{capitalize(e)}
++              </MenuItem>
++            ))}
++          </TextField>
++        </Grid>
++        <Grid item xs={12} sm={4}>
++          <TextField
++            select
++            fullWidth
++            label={t('customChar.weaponType')}
++            value={weaponType}
++            onChange={(e) => setWeaponType(e.target.value as WeaponTypeKey)}
++          >
++            {allWeaponTypeKeys.map((wt) => (
++              <MenuItem key={wt} value={wt}>
++                <ImgIcon src={imgAssets.weaponTypes[wt]} />
++                &nbsp;{capitalize(wt)}
++              </MenuItem>
++            ))}
++          </TextField>
++        </Grid>
++        <Grid item xs={12} sm={4}>
++          <TextField
++            select
++            fullWidth
++            label={t('customChar.rarity')}
++            value={rarity}
++            onChange={(e) => setRarity(Number(e.target.value) as 4 | 5)}
++          >
++            <MenuItem value={5}>5★</MenuItem>
++            <MenuItem value={4}>4★</MenuItem>
++          </TextField>
++        </Grid>
++      </Grid>
++
++      <Typography variant="subtitle1">{t('customChar.baseStats')}</Typography>
++      <Grid container spacing={2}>
++        <Grid item xs={12} sm={4}>
++          {statField('hp', tk('hp'))}
++        </Grid>
++        <Grid item xs={12} sm={4}>
++          {statField('atk', tk('atk'))}
++        </Grid>
++        <Grid item xs={12} sm={4}>
++          {statField('def', tk('def'))}
++        </Grid>
++        <Grid item xs={12} sm={8}>
++          <TextField
++            select
++            fullWidth
++            label={t('customChar.ascStat')}
++            value={stats.ascStat}
++            onChange={(e) =>
++              setStats({
++                ...stats,
++                ascStat: e.target.value as CustomCharacterAscStatKey,
++              })
++            }
++          >
++            {customCharacterAscStatKeys.map((stat) => (
++              <MenuItem key={stat} value={stat}>
++                <ArtifactIconStatWithUnit statKey={stat} />
++              </MenuItem>
++            ))}
++          </TextField>
++        </Grid>
++        <Grid item xs={12} sm={4}>
++          <TextField
++            fullWidth
++            type="number"
++            label={t('customChar.ascValue')}
++            value={stats.ascValue}
++            onChange={(e) => setStats({ ...stats, ascValue: e.target.value })}
++            error={!valid(num(stats.ascValue))}
++            inputProps={{ min: 0, step: 'any' }}
++            InputProps={
++              isPercentStat(stats.ascStat)
++                ? {
++                    endAdornment: (
++                      <InputAdornment position="end">%</InputAdornment>
++                    ),
++                  }
++                : undefined
++            }
++          />
++        </Grid>
++      </Grid>
++
++      <Typography variant="subtitle1">
++        {t('customChar.talentMultipliers')}
++      </Typography>
++      <Typography variant="body2" color="text.secondary">
++        {t('customChar.talentMultipliersHelp')}
++      </Typography>
++      <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="fullWidth">
++        {customCharacterTalentKeys.map((k) => (
++          <Tab key={k} value={k} label={def.talents[k].name || k} />
++        ))}
++      </Tabs>
++      <Box sx={{ overflowX: 'auto', maxHeight: '50vh' }}>
++        <Table size="small" stickyHeader>
++          <TableHead>
++            <TableRow>
++              <TableCell sx={{ minWidth: 220 }}>
++                {t('customChar.param')}
++              </TableCell>
++              {params[tab][0]?.map((_, lvl) => (
++                <TableCell key={lvl} align="center">
++                  {t('customChar.level', { level: lvl + 1 })}
++                </TableCell>
++              ))}
++            </TableRow>
++          </TableHead>
++          <TableBody>
++            {params[tab].map((row, i) => (
++              <TableRow key={i}>
++                <TableCell>
++                  {infos[tab][i]?.label}
++                  {infos[tab][i]?.percent ? ' (%)' : ''}
++                </TableCell>
++                {row.map((v, lvl) => (
++                  <TableCell key={lvl} sx={{ p: 0.5 }}>
++                    <TextField
++                      variant="standard"
++                      size="small"
++                      value={v}
++                      error={!valid(num(v))}
++                      onChange={(e) => setParam(i, lvl, e.target.value)}
++                      inputProps={{
++                        'aria-label': `${infos[tab][i]?.label} Lv. ${lvl + 1}`,
++                        inputMode: 'decimal',
++                        style: { width: 80, textAlign: 'right' },
++                      }}
++                    />
++                  </TableCell>
++                ))}
++              </TableRow>
++            ))}
++          </TableBody>
++        </Table>
++      </Box>
++
++      <Box display="flex" gap={1} justifyContent="flex-end">
++        <Button color="secondary" onClick={onCancel}>
++          {t('customChar.cancel')}
++        </Button>
++        <Button color="success" disabled={!canSave} onClick={save}>
++          {t('customChar.save')}
++        </Button>
++      </Box>
++    </Box>
++  )
++}
+diff --git a/libs/gi/ui/src/components/character/CustomCharacterModal.tsx b/libs/gi/ui/src/components/character/CustomCharacterModal.tsx
+index 355589a4..e6e75cc9 100644
+--- a/libs/gi/ui/src/components/character/CustomCharacterModal.tsx
++++ b/libs/gi/ui/src/components/character/CustomCharacterModal.tsx
+@@ -4,7 +4,9 @@ import { characterAsset, imgAssets } from '@genshin-optimizer/gi/assets'
+ import type {
+   CharacterKey,
+   CustomCharacterAscStatKey,
++  CustomCharacterDataDef,
+   CustomCharacterDef,
++  CustomCharacterTemplateDef,
+   ElementKey,
+   WeaponTypeKey,
+ } from '@genshin-optimizer/gi/consts'
+@@ -12,9 +14,9 @@ import {
+   allElementKeys,
+   allWeaponTypeKeys,
+   customCharacterAscStatKeys,
+-  isCustomCharacterKey,
++  isCustomCharacterDataDef,
+   nextCustomCharacterKey,
+-  nonTravelerCharacterKeys,
++  parseCustomCharacterPack,
+   readCustomCharacterDefs,
+   writeCustomCharacterDefs,
+ } from '@genshin-optimizer/gi/consts'
+@@ -29,6 +31,7 @@ import AddIcon from '@mui/icons-material/Add'
+ import CloseIcon from '@mui/icons-material/Close'
+ import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
+ import EditIcon from '@mui/icons-material/Edit'
++import FileUploadIcon from '@mui/icons-material/FileUpload'
+ import {
+   Alert,
+   Autocomplete,
+@@ -44,9 +47,14 @@ import {
+   TextField,
+   Typography,
+ } from '@mui/material'
+-import { useMemo, useState } from 'react'
++import type { ChangeEvent } from 'react'
++import { useMemo, useRef, useState } from 'react'
+ import { useTranslation } from 'react-i18next'
+ import { ArtifactIconStatWithUnit } from '../artifact/ArtifactStatKeyDisplay'
++import {
++  CustomCharacterDataForm,
++  imageTemplateKeys,
++} from './CustomCharacterDataForm'
+ 
+ type FormState = {
+   key: string
+@@ -69,10 +77,57 @@ const round = (n: number, digits = 0) => {
+   return Math.round(n * f) / f
+ }
+ 
+-function templateKeys(): CharacterKey[] {
+-  return (nonTravelerCharacterKeys as readonly string[]).filter(
+-    (key) => !isCustomCharacterKey(key)
+-  ) as CharacterKey[]
++const templateKeys = imageTemplateKeys
++
++/** An existing character to borrow images from: same element and weapon if possible. */
++function pickImageTemplate(ele: ElementKey, weaponType: WeaponTypeKey) {
++  const keys = imageTemplateKeys()
++  return (
++    keys.find(
++      (k) => getCharEle(k) === ele && getCharStat(k).weaponType === weaponType
++    ) ??
++    keys.find((k) => getCharEle(k) === ele) ??
++    keys[0]
++  )
++}
++
++type ImportItem = { def: CustomCharacterDataDef; isNew: boolean }
++
++/**
++ * Turns the characters of a pack into definitions. A character already
++ * imported from the same source id is updated, keeping its key, name and images.
++ */
++function importPack(
++  json: string,
++  defs: CustomCharacterDef[]
++): { items: ImportItem[] } | { error: string } {
++  const parsed = parseCustomCharacterPack(json)
++  if ('error' in parsed) return parsed
++  const all = [...defs]
++  const items: ImportItem[] = []
++  for (const char of parsed.characters) {
++    const existing = all.find(
++      (d): d is CustomCharacterDataDef =>
++        isCustomCharacterDataDef(d) &&
++        d.sourceId !== undefined &&
++        d.sourceId === char.sourceId
++    )
++    const def: CustomCharacterDataDef = existing
++      ? {
++          ...char,
++          key: existing.key,
++          name: existing.name,
++          template: existing.template,
++        }
++      : {
++          ...char,
++          key: nextCustomCharacterKey(all),
++          template: pickImageTemplate(char.ele, char.weaponType),
++        }
++    if (!existing) all.push(def)
++    items.push({ def, isNew: !existing })
++  }
++  return { items }
+ }
+ 
+ /** Form values prefilled from a template character's level 90 stats. */
+@@ -98,7 +153,7 @@ function formFromTemplate(template: CharacterKey, prev: FormState): FormState {
+   }
+ }
+ 
+-function formFromDef(def: CustomCharacterDef): FormState {
++function formFromDef(def: CustomCharacterTemplateDef): FormState {
+   return {
+     key: def.key,
+     name: def.name,
+@@ -155,12 +210,41 @@ export function CustomCharacterModal({
+   const database = useDatabase()
+   const [defs] = useState(() => readCustomCharacterDefs())
+   const [form, setForm] = useState<FormState | null>(null)
++  const [dataEdit, setDataEdit] = useState<CustomCharacterDataDef | null>(null)
++  const [imported, setImported] = useState<ImportItem[] | null>(null)
++  const [importError, setImportError] = useState('')
++  const fileRef = useRef<HTMLInputElement>(null)
+ 
+   const close = () => {
+     setForm(null)
++    setDataEdit(null)
++    setImported(null)
++    setImportError('')
+     onHide()
+   }
+ 
++  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
++    const file = e.target.files?.[0]
++    e.target.value = ''
++    if (!file) return
++    const result = importPack(await file.text(), defs)
++    if ('error' in result) {
++      setImportError(t(`customChar.importErrors.${result.error}`))
++      setImported(null)
++    } else {
++      setImportError('')
++      setImported(result.items)
++    }
++  }
++
++  const saveOne = (def: CustomCharacterDef) => {
++    const isNew = !defs.some(({ key }) => key === def.key)
++    saveAndReload(
++      isNew ? [...defs, def] : defs.map((d) => (d.key === def.key ? def : d)),
++      isNew ? def.key : undefined
++    )
++  }
++
+   const onDelete = (def: CustomCharacterDef) => {
+     if (!window.confirm(t('customChar.deleteConfirm', { name: def.name })))
+       return
+@@ -183,21 +267,78 @@ export function CustomCharacterModal({
+         <Divider />
+         <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+           <Alert severity="info">{t('customChar.info')}</Alert>
+-          {form ? (
++          {importError && <Alert severity="error">{importError}</Alert>}
++          {dataEdit ? (
++            <CustomCharacterDataForm
++              def={dataEdit}
++              onCancel={() => setDataEdit(null)}
++              onSave={saveOne}
++            />
++          ) : form ? (
+             <CustomCharacterForm
+               form={form}
+               setForm={setForm}
+               onCancel={() => setForm(null)}
+-              onSave={(def) => {
+-                const isNew = !defs.some(({ key }) => key === def.key)
+-                saveAndReload(
+-                  isNew
+-                    ? [...defs, def]
+-                    : defs.map((d) => (d.key === def.key ? def : d)),
+-                  isNew ? def.key : undefined
+-                )
+-              }}
++              onSave={saveOne}
+             />
++          ) : imported ? (
++            <>
++              <Typography>{t('customChar.importPreview')}</Typography>
++              {imported.map(({ def, isNew }) => (
++                <CardThemed bgt="light" key={def.key}>
++                  <CardContent
++                    sx={{ display: 'flex', alignItems: 'center', gap: 2 }}
++                  >
++                    <ImgIcon
++                      src={characterAsset(
++                        def.template as CharacterKey,
++                        'iconSide'
++                      )}
++                      size={3}
++                    />
++                    <Box flexGrow={1}>
++                      <Typography variant="h6">
++                        <ElementIcon
++                          ele={def.ele}
++                          iconProps={iconInlineProps}
++                        />{' '}
++                        {def.name} {'★'.repeat(def.rarity)}
++                      </Typography>
++                      <Typography variant="body2" color="text.secondary">
++                        {t(
++                          isNew
++                            ? 'customChar.importNew'
++                            : 'customChar.importUpdate'
++                        )}
++                      </Typography>
++                    </Box>
++                  </CardContent>
++                </CardThemed>
++              ))}
++              <Box display="flex" gap={1} justifyContent="flex-end">
++                <Button color="secondary" onClick={() => setImported(null)}>
++                  {t('customChar.cancel')}
++                </Button>
++                <Button
++                  color="success"
++                  onClick={() => {
++                    const byKey = new Map(
++                      imported.map((i) => [i.def.key, i.def])
++                    )
++                    const firstNew = imported.find((i) => i.isNew)?.def.key
++                    saveAndReload(
++                      [
++                        ...defs.map((d) => byKey.get(d.key) ?? d),
++                        ...imported.filter((i) => i.isNew).map((i) => i.def),
++                      ],
++                      imported.length === 1 ? firstNew : undefined
++                    )
++                  }}
++                >
++                  {t('customChar.importConfirm')}
++                </Button>
++              </Box>
++            </>
+           ) : (
+             <>
+               {defs.length === 0 && (
+@@ -226,14 +367,22 @@ export function CustomCharacterModal({
+                         {def.name}
+                       </Typography>
+                       <Typography variant="body2" color="text.secondary">
+-                        {t('customChar.basedOn', {
+-                          name: t(`charNames_gen:${def.template}`),
+-                        })}
++                        {isCustomCharacterDataDef(def)
++                          ? t('customChar.importedFrom', {
++                              name: t(`charNames_gen:${def.template}`),
++                            })
++                          : t('customChar.basedOn', {
++                              name: t(`charNames_gen:${def.template}`),
++                            })}
+                       </Typography>
+                     </Box>
+                     <Button
+                       startIcon={<EditIcon />}
+-                      onClick={() => setForm(formFromDef(def))}
++                      onClick={() =>
++                        isCustomCharacterDataDef(def)
++                          ? setDataEdit(def)
++                          : setForm(formFromDef(def))
++                      }
+                     >
+                       {t('customChar.edit')}
+                     </Button>
+@@ -247,13 +396,36 @@ export function CustomCharacterModal({
+                   </CardContent>
+                 </CardThemed>
+               ))}
+-              <Button
+-                color="info"
+-                startIcon={<AddIcon />}
+-                onClick={() => setForm(emptyForm(nextCustomCharacterKey(defs)))}
+-              >
+-                {t('customChar.create')}
+-              </Button>
++              <Box display="flex" gap={1} flexWrap="wrap">
++                <Button
++                  sx={{ flexGrow: 1 }}
++                  color="info"
++                  startIcon={<AddIcon />}
++                  onClick={() =>
++                    setForm(emptyForm(nextCustomCharacterKey(defs)))
++                  }
++                >
++                  {t('customChar.create')}
++                </Button>
++                <Button
++                  sx={{ flexGrow: 1 }}
++                  color="primary"
++                  startIcon={<FileUploadIcon />}
++                  onClick={() => fileRef.current?.click()}
++                >
++                  {t('customChar.import')}
++                </Button>
++                <input
++                  ref={fileRef}
++                  type="file"
++                  accept=".json,application/json"
++                  hidden
++                  onChange={onFile}
++                />
++              </Box>
++              <Typography variant="body2" color="text.secondary">
++                {t('customChar.importHelp')}
++              </Typography>
+             </>
+           )}
+         </CardContent>
+diff --git a/tools/custom-characters/nanoka-to-go.mjs b/tools/custom-characters/nanoka-to-go.mjs
+index 812cd691..0c0e4cdb 100644
+--- a/tools/custom-characters/nanoka-to-go.mjs
++++ b/tools/custom-characters/nanoka-to-go.mjs
+@@ -88,7 +88,9 @@ function toElement(raw) {
+ 
+ function toRegion(raw) {
+   const r = String(raw ?? '').toLowerCase()
+-  return regions.find((region) => r.includes(region))
++  const region = regions.find((region) => r.includes(region))
++  // GO writes this region in camelCase
++  return region === 'nodkrai' ? 'nodKrai' : region
+ }
+ 
+ /** Game rich text to plain text: strips color/link tags, keeps line breaks. */
+-- 
+2.43.0
+
