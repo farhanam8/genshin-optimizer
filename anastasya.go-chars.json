@@ -1,0 +1,1537 @@
+{
+  "format": "genshin-optimizer-custom-characters",
+  "version": 1,
+  "source": "gi.nanoka.cc",
+  "exportedAt": "2026-11-05T01:04:05.081Z",
+  "characters": [
+    {
+      "sourceId": 10000149,
+      "name": "Anastasya",
+      "title": "",
+      "description": "",
+      "ele": "cryo",
+      "weaponType": "bow",
+      "rarity": 5,
+      "region": "snezhnaya",
+      "birthday": {
+        "month": 1,
+        "day": 1
+      },
+      "lvlCurves": [
+        {
+          "key": "hp",
+          "base": 991.4528,
+          "curve": "GROW_CURVE_HP_S5"
+        },
+        {
+          "key": "atk",
+          "base": 27.7438,
+          "curve": "GROW_CURVE_ATTACK_S5"
+        },
+        {
+          "key": "def",
+          "base": 60.60779,
+          "curve": "GROW_CURVE_HP_S5"
+        }
+      ],
+      "ascensionBonus": {
+        "hp": [
+          0,
+          850.0811,
+          1454.0862,
+          2259.4263,
+          2863.4312,
+          3467.4363,
+          4071.4412
+        ],
+        "def": [
+          0,
+          51.9669,
+          88.89075,
+          138.12254,
+          175.0464,
+          211.97025,
+          248.8941
+        ],
+        "atk": [
+          0,
+          23.786062,
+          40.686684,
+          63.220848,
+          80.121475,
+          97.022095,
+          113.922714
+        ],
+        "critRate_": [
+          0,
+          0,
+          0.048,
+          0.096,
+          0.096,
+          0.144,
+          0.192
+        ]
+      },
+      "talents": {
+        "auto": {
+          "name": "The Dawn Beyond the Everwinter",
+          "description": "Normal Attack\nPerforms up to 5 consecutive shots with a bow.\n\nCharged Attack\nPerforms a more precise Aimed Shot with increased DMG.\nWhile aiming, Cryo will accumulate on the arrowhead. A fully charged Cryo arrow will deal Cryo DMG.\n\nPlunging Attack\nFires off a shower of arrows in mid-air before falling and striking the ground, hitting opponents along the path and dealing AoE DMG upon impact.",
+          "icon": "Skill_A_02",
+          "rows": [
+            {
+              "label": "1-Hit DMG",
+              "template": "{param1:F1P}",
+              "params": [
+                {
+                  "index": 0,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "2-Hit DMG",
+              "template": "{param2:F1P}",
+              "params": [
+                {
+                  "index": 1,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "3-Hit DMG",
+              "template": "{param3:F1P}×2",
+              "params": [
+                {
+                  "index": 2,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "4-Hit DMG",
+              "template": "{param4:F1P}×3",
+              "params": [
+                {
+                  "index": 3,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "5-Hit DMG",
+              "template": "{param5:F1P}",
+              "params": [
+                {
+                  "index": 4,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Aimed Shot",
+              "template": "{param6:F1P}",
+              "params": [
+                {
+                  "index": 5,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Fully-Charged Aimed Shot",
+              "template": "{param7:F1P}",
+              "params": [
+                {
+                  "index": 6,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Plunge DMG",
+              "template": "{param8:F1P}",
+              "params": [
+                {
+                  "index": 7,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Low/High Plunge DMG",
+              "template": "{param9:F1P}/{param10:F1P}",
+              "params": [
+                {
+                  "index": 8,
+                  "format": "F1P"
+                },
+                {
+                  "index": 9,
+                  "format": "F1P"
+                }
+              ]
+            }
+          ],
+          "params": [
+            [
+              0.396193,
+              0.428442,
+              0.46069,
+              0.506759,
+              0.539007,
+              0.575862,
+              0.626538,
+              0.677214,
+              0.72789,
+              0.783173,
+              0.838456,
+              0.893739,
+              0.949021,
+              1.004304,
+              1.059587
+            ],
+            [
+              0.402936,
+              0.435733,
+              0.46853,
+              0.515383,
+              0.54818,
+              0.585662,
+              0.637201,
+              0.688739,
+              0.740277,
+              0.796501,
+              0.852725,
+              0.908948,
+              0.965172,
+              1.021395,
+              1.077619
+            ],
+            [
+              0.25247,
+              0.27302,
+              0.29357,
+              0.322927,
+              0.343477,
+              0.366962,
+              0.399255,
+              0.431548,
+              0.463841,
+              0.499069,
+              0.534297,
+              0.569526,
+              0.604754,
+              0.639983,
+              0.675211
+            ],
+            [
+              0.18318,
+              0.19809,
+              0.213,
+              0.2343,
+              0.24921,
+              0.26625,
+              0.28968,
+              0.31311,
+              0.33654,
+              0.3621,
+              0.38766,
+              0.41322,
+              0.43878,
+              0.46434,
+              0.4899
+            ],
+            [
+              0.657135,
+              0.710622,
+              0.76411,
+              0.840521,
+              0.894009,
+              0.955137,
+              1.03919,
+              1.123242,
+              1.207294,
+              1.298987,
+              1.39068,
+              1.482373,
+              1.574067,
+              1.66576,
+              1.757453
+            ],
+            [
+              0.4386,
+              0.4743,
+              0.51,
+              0.561,
+              0.5967,
+              0.6375,
+              0.6936,
+              0.7497,
+              0.8058,
+              0.867,
+              0.9282,
+              0.9894,
+              1.0506,
+              1.1118,
+              1.173
+            ],
+            [
+              1.24,
+              1.333,
+              1.426,
+              1.55,
+              1.643,
+              1.736,
+              1.86,
+              1.984,
+              2.108,
+              2.232,
+              2.356,
+              2.48,
+              2.635,
+              2.79,
+              2.945
+            ],
+            [
+              0.568288,
+              0.614544,
+              0.6608,
+              0.72688,
+              0.773136,
+              0.826,
+              0.898688,
+              0.971376,
+              1.044064,
+              1.12336,
+              1.202656,
+              1.281952,
+              1.361248,
+              1.440544,
+              1.51984
+            ],
+            [
+              1.136335,
+              1.228828,
+              1.32132,
+              1.453452,
+              1.545944,
+              1.65165,
+              1.796995,
+              1.94234,
+              2.087686,
+              2.246244,
+              2.404802,
+              2.563361,
+              2.721919,
+              2.880478,
+              3.039036
+            ],
+            [
+              1.419344,
+              1.534872,
+              1.6504,
+              1.81544,
+              1.930968,
+              2.063,
+              2.244544,
+              2.426088,
+              2.607632,
+              2.80568,
+              3.003728,
+              3.201776,
+              3.399824,
+              3.597872,
+              3.79592
+            ]
+          ]
+        },
+        "skill": {
+          "name": "Polestar's Divine Judgment",
+          "description": "Reveals the true nature of Transcendence, dealing AoE Cryo DMG and unleashing her power in different ways depending on whether the skill is tapped or held.\n\nTap\nGains the Blessing of Love and throws the Palestar Crown, an heirloom of the imperial court.\nThe Palestar Crown follows the active character and deals 2 instances of AoE Cryo DMG to nearby opponents every 2s.\nRadiance: Stellar Glimmer: The second instance of DMG dealt by each Palestar Crown attack becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.\n\nHold\nGains the Blessing of Honor and demonstrates the consummate skill at arms passed down by the imperial court.\nIn this mode, Anastasya's Normal Attacks are replaced by a sequence of up to 5 attacks with the Blessed Armament: Dekhomenon, dealing AoE Cryo DMG that cannot be overridden by other Elemental Infusions. She cannot perform Charged Attacks in this mode.\nRadiance: Stellar Glimmer: The final instance of DMG from each Normal Attack performed with the Blessed Armament becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
+          "icon": "Skill_S_Anastasya_01",
+          "rows": [
+            {
+              "label": "Instantaneous Tap DMG",
+              "template": "{param1:F1P}",
+              "params": [
+                {
+                  "index": 0,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Instantaneous Hold DMG",
+              "template": "{param2:F1P}",
+              "params": [
+                {
+                  "index": 1,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Palestar Crown Cryo DMG",
+              "template": "{param3:F1P}×2",
+              "params": [
+                {
+                  "index": 2,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Palestar Crown Stellar-Conduct/Stellar Swirl DMG",
+              "template": "{param4:F1P}/{param5:F1P}",
+              "params": [
+                {
+                  "index": 3,
+                  "format": "F1P"
+                },
+                {
+                  "index": 4,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "1-Hit Cryo DMG",
+              "template": "{param6:F1P}",
+              "params": [
+                {
+                  "index": 5,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "2-Hit Cryo DMG",
+              "template": "{param7:F1P}×2",
+              "params": [
+                {
+                  "index": 6,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "3-Hit Cryo DMG",
+              "template": "{param8:F1P}",
+              "params": [
+                {
+                  "index": 7,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "4-Hit Cryo DMG",
+              "template": "{param9:F1P}×3",
+              "params": [
+                {
+                  "index": 8,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "5-Hit Cryo DMG",
+              "template": "{param10:F1P}×3",
+              "params": [
+                {
+                  "index": 9,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "1-Hit Stellar-Conduct/Stellar Swirl DMG",
+              "template": "{param11:F1P}/{param12:F1P}",
+              "params": [
+                {
+                  "index": 10,
+                  "format": "F1P"
+                },
+                {
+                  "index": 11,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "2-Hit Stellar-Conduct/Stellar Swirl DMG",
+              "template": "{param13:F1P}/{param14:F1P}",
+              "params": [
+                {
+                  "index": 12,
+                  "format": "F1P"
+                },
+                {
+                  "index": 13,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "3-Hit Stellar-Conduct/Stellar Swirl DMG",
+              "template": "{param15:F1P}/{param16:F1P}",
+              "params": [
+                {
+                  "index": 14,
+                  "format": "F1P"
+                },
+                {
+                  "index": 15,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "4-Hit Stellar-Conduct/Stellar Swirl DMG",
+              "template": "{param17:F1P}/{param18:F1P}",
+              "params": [
+                {
+                  "index": 16,
+                  "format": "F1P"
+                },
+                {
+                  "index": 17,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "5-Hit Stellar-Conduct/Stellar Swirl DMG",
+              "template": "{param19:F1P}/{param20:F1P}",
+              "params": [
+                {
+                  "index": 18,
+                  "format": "F1P"
+                },
+                {
+                  "index": 19,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Palestar Crown Duration",
+              "template": "{param21:F1}s",
+              "params": [
+                {
+                  "index": 20,
+                  "format": "F1"
+                }
+              ]
+            },
+            {
+              "label": "Blessing of Honor Duration",
+              "template": "{param22:F1}s",
+              "params": [
+                {
+                  "index": 21,
+                  "format": "F1"
+                }
+              ]
+            },
+            {
+              "label": "CD",
+              "template": "{param23:F1}s",
+              "params": [
+                {
+                  "index": 22,
+                  "format": "F1"
+                }
+              ]
+            }
+          ],
+          "params": [
+            [
+              1.182,
+              1.27065,
+              1.3593,
+              1.4775,
+              1.56615,
+              1.6548,
+              1.773,
+              1.8912,
+              2.0094,
+              2.1276,
+              2.2458,
+              2.364,
+              2.51175,
+              2.6595,
+              2.80725
+            ],
+            [
+              1.576,
+              1.6942,
+              1.8124,
+              1.97,
+              2.0882,
+              2.2064,
+              2.364,
+              2.5216,
+              2.6792,
+              2.8368,
+              2.9944,
+              3.152,
+              3.349,
+              3.546,
+              3.743
+            ],
+            [
+              0.64,
+              0.688,
+              0.736,
+              0.8,
+              0.848,
+              0.896,
+              0.96,
+              1.024,
+              1.088,
+              1.152,
+              1.216,
+              1.28,
+              1.36,
+              1.44,
+              1.52
+            ],
+            [
+              0.4,
+              0.43,
+              0.46,
+              0.5,
+              0.53,
+              0.56,
+              0.6,
+              0.64,
+              0.68,
+              0.72,
+              0.76,
+              0.8,
+              0.85,
+              0.9,
+              0.95
+            ],
+            [
+              0.6,
+              0.645,
+              0.69,
+              0.75,
+              0.795,
+              0.84,
+              0.9,
+              0.96,
+              1.02,
+              1.08,
+              1.14,
+              1.2,
+              1.275,
+              1.35,
+              1.425
+            ],
+            [
+              0.626984,
+              0.674008,
+              0.721032,
+              0.78373,
+              0.830754,
+              0.877778,
+              0.940476,
+              1.003174,
+              1.065873,
+              1.128571,
+              1.19127,
+              1.253968,
+              1.332341,
+              1.410714,
+              1.489087
+            ],
+            [
+              0.328488,
+              0.353125,
+              0.377761,
+              0.41061,
+              0.435247,
+              0.459883,
+              0.492732,
+              0.525581,
+              0.55843,
+              0.591278,
+              0.624127,
+              0.656976,
+              0.698037,
+              0.739098,
+              0.780159
+            ],
+            [
+              0.797496,
+              0.857308,
+              0.91712,
+              0.99687,
+              1.056682,
+              1.116494,
+              1.196244,
+              1.275994,
+              1.355743,
+              1.435493,
+              1.515242,
+              1.594992,
+              1.694679,
+              1.794366,
+              1.894053
+            ],
+            [
+              0.294176,
+              0.316239,
+              0.338302,
+              0.36772,
+              0.389783,
+              0.411846,
+              0.441264,
+              0.470682,
+              0.500099,
+              0.529517,
+              0.558934,
+              0.588352,
+              0.625124,
+              0.661896,
+              0.698668
+            ],
+            [
+              0.354328,
+              0.380903,
+              0.407477,
+              0.44291,
+              0.469485,
+              0.496059,
+              0.531492,
+              0.566925,
+              0.602358,
+              0.63779,
+              0.673223,
+              0.708656,
+              0.752947,
+              0.797238,
+              0.841529
+            ],
+            [
+              0.392089,
+              0.421496,
+              0.450902,
+              0.490111,
+              0.519518,
+              0.548925,
+              0.588134,
+              0.627343,
+              0.666551,
+              0.70576,
+              0.744969,
+              0.784178,
+              0.833189,
+              0.8822,
+              0.931212
+            ],
+            [
+              0.588134,
+              0.632244,
+              0.676354,
+              0.735167,
+              0.779277,
+              0.823387,
+              0.8822,
+              0.941014,
+              0.999827,
+              1.05864,
+              1.117454,
+              1.176267,
+              1.249784,
+              1.323301,
+              1.396817
+            ],
+            [
+              0.410846,
+              0.441659,
+              0.472473,
+              0.513557,
+              0.544371,
+              0.575184,
+              0.616269,
+              0.657353,
+              0.698438,
+              0.739523,
+              0.780607,
+              0.821692,
+              0.873047,
+              0.924403,
+              0.975759
+            ],
+            [
+              0.616269,
+              0.662489,
+              0.708709,
+              0.770336,
+              0.816556,
+              0.862776,
+              0.924403,
+              0.98603,
+              1.047657,
+              1.109284,
+              1.170911,
+              1.232538,
+              1.309571,
+              1.386605,
+              1.463638
+            ],
+            [
+              0.498722,
+              0.536126,
+              0.57353,
+              0.623403,
+              0.660807,
+              0.698211,
+              0.748083,
+              0.797955,
+              0.847828,
+              0.8977,
+              0.947572,
+              0.997444,
+              1.059785,
+              1.122125,
+              1.184465
+            ],
+            [
+              0.748083,
+              0.804189,
+              0.860296,
+              0.935104,
+              0.99121,
+              1.047316,
+              1.122125,
+              1.196933,
+              1.271741,
+              1.34655,
+              1.421358,
+              1.496166,
+              1.589677,
+              1.683187,
+              1.776698
+            ],
+            [
+              0.544109,
+              0.584918,
+              0.625726,
+              0.680137,
+              0.720945,
+              0.761753,
+              0.816164,
+              0.870575,
+              0.924986,
+              0.979397,
+              1.033808,
+              1.088219,
+              1.156232,
+              1.224246,
+              1.29226
+            ],
+            [
+              0.816164,
+              0.877376,
+              0.938589,
+              1.020205,
+              1.081417,
+              1.14263,
+              1.224246,
+              1.305862,
+              1.387479,
+              1.469095,
+              1.550712,
+              1.632328,
+              1.734349,
+              1.836369,
+              1.938389
+            ],
+            [
+              0.663885,
+              0.713677,
+              0.763468,
+              0.829857,
+              0.879648,
+              0.929439,
+              0.995828,
+              1.062217,
+              1.128605,
+              1.194994,
+              1.261382,
+              1.327771,
+              1.410756,
+              1.493742,
+              1.576728
+            ],
+            [
+              0.995828,
+              1.070515,
+              1.145202,
+              1.244785,
+              1.319472,
+              1.394159,
+              1.493742,
+              1.593325,
+              1.692908,
+              1.79249,
+              1.892073,
+              1.991656,
+              2.116134,
+              2.240613,
+              2.365092
+            ],
+            [
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20
+            ],
+            [
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15
+            ],
+            [
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15
+            ]
+          ]
+        },
+        "burst": {
+          "name": "To the New World",
+          "description": "Anastasya's current Blessing determines which Elemental Burst she can use and how she wields the power of Sealing.\n\nTo the New World\nCan be used while Anastasya holds the Blessing of Love. Deals AoE Cryo DMG and freezes the Palestar Crown's duration.\nDuring this time, all nearby party members deal increased Stellar Glimmer reaction DMG, and the Palestar Crown deals 1 additional instance of AoE Cryo DMG that is considered Stellar-Conduct reaction DMG with each attack. Anastasya also Seals herself when she switches off-field during this time. When her Sealed state ends, she can use the special unsealing Elemental Skill Palestar Edict: Triumph.\n\nThe Evernight Yields to Dawn\nCan be used while Anastasya holds the Blessing of Honor. Unleashes the power of the Blessed Armament, dealing AoE Cryo DMG considered Stellar-Conduct reaction DMG, and freezes the Blessing's duration.\nAnastasya also Seals up to 3 other party members. When the Sealed state ends, Anastasya can use the special unsealing Elemental Skill Palestar Edict: Doom.\n\nRadiance: Stellar Glimmer: All Stellar-Conduct reaction DMG described above is instead dealt as AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
+          "icon": "Skill_E_Anastasya_01",
+          "rows": [
+            {
+              "label": "To the New World Instantaneous DMG",
+              "template": "{param1:F1P}",
+              "params": [
+                {
+                  "index": 0,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "To the New World Stellar Glimmer Reaction DMG Increase",
+              "template": "{param2:F1P}",
+              "params": [
+                {
+                  "index": 1,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Palestar Crown Stellar-Conduct/Stellar Swirl DMG",
+              "template": "{param3:F1P}/{param4:F1P}",
+              "params": [
+                {
+                  "index": 2,
+                  "format": "F1P"
+                },
+                {
+                  "index": 3,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Triumph Stellar-Conduct/Stellar Swirl DMG",
+              "template": "{param5:F1P}/{param6:F1P}",
+              "params": [
+                {
+                  "index": 4,
+                  "format": "F1P"
+                },
+                {
+                  "index": 5,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "The Evernight Yields to Dawn Stellar-Conduct/Stellar Swirl DMG",
+              "template": "{param7:F1P}/{param8:F1P}",
+              "params": [
+                {
+                  "index": 6,
+                  "format": "F1P"
+                },
+                {
+                  "index": 7,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Doom 1-Hit Cryo DMG",
+              "template": "{param9:F1P}×5",
+              "params": [
+                {
+                  "index": 8,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Doom 1-Hit Stellar-Conduct/Stellar Swirl DMG",
+              "template": "{param10:F1P}/{param11:F1P}",
+              "params": [
+                {
+                  "index": 9,
+                  "format": "F1P"
+                },
+                {
+                  "index": 10,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Doom 2-Hit Stellar-Conduct/Stellar Swirl DMG",
+              "template": "{param12:F1P}/{param13:F1P}",
+              "params": [
+                {
+                  "index": 11,
+                  "format": "F1P"
+                },
+                {
+                  "index": 12,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Doom 3-Hit Stellar-Conduct/Stellar Swirl DMG",
+              "template": "{param14:F1P}/{param15:F1P}",
+              "params": [
+                {
+                  "index": 13,
+                  "format": "F1P"
+                },
+                {
+                  "index": 14,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "To the New World Duration",
+              "template": "{param16:F1}s",
+              "params": [
+                {
+                  "index": 15,
+                  "format": "F1"
+                }
+              ]
+            },
+            {
+              "label": "The Evernight Yields to Dawn Duration",
+              "template": "{param17:F1}s",
+              "params": [
+                {
+                  "index": 16,
+                  "format": "F1"
+                }
+              ]
+            },
+            {
+              "label": "CD",
+              "template": "{param18:F1}s",
+              "params": [
+                {
+                  "index": 17,
+                  "format": "F1"
+                }
+              ]
+            },
+            {
+              "label": "Energy Cost",
+              "template": "{param19:I}",
+              "params": [
+                {
+                  "index": 18,
+                  "format": "I"
+                }
+              ]
+            }
+          ],
+          "params": [
+            [
+              2.004,
+              2.1543,
+              2.3046,
+              2.505,
+              2.6553,
+              2.8056,
+              3.006,
+              3.2064,
+              3.4068,
+              3.6072,
+              3.8076,
+              4.008,
+              4.2585,
+              4.509,
+              4.7595
+            ],
+            [
+              0.275,
+              0.3,
+              0.325,
+              0.35,
+              0.375,
+              0.4,
+              0.425,
+              0.45,
+              0.475,
+              0.5,
+              0.53,
+              0.56,
+              0.59,
+              0.62,
+              0.65
+            ],
+            [
+              0.112,
+              0.1204,
+              0.1288,
+              0.14,
+              0.1484,
+              0.1568,
+              0.168,
+              0.1792,
+              0.1904,
+              0.2016,
+              0.2128,
+              0.224,
+              0.238,
+              0.252,
+              0.266
+            ],
+            [
+              0.168,
+              0.1806,
+              0.1932,
+              0.21,
+              0.2226,
+              0.2352,
+              0.252,
+              0.2688,
+              0.2856,
+              0.3024,
+              0.3192,
+              0.336,
+              0.357,
+              0.378,
+              0.399
+            ],
+            [
+              2.226667,
+              2.393667,
+              2.560667,
+              2.783333,
+              2.950333,
+              3.117333,
+              3.34,
+              3.562667,
+              3.785333,
+              4.008,
+              4.230667,
+              4.453333,
+              4.731667,
+              5.01,
+              5.288333
+            ],
+            [
+              3.34,
+              3.5905,
+              3.841,
+              4.175,
+              4.4255,
+              4.676,
+              5.01,
+              5.344,
+              5.678,
+              6.012,
+              6.346,
+              6.68,
+              7.0975,
+              7.515,
+              7.9325
+            ],
+            [
+              3.117333,
+              3.351133,
+              3.584933,
+              3.896667,
+              4.130467,
+              4.364267,
+              4.676,
+              4.987733,
+              5.299467,
+              5.6112,
+              5.922933,
+              6.234667,
+              6.624333,
+              7.014,
+              7.403667
+            ],
+            [
+              4.676,
+              5.0267,
+              5.3774,
+              5.845,
+              6.1957,
+              6.5464,
+              7.014,
+              7.4816,
+              7.9492,
+              8.4168,
+              8.8844,
+              9.352,
+              9.9365,
+              10.521,
+              11.1055
+            ],
+            [
+              0.2672,
+              0.28724,
+              0.30728,
+              0.334,
+              0.35404,
+              0.37408,
+              0.4008,
+              0.42752,
+              0.45424,
+              0.48096,
+              0.50768,
+              0.5344,
+              0.5678,
+              0.6012,
+              0.6346
+            ],
+            [
+              0.668,
+              0.7181,
+              0.7682,
+              0.835,
+              0.8851,
+              0.9352,
+              1.002,
+              1.0688,
+              1.1356,
+              1.2024,
+              1.2692,
+              1.336,
+              1.4195,
+              1.503,
+              1.5865
+            ],
+            [
+              1.002,
+              1.07715,
+              1.1523,
+              1.2525,
+              1.32765,
+              1.4028,
+              1.503,
+              1.6032,
+              1.7034,
+              1.8036,
+              1.9038,
+              2.004,
+              2.12925,
+              2.2545,
+              2.37975
+            ],
+            [
+              0.890667,
+              0.957467,
+              1.024267,
+              1.113333,
+              1.180133,
+              1.246933,
+              1.336,
+              1.425067,
+              1.514133,
+              1.6032,
+              1.692267,
+              1.781333,
+              1.892667,
+              2.004,
+              2.115333
+            ],
+            [
+              1.336,
+              1.4362,
+              1.5364,
+              1.67,
+              1.7702,
+              1.8704,
+              2.004,
+              2.1376,
+              2.2712,
+              2.4048,
+              2.5384,
+              2.672,
+              2.839,
+              3.006,
+              3.173
+            ],
+            [
+              1.113333,
+              1.196833,
+              1.280333,
+              1.391667,
+              1.475167,
+              1.558667,
+              1.67,
+              1.781333,
+              1.892667,
+              2.004,
+              2.115333,
+              2.226667,
+              2.365833,
+              2.505,
+              2.644167
+            ],
+            [
+              1.67,
+              1.79525,
+              1.9205,
+              2.0875,
+              2.21275,
+              2.338,
+              2.505,
+              2.672,
+              2.839,
+              3.006,
+              3.173,
+              3.34,
+              3.54875,
+              3.7575,
+              3.96625
+            ],
+            [
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20,
+              20
+            ],
+            [
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14
+            ],
+            [
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15
+            ],
+            [
+              50,
+              50,
+              50,
+              50,
+              50,
+              50,
+              50,
+              50,
+              50,
+              50,
+              50,
+              50,
+              50,
+              50,
+              50
+            ]
+          ]
+        }
+      },
+      "passive1": {
+        "name": "The Radiant Reign of Night",
+        "description": "All party members gain Accolades for 20s after Anastasya uses her Elemental Skill Polestar's Divine Judgment, increasing their CRIT DMG by 12%.\nWhen a party member is Sealed, their Accolades are temporarily divided equally among party members who are not Sealed until 8s after that character's Sealed state ends.",
+        "icon": "UI_Talent_S_Anastasya_05",
+        "unlockAscension": 1,
+        "params": [
+          0.12,
+          20,
+          8
+        ]
+      },
+      "passive2": {
+        "name": "Lament for the Lost",
+        "description": "While Anastasya is in the party, Stellar Glimmer reactions triggered by any party member gain the following effects:\n·Stellar-Conduct: The Polestar Field will be further enhanced each time it grants a buff, and creating a Starlight Prism will cause the Field to generate a buff instantly;\n·Stellar Swirl: Stellar Swirl's base reaction multiplier is increased by 15%. Newly created Stellar Vortices and Drifting Vortices are also immediately raised to Level 2. This level increase can trigger once every 1s.",
+        "icon": "UI_Talent_S_Anastasya_06",
+        "unlockAscension": 4,
+        "params": [
+          1,
+          0.15
+        ]
+      },
+      "passive3": {
+        "name": "Stellar Jubilee: Immaculate Return",
+        "description": "Anastasya will be in the Radiance: Stellar-Conduct state while within a Polestar Field, and in the Radiance: Stellar Swirl state for 8s after a party member triggers a Stellar Swirl reaction nearby.\nParty members trigger Stellar-Conduct/Stellar Swirl reactions instead of Superconduct/Cryo Swirl reactions, respectively. Anastasya also increases party members' Stellar-Conduct and Stellar Swirl base DMG by 0.7% for every 100 ATK she has, up to a maximum increase of 14%.",
+        "icon": "UI_Talent_S_Anastasya_07",
+        "unlockAscension": 0,
+        "params": [
+          8,
+          0.007,
+          0.14
+        ]
+      },
+      "otherPassives": [
+        {
+          "name": "The Falling Snow's Favor",
+          "description": "Party members gradually restore HP while out of combat in Snezhnaya (excluding Nod-Krai).\nAdditionally, while Anastasya is in the party, the Eye of Graeae does not lose energy, and its energy is immediately replenished to 30% if it is below 30%.\nThese effects do not apply in Domains, Trounce Domains, or the Spiral Abyss.",
+          "icon": "UI_Talent_S_Anastasya_08",
+          "unlockAscension": 0,
+          "params": [
+            0.05
+          ]
+        }
+      ],
+      "constellations": [
+        {
+          "name": "To Years Past, To Hearts Still Alight",
+          "description": "The Ascension Passive The Radiant Reign of Night is enhanced: Accolades also increase the ATK of Cryo characters by 15% and the Elemental Mastery of characters of other Elemental Types by 60.\nAdditionally, when a character is Sealed, the division of Accolades will not cause the sharing character's Accolades to be dispelled. When Anastasya is Sealed, the Accolades she grants to other characters will provide 300% of their original bonuses.",
+          "icon": "UI_Talent_S_Anastasya_01",
+          "params": [
+            0.15,
+            60,
+            3
+          ]
+        },
+        {
+          "name": "To Winter, All Who Taste Its Bite",
+          "description": "After Anastasya uses her Elemental Skill, Polestar's Divine Judgment, the following effects apply based on her current Blessing:\n· Love: The CRIT DMG of Stellar Glimmer Reaction DMG dealt by all party members is increased by 60% for 30s;\n· Honor: Anastasya's Normal Attacks, Elemental Burst The Evernight Yields to Dawn, and special Unsealing Elemental Skill Palestar Edict: Doom deal 125% of their original DMG for 15s.\n\nAdditionally, Stellar Glimmer Reaction DMG dealt by all nearby party members is Elevated by 5%.",
+          "icon": "UI_Talent_S_Anastasya_02",
+          "params": [
+            0.6,
+            30,
+            1.25,
+            15,
+            0.05
+          ]
+        },
+        {
+          "name": "To White Nights, Set Our Grief Afire",
+          "description": "Increases the Level of the Elemental Burst To the New World by 3.\nMaximum upgrade level is 15.",
+          "icon": "UI_Talent_U_Anastasya_01",
+          "params": []
+        },
+        {
+          "name": "To Tyrants, Sing The Rebel's Choir",
+          "description": "Enhances Accolades, increasing CRIT DMG, ATK, and Elemental Mastery bonuses to 130% of their original values.",
+          "icon": "UI_Talent_S_Anastasya_03",
+          "params": [
+            0.3
+          ]
+        },
+        {
+          "name": "March On, Till Rot's Last Ember Dies",
+          "description": "Increases the Level of Polestar's Divine Judgment by 3.\nMaximum upgrade level is 15.",
+          "icon": "UI_Talent_U_Anastasya_02",
+          "params": []
+        },
+        {
+          "name": "Look Up, a Dawn Unstained Shall Rise",
+          "description": "After Anastasya uses her Elemental Skill, Polestar's Divine Judgment, the following effects apply based on her current Blessing:\n· Love: The next time another character is switched onto the field, an effect equivalent to Palestar Edict: Triumph is triggered, dealing 250% of its original DMG. Additionally, Stellar Glimmer Reaction DMG dealt by all nearby party members is Elevated by 10%;\n· Honor: The next time the Elemental Skill is tapped, an effect equivalent to the third attack of Palestar Edict: Doom is triggered, dealing 200% of its original DMG. If the other party members are not Sealed, Anastasya is considered to possess the Accolades of all party members for this attack. Additionally, Stellar Glimmer Reaction DMG dealt by Anastasya is Elevated by 20%.\n\nThe above effects last for 30s and can be triggered once every 15s. They are removed when other party members' Sealed status ends.",
+          "icon": "UI_Talent_S_Anastasya_04",
+          "params": [
+            30,
+            15,
+            2.5,
+            0.1,
+            2,
+            0.2
+          ]
+        }
+      ],
+      "images": {
+        "icon": "UI_AvatarIcon_Anastasya",
+        "gacha": "UI_Gacha_AvatarImg_Anastasya",
+        "namecard": "UI_NameCardPic_Anastasya_P"
+      }
+    }
+  ]
+}
