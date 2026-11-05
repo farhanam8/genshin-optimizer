@@ -18,6 +18,9 @@ import {
   nextCustomCharacterKey,
   parseCustomCharacterPack,
   readCustomCharacterDefs,
+  builtinCustomCharacterDefs,
+  isBuiltinCustomCharacterKey,
+  isPristineBuiltinCustomCharacter,
   writeCustomCharacterDefs,
 } from '@genshin-optimizer/gi/consts'
 import { useDatabase } from '@genshin-optimizer/gi/db-ui'
@@ -30,6 +33,7 @@ import { ElementIcon } from '@genshin-optimizer/gi/svgicons'
 import AddIcon from '@mui/icons-material/Add'
 import CloseIcon from '@mui/icons-material/Close'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
+import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import EditIcon from '@mui/icons-material/Edit'
 import FileUploadIcon from '@mui/icons-material/FileUpload'
 import {
@@ -250,6 +254,15 @@ export function CustomCharacterModal({
     )
   }
 
+  /** Built-in characters are reset to the version that ships with GO instead. */
+  const onReset = (def: CustomCharacterDef) => {
+    const builtin = builtinCustomCharacterDefs.find((b) => b.key === def.key)
+    if (!builtin) return
+    if (!window.confirm(t('customChar.resetConfirm', { name: def.name })))
+      return
+    saveAndReload(defs.map((d) => (d.key === def.key ? builtin : d)))
+  }
+
   const onDelete = (def: CustomCharacterDef) => {
     if (!window.confirm(t('customChar.deleteConfirm', { name: def.name })))
       return
@@ -372,13 +385,15 @@ export function CustomCharacterModal({
                         {def.name}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {isCustomCharacterDataDef(def)
-                          ? t('customChar.importedFrom', {
-                              name: t(`charNames_gen:${def.template}`),
-                            })
-                          : t('customChar.basedOn', {
-                              name: t(`charNames_gen:${def.template}`),
-                            })}
+                        {isBuiltinCustomCharacterKey(def.key)
+                          ? t('customChar.builtin')
+                          : isCustomCharacterDataDef(def)
+                            ? t('customChar.importedFrom', {
+                                name: t(`charNames_gen:${def.template}`),
+                              })
+                            : t('customChar.basedOn', {
+                                name: t(`charNames_gen:${def.template}`),
+                              })}
                       </Typography>
                     </Box>
                     <Button
@@ -391,13 +406,25 @@ export function CustomCharacterModal({
                     >
                       {t('customChar.edit')}
                     </Button>
-                    <Button
-                      color="error"
-                      startIcon={<DeleteForeverIcon />}
-                      onClick={() => onDelete(def)}
-                    >
-                      {t('customChar.delete')}
-                    </Button>
+                    {!isBuiltinCustomCharacterKey(def.key) ? (
+                      <Button
+                        color="error"
+                        startIcon={<DeleteForeverIcon />}
+                        onClick={() => onDelete(def)}
+                      >
+                        {t('customChar.delete')}
+                      </Button>
+                    ) : (
+                      !isPristineBuiltinCustomCharacter(def) && (
+                        <Button
+                          color="warning"
+                          startIcon={<RestartAltIcon />}
+                          onClick={() => onReset(def)}
+                        >
+                          {t('customChar.reset')}
+                        </Button>
+                      )
+                    )}
                   </CardContent>
                 </CardThemed>
               ))}

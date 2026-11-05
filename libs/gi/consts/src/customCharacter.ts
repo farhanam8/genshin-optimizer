@@ -1,3 +1,7 @@
+import {
+  builtinCustomCharacterEntries,
+  builtinCustomCharacterKeys,
+} from './builtinCustom'
 import type { ElementKey } from './character'
 import type { WeaponTypeKey } from './weapon'
 
@@ -578,7 +582,11 @@ const str = (s: unknown) => (typeof s === 'string' ? s : '')
 
 function validateBase(o: Record<string, unknown>) {
   const { key, name, template, ele, weaponType, rarity } = o
-  if (typeof key !== 'string' || !/^CustomChar\d+$/.test(key)) return undefined
+  if (
+    typeof key !== 'string' ||
+    !(/^CustomChar\d+$/.test(key) || builtinCustomCharacterKeys.includes(key))
+  )
+    return undefined
   if (typeof template !== 'string' || !template) return undefined
   if (!customElements.includes(ele as ElementKey)) return undefined
   if (!customWeaponTypes.includes(weaponType as WeaponTypeKey)) return undefined
@@ -822,8 +830,27 @@ export function parseCustomCharacterPack(
   return { characters }
 }
 
-/** Reads the raw definitions from localStorage. Safe to call outside a browser. */
-export function readCustomCharacterDefs(): CustomCharacterDef[] {
+/** Custom characters that ship with GO (see `./builtinCustom`), as defined there. */
+export const builtinCustomCharacterDefs: CustomCharacterDataDef[] =
+  builtinCustomCharacterEntries.flatMap(({ key, template, data }) => {
+    const def = validateCustomCharacterDef({
+      ...(data as object),
+      kind: 'data',
+      key,
+      template,
+    })
+    return def && isCustomCharacterDataDef(def) ? [def] : []
+  })
+export function isBuiltinCustomCharacterKey(key: string): boolean {
+  return builtinCustomCharacterKeys.includes(key)
+}
+/** Whether `def` is a built-in character as it ships, without local edits. */
+export function isPristineBuiltinCustomCharacter(def: CustomCharacterDef) {
+  const builtin = builtinCustomCharacterDefs.find((b) => b.key === def.key)
+  return !!builtin && JSON.stringify(builtin) === JSON.stringify(def)
+}
+
+function readStoredCustomCharacterDefs(): CustomCharacterDef[] {
   try {
     if (typeof localStorage === 'undefined') return []
     const raw = localStorage.getItem(customCharacterStorageKey)
@@ -844,9 +871,37 @@ export function readCustomCharacterDefs(): CustomCharacterDef[] {
   }
 }
 
-/** Persists definitions to localStorage. The page must be reloaded afterwards. */
+/**
+ * The definitions saved in localStorage, followed by the built-in characters
+ * that none of them replaces: a saved definition with a built-in's key is an
+ * edited copy of it, and one with its source id was imported before (and
+ * keeps its key, so the characters' builds stay). Safe to call outside a browser.
+ */
+export function readCustomCharacterDefs(): CustomCharacterDef[] {
+  const defs = readStoredCustomCharacterDefs()
+  for (const builtin of builtinCustomCharacterDefs) {
+    const replaced = defs.some(
+      (d) =>
+        d.key === builtin.key ||
+        (isCustomCharacterDataDef(d) &&
+          d.sourceId !== undefined &&
+          d.sourceId === builtin.sourceId)
+    )
+    if (!replaced) defs.push(builtin)
+  }
+  return defs
+}
+
+/**
+ * Persists definitions to localStorage. Built-in characters without changes
+ * are left out, so they follow the version that ships with GO.
+ * The page must be reloaded afterwards.
+ */
 export function writeCustomCharacterDefs(defs: CustomCharacterDef[]) {
-  localStorage.setItem(customCharacterStorageKey, JSON.stringify(defs))
+  localStorage.setItem(
+    customCharacterStorageKey,
+    JSON.stringify(defs.filter((d) => !isPristineBuiltinCustomCharacter(d)))
+  )
 }
 
 /** The next unused `CustomCharN` key. */

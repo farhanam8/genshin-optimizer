@@ -235,6 +235,9 @@
       "noMatch": "Matches no DMG value.",
       "add": "Add Talent Effect",
       "bonus": "Stat bonus"
-    }
+    },
+    "builtin": "Built into GO",
+    "reset": "Reset to default",
+    "resetConfirm": "Reset {{name}} to the version built into GO? Your edits to this character are lost; its builds stay."
   }
 }

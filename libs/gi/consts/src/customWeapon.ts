@@ -1,3 +1,7 @@
+import {
+  builtinCustomWeaponEntries,
+  builtinCustomWeaponKeys,
+} from './builtinCustom'
 import type { ElementKey } from './character'
 import type {
   CustomCharacterBuffStat,
@@ -145,7 +149,10 @@ export function validateCustomWeaponDef(
   if (!isObj(obj)) return undefined
   const { key, name, template, weaponType, rarity, mainStat, subStat } = obj
   const { ascensionBonus, passiveDescriptions, buffs } = obj
-  if (typeof key !== 'string' || !/^CustomWeapon\d+$/.test(key))
+  if (
+    typeof key !== 'string' ||
+    !(/^CustomWeapon\d+$/.test(key) || builtinCustomWeaponKeys.includes(key))
+  )
     return undefined
   if (typeof template !== 'string' || !template) return undefined
   if (!weaponTypes.includes(weaponType as WeaponTypeKey)) return undefined
@@ -200,8 +207,26 @@ export function validateCustomWeaponDef(
   return def
 }
 
-/** Reads the definitions from localStorage. Safe to call outside a browser. */
-export function readCustomWeaponDefs(): CustomWeaponDef[] {
+/** Custom weapons that ship with GO (see `./builtinCustom`), as defined there. */
+export const builtinCustomWeaponDefs: CustomWeaponDef[] =
+  builtinCustomWeaponEntries.flatMap(({ key, template, data }) => {
+    const def = validateCustomWeaponDef({
+      ...(data as object),
+      key,
+      template,
+    })
+    return def ? [def] : []
+  })
+export function isBuiltinCustomWeaponKey(key: string): boolean {
+  return builtinCustomWeaponKeys.includes(key)
+}
+/** Whether `def` is a built-in weapon as it ships, without local edits. */
+export function isPristineBuiltinCustomWeapon(def: CustomWeaponDef) {
+  const builtin = builtinCustomWeaponDefs.find((b) => b.key === def.key)
+  return !!builtin && JSON.stringify(builtin) === JSON.stringify(def)
+}
+
+function readStoredCustomWeaponDefs(): CustomWeaponDef[] {
   try {
     if (typeof localStorage === 'undefined') return []
     const raw = localStorage.getItem(customWeaponStorageKey)
@@ -220,9 +245,33 @@ export function readCustomWeaponDefs(): CustomWeaponDef[] {
   }
 }
 
-/** Persists definitions to localStorage. The page must be reloaded afterwards. */
+/**
+ * The definitions saved in localStorage, followed by the built-in weapons
+ * that none of them replaces (same key: edited copy; same source id:
+ * imported before). Safe to call outside a browser.
+ */
+export function readCustomWeaponDefs(): CustomWeaponDef[] {
+  const defs = readStoredCustomWeaponDefs()
+  for (const builtin of builtinCustomWeaponDefs) {
+    const replaced = defs.some(
+      (d) =>
+        d.key === builtin.key ||
+        (d.sourceId !== undefined && d.sourceId === builtin.sourceId)
+    )
+    if (!replaced) defs.push(builtin)
+  }
+  return defs
+}
+
+/**
+ * Persists definitions to localStorage, leaving out unchanged built-in
+ * weapons. The page must be reloaded afterwards.
+ */
 export function writeCustomWeaponDefs(defs: CustomWeaponDef[]) {
-  localStorage.setItem(customWeaponStorageKey, JSON.stringify(defs))
+  localStorage.setItem(
+    customWeaponStorageKey,
+    JSON.stringify(defs.filter((d) => !isPristineBuiltinCustomWeapon(d)))
+  )
 }
 
 /** The next unused `CustomWeaponN` key. */

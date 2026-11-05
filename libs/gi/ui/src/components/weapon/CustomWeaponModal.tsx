@@ -20,6 +20,9 @@ import {
   nextCustomWeaponKey,
   parseCustomWeaponPack,
   readCustomWeaponDefs,
+  builtinCustomWeaponDefs,
+  isBuiltinCustomWeaponKey,
+  isPristineBuiltinCustomWeapon,
   writeCustomWeaponDefs,
 } from '@genshin-optimizer/gi/consts'
 import { KeyMap } from '@genshin-optimizer/gi/keymap'
@@ -31,6 +34,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import CloseIcon from '@mui/icons-material/Close'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
+import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import EditIcon from '@mui/icons-material/Edit'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import FileUploadIcon from '@mui/icons-material/FileUpload'
@@ -240,9 +244,11 @@ export function CustomWeaponModal({
                         {def.name} {'★'.repeat(def.rarity)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {t('customWeapon.imagesFrom', {
-                          name: t(`weaponNames_gen:${def.template}`),
-                        })}
+                        {isBuiltinCustomWeaponKey(def.key)
+                          ? t('customWeapon.builtin')
+                          : t('customWeapon.imagesFrom', {
+                              name: t(`weaponNames_gen:${def.template}`),
+                            })}
                       </Typography>
                     </Box>
                     <Button
@@ -251,20 +257,51 @@ export function CustomWeaponModal({
                     >
                       {t('customWeapon.edit')}
                     </Button>
-                    <Button
-                      color="error"
-                      startIcon={<DeleteForeverIcon />}
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            t('customWeapon.deleteConfirm', { name: def.name })
+                    {!isBuiltinCustomWeaponKey(def.key) ? (
+                      <Button
+                        color="error"
+                        startIcon={<DeleteForeverIcon />}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              t('customWeapon.deleteConfirm', {
+                                name: def.name,
+                              })
+                            )
                           )
-                        )
-                          saveAndReload(defs.filter((d) => d.key !== def.key))
-                      }}
-                    >
-                      {t('customWeapon.delete')}
-                    </Button>
+                            saveAndReload(defs.filter((d) => d.key !== def.key))
+                        }}
+                      >
+                        {t('customWeapon.delete')}
+                      </Button>
+                    ) : (
+                      !isPristineBuiltinCustomWeapon(def) && (
+                        <Button
+                          color="warning"
+                          startIcon={<RestartAltIcon />}
+                          onClick={() => {
+                            const builtin = builtinCustomWeaponDefs.find(
+                              (b) => b.key === def.key
+                            )
+                            if (
+                              builtin &&
+                              window.confirm(
+                                t('customWeapon.resetConfirm', {
+                                  name: def.name,
+                                })
+                              )
+                            )
+                              saveAndReload(
+                                defs.map((d) =>
+                                  d.key === def.key ? builtin : d
+                                )
+                              )
+                          }}
+                        >
+                          {t('customWeapon.reset')}
+                        </Button>
+                      )
+                    )}
                   </CardContent>
                 </CardThemed>
               ))}

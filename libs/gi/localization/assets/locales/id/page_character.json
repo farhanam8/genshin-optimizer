@@ -170,6 +170,9 @@
       "noMatch": "Tidak cocok dengan nilai DMG mana pun.",
       "add": "Tambah Efek Talent",
       "bonus": "Bonus stat"
-    }
+    },
+    "builtin": "Bawaan GO",
+    "reset": "Reset ke default",
+    "resetConfirm": "Kembalikan {{name}} ke versi bawaan GO? Editanmu untuk karakter ini hilang; build-nya tetap."
   }
 }

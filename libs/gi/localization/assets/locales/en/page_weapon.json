@@ -85,6 +85,9 @@
       "targetActive": "Active character"
     },
     "cancel": "Cancel",
-    "save": "Save & reload"
+    "save": "Save & reload",
+    "builtin": "Built into GO",
+    "reset": "Reset to default",
+    "resetConfirm": "Reset {{name}} to the version built into GO? Your edits to this weapon are lost."
   }
 }

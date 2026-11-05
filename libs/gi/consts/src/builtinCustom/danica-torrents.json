@@ -1,0 +1,1010 @@
+{
+  "format": "genshin-optimizer-custom-characters",
+  "version": 1,
+  "source": "gi.nanoka.cc",
+  "exportedAt": "2026-11-05T12:36:23.003Z",
+  "characters": [
+    {
+      "sourceId": 10000147,
+      "name": "Danica",
+      "title": "",
+      "description": "",
+      "ele": "electro",
+      "weaponType": "claymore",
+      "rarity": 5,
+      "region": "snezhnaya",
+      "birthday": {
+        "month": 1,
+        "day": 1
+      },
+      "lvlCurves": [
+        {
+          "key": "hp",
+          "base": 1015.2858,
+          "curve": "GROW_CURVE_HP_S5"
+        },
+        {
+          "key": "atk",
+          "base": 26.2542,
+          "curve": "GROW_CURVE_ATTACK_S5"
+        },
+        {
+          "key": "def",
+          "base": 60.4283,
+          "curve": "GROW_CURVE_HP_S5"
+        }
+      ],
+      "ascensionBonus": {
+        "hp": [
+          0, 870.51575, 1489.0402, 2313.7393, 2932.2637, 3550.788, 4169.3125
+        ],
+        "def": [0, 51.813, 88.6275, 137.7135, 174.528, 211.3425, 248.157],
+        "atk": [
+          0, 22.508959, 38.502167, 59.826443, 75.81965, 91.81286, 107.80606
+        ],
+        "atk_": [0, 0, 0.072, 0.144, 0.144, 0.216, 0.288]
+      },
+      "talents": {
+        "auto": {
+          "name": "test Danica Normal Attack",
+          "description": "Normal Attack\nPerforms up to 4 consecutive strikes.\n\nCharged Attack\nDrains Stamina over time to perform continuous slashes.\nAt the end of the sequence, performs a more powerful slash.\n\nPlunging Attack\nPlunges from mid-air to strike the ground, damaging opponents along the path and dealing AoE DMG upon impact.",
+          "icon": "Skill_A_04",
+          "rows": [
+            {
+              "label": "1-Hit DMG",
+              "template": "{param1:F1P}",
+              "params": [
+                {
+                  "index": 0,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "2-Hit DMG",
+              "template": "{param2:F1P}",
+              "params": [
+                {
+                  "index": 1,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "3-Hit DMG",
+              "template": "{param3:F1P}×2",
+              "params": [
+                {
+                  "index": 2,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "4-Hit DMG",
+              "template": "{param4:F1P}",
+              "params": [
+                {
+                  "index": 3,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Charged Attack Cyclic DMG",
+              "template": "{param5:F1P}",
+              "params": [
+                {
+                  "index": 4,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Charged Attack Final DMG",
+              "template": "{param6:P}",
+              "params": [
+                {
+                  "index": 5,
+                  "format": "P"
+                }
+              ]
+            },
+            {
+              "label": "Charged Attack Stamina Cost",
+              "template": "{param7:F1}/s",
+              "params": [
+                {
+                  "index": 6,
+                  "format": "F1"
+                }
+              ]
+            },
+            {
+              "label": "Max Duration",
+              "template": "{param8:F1}s",
+              "params": [
+                {
+                  "index": 7,
+                  "format": "F1"
+                }
+              ]
+            },
+            {
+              "label": "Plunge DMG",
+              "template": "{param9:F1P}",
+              "params": [
+                {
+                  "index": 8,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Low/High Plunge DMG",
+              "template": "{param10:P}/{param11:P}",
+              "params": [
+                {
+                  "index": 9,
+                  "format": "P"
+                },
+                {
+                  "index": 10,
+                  "format": "P"
+                }
+              ]
+            }
+          ],
+          "params": [
+            [
+              0.635007, 0.686693, 0.73838, 0.812218, 0.863905, 0.922975,
+              1.004197, 1.085419, 1.16664, 1.255246, 1.343852, 1.432457,
+              1.521063, 1.609668, 1.698274
+            ],
+            [
+              0.580896, 0.628178, 0.67546, 0.743006, 0.790288, 0.844325,
+              0.918626, 0.992926, 1.067227, 1.148282, 1.229337, 1.310392,
+              1.391448, 1.472503, 1.553558
+            ],
+            [
+              0.378817, 0.409651, 0.440485, 0.484534, 0.515367, 0.550606,
+              0.59906, 0.647513, 0.695966, 0.748825, 0.801683, 0.854541,
+              0.907399, 0.960257, 1.013116
+            ],
+            [
+              0.928293, 1.003851, 1.07941, 1.187351, 1.26291, 1.349263,
+              1.467998, 1.586733, 1.705468, 1.834997, 1.964526, 2.094055,
+              2.223585, 2.353114, 2.482643
+            ],
+            [
+              0.62522, 0.67611, 0.727, 0.7997, 0.85059, 0.90875, 0.98872,
+              1.06869, 1.14866, 1.2359, 1.32314, 1.41038, 1.49762, 1.58486,
+              1.6721
+            ],
+            [
+              1.1309, 1.22295, 1.315, 1.4465, 1.53855, 1.64375, 1.7884, 1.93305,
+              2.0777, 2.2355, 2.3933, 2.5511, 2.7089, 2.8667, 3.0245
+            ],
+            [40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40],
+            [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+            [
+              0.745878, 0.806589, 0.8673, 0.95403, 1.014741, 1.084125, 1.179528,
+              1.274931, 1.370334, 1.47441, 1.578486, 1.682562, 1.786638,
+              1.890714, 1.99479
+            ],
+            [
+              1.49144, 1.612836, 1.734233, 1.907656, 2.029052, 2.167791,
+              2.358556, 2.549322, 2.740087, 2.948195, 3.156303, 3.364411,
+              3.572519, 3.780627, 3.988735
+            ],
+            [
+              1.862889, 2.01452, 2.16615, 2.382765, 2.534396, 2.707688,
+              2.945964, 3.184241, 3.422517, 3.682455, 3.942393, 4.202331,
+              4.462269, 4.722207, 4.982145
+            ]
+          ]
+        },
+        "skill": {
+          "name": "testDanica Elemental Skill",
+          "description": "testSwings her chain and anchor, dealing AoE Electro DMG to nearby opponents and summoning an Anchor that follows the current on-field character's movements.\n\nWhile the Anchor is present, it will assist in combat in different ways depending on whether Danica is on the field.\nWhen Danica is Off-Field\nWhen the current on-field character in the party hits opponents with Electro or Cryo attacks, the Anchor will launch a Coordinated Attack, dealing AoE Electro DMG at the opponents' location. This effect can trigger at most once every 1.5s.\nWhen Danica is On-Field\nDanica's Normal Attacks will be converted into Special Attacks using the anchor, dealing Electro DMG that cannot be overridden by infusion. This DMG is considered Normal Attack DMG.\n\nExcitement\nWhile the Anchor is present, Danica can accumulate Excitement by performing anchor Special Normal Attacks or by having the current on-field character in the party hit opponents with Cryo or Electro attacks. When Excitement reaches its maximum, depending on whether Danica is on-field, all Excitement can be consumed to unleash different special Elemental Skills and enter the corresponding Maid Form:\nDefense Maid\nWhen Danica is off-field, switch to bring Danica on-field, automatically triggering \"Entry Skill E2\", and entering Defense Maid. Generates a Shield for the on-field character and refreshes the Anchor's Duration. During this time, \"On-Field Skill E2\" cannot be triggered.\nBattle Maid\nWhen Danica is on-field, the Elemental Skill will be replaced by \"On-Field Skill E2\". After using it, Danica enters Battle Maid. While in this state, after using \"On-Field Skill E2\", the anchor Special Normal Attacks can skip certain Normal Attack combo hits. During this time, \"Entry Skill E2\" cannot be triggered.\n\nAdditionally, when the Anchor disappears, Danica will exit the Maid Form. While the Anchor is present, Battle Maid and Defense Maid cannot coexist — upon entering one Maid Form, the other cannot be entered.",
+          "icon": "Skill_S_Danica_01",
+          "rows": [
+            {
+              "label": "Skill DMG",
+              "template": "{param1:F1P}",
+              "params": [
+                {
+                  "index": 0,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Entry Skill E2 Stellar-Conduct DMG",
+              "template": "{param2:F1P}",
+              "params": [
+                {
+                  "index": 1,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "On-Field E2 Stellar-Conduct DMG",
+              "template": "{param3:F1P}",
+              "params": [
+                {
+                  "index": 2,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Anchor Coordinated Attack DMG",
+              "template": "{param4:F1P}",
+              "params": [
+                {
+                  "index": 3,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Shield DMG Absorption",
+              "template": "{param5:F1P} ATK+{param6:F1}",
+              "params": [
+                {
+                  "index": 4,
+                  "format": "F1P"
+                },
+                {
+                  "index": 5,
+                  "format": "F1"
+                }
+              ]
+            },
+            {
+              "label": "Anchor Normal Attack 1-Hit Electro DMG",
+              "template": "{param7:F1P}",
+              "params": [
+                {
+                  "index": 6,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Anchor Normal Attack 2-Hit Electro DMG",
+              "template": "{param8:F1P}",
+              "params": [
+                {
+                  "index": 7,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Anchor Normal Attack 3-Hit Electro DMG",
+              "template": "{param9:F1P}×2",
+              "params": [
+                {
+                  "index": 8,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Anchor Normal Attack 4-Hit Electro DMG",
+              "template": "{param10:F1P}",
+              "params": [
+                {
+                  "index": 9,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Anchor Duration",
+              "template": "{param11:F1}s",
+              "params": [
+                {
+                  "index": 10,
+                  "format": "F1"
+                }
+              ]
+            },
+            {
+              "label": "Entry Skill E2 CD",
+              "template": "{param12:F1}s",
+              "params": [
+                {
+                  "index": 11,
+                  "format": "F1"
+                }
+              ]
+            },
+            {
+              "label": "Skill CD",
+              "template": "{param13:F1}s",
+              "params": [
+                {
+                  "index": 12,
+                  "format": "F1"
+                }
+              ]
+            }
+          ],
+          "params": [
+            [
+              0.42752, 0.459584, 0.491648, 0.5344, 0.566464, 0.598528, 0.64128,
+              0.684032, 0.726784, 0.769536, 0.812288, 0.85504, 0.90848, 0.96192,
+              1.01536
+            ],
+            [
+              0.6784, 0.72928, 0.78016, 0.848, 0.89888, 0.94976, 1.0176,
+              1.08544, 1.15328, 1.22112, 1.28896, 1.3568, 1.4416, 1.5264, 1.6112
+            ],
+            [
+              0.79808, 0.857936, 0.917792, 0.9976, 1.057456, 1.117312, 1.19712,
+              1.276928, 1.356736, 1.436544, 1.516352, 1.59616, 1.69592, 1.79568,
+              1.89544
+            ],
+            [
+              0.3808, 0.40936, 0.43792, 0.476, 0.50456, 0.53312, 0.5712,
+              0.60928, 0.64736, 0.68544, 0.72352, 0.7616, 0.8092, 0.8568, 0.9044
+            ],
+            [
+              2.33472, 2.509824, 2.684928, 2.9184, 3.093504, 3.268608, 3.50208,
+              3.735552, 3.969024, 4.202496, 4.435968, 4.66944, 4.96128, 5.25312,
+              5.54496
+            ],
+            [
+              1463.7135, 1610.1051, 1768.6962, 1939.4865, 2122.476, 2317.665,
+              2525.0532, 2744.6406, 2976.4275, 3220.4138, 3476.599, 3744.984,
+              4025.568, 4318.3516, 4623.334
+            ],
+            [
+              0.73672, 0.791974, 0.847228, 0.9209, 0.976154, 1.031408, 1.10508,
+              1.178752, 1.252424, 1.326096, 1.399768, 1.47344, 1.56553, 1.65762,
+              1.74971
+            ],
+            [
+              0.673944, 0.72449, 0.775036, 0.84243, 0.892976, 0.943522,
+              1.010916, 1.07831, 1.145705, 1.213099, 1.280494, 1.347888,
+              1.432131, 1.516374, 1.600617
+            ],
+            [
+              0.439492, 0.472454, 0.505416, 0.549365, 0.582327, 0.615289,
+              0.659238, 0.703187, 0.747136, 0.791086, 0.835035, 0.878984,
+              0.93392, 0.988857, 1.043794
+            ],
+            [
+              1.076984, 1.157758, 1.238532, 1.34623, 1.427004, 1.507778,
+              1.615476, 1.723174, 1.830873, 1.938571, 2.04627, 2.153968,
+              2.288591, 2.423214, 2.557837
+            ],
+            [25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25],
+            [14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14],
+            [18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18]
+          ]
+        },
+        "burst": {
+          "name": "Danica's Elemental Burst",
+          "description": "test Commanding the battlefield with the poise of the Tsaritsa's handmaiden, launches a 5-hit wide-range attack, dealing AoE Electro DMG.\n\nRadiance: Stellar-Conduct:\n·The 1st and 5th hits additionally deal AoE Electro DMG that is considered Stellar-Conduct reaction DMG.\n·For a period of time after use, if Danica is in Maid Mode, the current Maid Mode will be Enhanced, granting the corresponding Enhancement effect based on the current mode:\nWhen Danica is in Defense Maid mode, increases ATK for all Characters in the party.\nWhen Danica is in Battle Maid mode, immediately restores all Excited energy and increases the DMG dealt by Danica's \"On-Field Skill E2\".\n\nWhen Maid Mode ends, the Enhancement effect will be removed.",
+          "icon": "Skill_E_Danica_01",
+          "rows": [
+            {
+              "label": "1-Hit Electro DMG/Stellar-Conduct DMG",
+              "template": "{param1:F1P}/{param2:F1P}",
+              "params": [
+                {
+                  "index": 0,
+                  "format": "F1P"
+                },
+                {
+                  "index": 1,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "2/3/4-Hit Electro DMG",
+              "template": "{param3:F1P}",
+              "params": [
+                {
+                  "index": 2,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "5-Hit Electro DMG/Stellar-Conduct DMG",
+              "template": "{param4:F1P}/{param5:F1P}",
+              "params": [
+                {
+                  "index": 3,
+                  "format": "F1P"
+                },
+                {
+                  "index": 4,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "ATK Bonus Ratio",
+              "template": "{param6:F1P}",
+              "params": [
+                {
+                  "index": 5,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Max ATK Bonus",
+              "template": "{param7:F1}",
+              "params": [
+                {
+                  "index": 6,
+                  "format": "F1"
+                }
+              ]
+            },
+            {
+              "label": "On-Field E2 DMG Increase",
+              "template": "{param8:F1P}",
+              "params": [
+                {
+                  "index": 7,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Buff Duration",
+              "template": "{param9:F1}s",
+              "params": [
+                {
+                  "index": 8,
+                  "format": "F1"
+                }
+              ]
+            },
+            {
+              "label": "CD",
+              "template": "{param10:F1}s",
+              "params": [
+                {
+                  "index": 9,
+                  "format": "F1"
+                }
+              ]
+            },
+            {
+              "label": "Energy Cost",
+              "template": "{param11:I}",
+              "params": [
+                {
+                  "index": 10,
+                  "format": "I"
+                }
+              ]
+            }
+          ],
+          "params": [
+            [
+              0.74784, 0.803928, 0.860016, 0.9348, 0.990888, 1.046976, 1.12176,
+              1.196544, 1.271328, 1.346112, 1.420896, 1.49568, 1.58916, 1.68264,
+              1.77612
+            ],
+            [
+              0.44216, 0.475322, 0.508484, 0.5527, 0.585862, 0.619024, 0.66324,
+              0.707456, 0.751672, 0.795888, 0.840104, 0.88432, 0.93959, 0.99486,
+              1.05013
+            ],
+            [
+              0.11808, 0.126936, 0.135792, 0.1476, 0.156456, 0.165312, 0.17712,
+              0.188928, 0.200736, 0.212544, 0.224352, 0.23616, 0.25092, 0.26568,
+              0.28044
+            ],
+            [
+              0.86592, 0.930864, 0.995808, 1.0824, 1.147344, 1.212288, 1.29888,
+              1.385472, 1.472064, 1.558656, 1.645248, 1.73184, 1.84008, 1.94832,
+              2.05656
+            ],
+            [
+              0.66296, 0.712682, 0.762404, 0.8287, 0.878422, 0.928144, 0.99444,
+              1.060736, 1.127032, 1.193328, 1.259624, 1.32592, 1.40879, 1.49166,
+              1.57453
+            ],
+            [
+              0.06875, 0.075, 0.08125, 0.0875, 0.09375, 0.1, 0.10625, 0.1125,
+              0.11875, 0.125, 0.1325, 0.14, 0.1475, 0.155, 0.1625
+            ],
+            [
+              275, 300, 325, 350, 375, 400, 425, 450, 475, 500, 530, 560, 590,
+              620, 650
+            ],
+            [
+              0.3904, 0.41968, 0.44896, 0.488, 0.51728, 0.54656, 0.5856,
+              0.62464, 0.66368, 0.70272, 0.74176, 0.7808, 0.8296, 0.8784, 0.9272
+            ],
+            [20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20],
+            [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15],
+            [60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60]
+          ]
+        }
+      },
+      "passive1": {
+        "name": "testAscension Talent 1",
+        "description": "testAnchor decreases the Electro RES of nearby enemies by 15%.\n\nRadiance: Stellar-Conduct: Further decreases the Electro RES of nearby enemies by 15% and their Cryo RES by 30%.",
+        "icon": "UI_Talent_S_Danica_05",
+        "unlockAscension": 1,
+        "params": [0.15, 0.15, 0.3]
+      },
+      "passive2": {
+        "name": "Ascension Talent 2",
+        "description": "test After casting 「Entry Skill E2」, Danica's own ATK increases by 20%.\nAfter casting 「On-Field Skill E2」, Danica's own ATK SPD increases by 20%, and when the Special Anchor's Normal Attack hits an enemy, she additionally gains 25 Excited points. The above effects can stack up to 3 times.\nThe above effects last until exiting the current Defense Maid or Battle Maid state. Re-triggering will refresh the Duration.",
+        "icon": "UI_Talent_S_Danica_06",
+        "unlockAscension": 4,
+        "params": [0.2]
+      },
+      "passive3": {
+        "name": "test Stellar Talent",
+        "description": "When party members trigger Superconduct, it will be changed to Stellar-Conduct, and party members' Base Stellar-Conduct DMG will be increased based on Danica's ATK: Every point of ATK she has increases the Base Stellar-Conduct DMG by 0.7%. The maximum increase that can be gained this way is 14%.\nAdditionally, when Danica is within a Polestar Field, she will enter the Radiance: Stellar-Conduct state.",
+        "icon": "UI_Talent_S_Danica_07",
+        "unlockAscension": 0,
+        "params": [0.007, 0.14]
+      },
+      "otherPassives": [
+        {
+          "name": "Life Talent",
+          "description": "test When your own Characters in the party are under the effect of Sheer Cold, Movement SPD increases by 10% and Stamina consumption decreases by 10%.",
+          "icon": "UI_Talent_S_Danica_08",
+          "unlockAscension": 0,
+          "params": [0.1, 0.1]
+        }
+      ],
+      "constellations": [
+        {
+          "name": "test C1",
+          "description": "testWhen Danica uses \"Entry Skill E2\" or \"On-Field Skill E2\", she restores 20 Elemental Energy for herself. This effect can trigger at most once every 14 seconds.\nAdditionally, the Defense Maid enhancement effect in Elemental Burst is increased by 80%, and the Battle Maid enhancement effect is increased by 120%.",
+          "icon": "UI_Talent_S_Danica_01",
+          "params": [20, 14, 0.8, 1.2]
+        },
+        {
+          "name": "testC2",
+          "description": "While the test Anchor is present, Danica grants 7 stacks of \"Toast\" to all nearby Characters. When all nearby Characters have consumed a total of 6 stacks of \"Toast\", the active Character on the field additionally gains 1 stack of \"Toast\".\n\"Toast\": When a party Character triggers a Stellar-Conduct reaction, 1 stack of \"Toast\" will be consumed, increasing the DMG dealt. This increase is equivalent to 100% of Danica's ATK.\nAdditionally, when Danica triggers a Stellar-Conduct reaction while in Battle Maid Mode, all current stacks of \"Toast\" she possesses will be consumed. Each stack increases the DMG dealt, with each increase equivalent to 150% of Danica's ATK.\nResummoning the Anchor or refreshing its Duration will reset the stacks of \"Toast\".",
+          "icon": "UI_Talent_S_Danica_02",
+          "params": [7, 6, 1, 1.5]
+        },
+        {
+          "name": "C3",
+          "description": "Increases the Level of Elemental Burst by 3.\nMaximum upgrade level is 15.",
+          "icon": "UI_Talent_U_Danica_02",
+          "params": []
+        },
+        {
+          "name": "testC4",
+          "description": "test When the active on-field Character under the protection of Danica's Shield deals Stellar-Conduct DMG to opponents, regenerates 3 Elemental Energy for the other nearby party members. This effect can trigger at most once every 3.5s.\nAdditionally, when Danica enters the Battle Maid state, a Shield will also be generated. If Danica leaves the field while the Shield is active, it will be destroyed.",
+          "icon": "UI_Talent_S_Danica_03",
+          "params": [3, 3.5]
+        },
+        {
+          "name": "testC5",
+          "description": "Increases the Level of Elemental Skill by 3.\nMaximum upgrade level is 15.",
+          "icon": "UI_Talent_U_Danica_01",
+          "params": []
+        },
+        {
+          "name": "test C6",
+          "description": "While the test anchor is present, the Stellar-Conduct DMG dealt by nearby characters in the party is increased by 20%.\nAdditionally, when Danica enters the Defense Maid state, every 1,000 ATK Danica has increases the Stellar-Conduct DMG dealt by the on-field character by 10%, up to a maximum of 40%.\nWhen entering the Battle Maid state, every 500 ATK Danica has increases her own on-field Skill E2's CRIT Rate by 2.5% and the CRIT DMG dealt by 25%. CRIT Rate can be increased by up to 10% and CRIT DMG by up to 100%.\nThe above effects last until exiting the current Maid state.",
+          "icon": "UI_Talent_S_Danica_04",
+          "params": [0.2, 1000, 0.1, 0.4, 500, 0.025, 0.25, 0.1, 1]
+        }
+      ],
+      "imageNames": {
+        "icon": "UI_AvatarIcon_Danica",
+        "iconSide": "UI_AvatarIcon_Side_Danica",
+        "banner": "UI_NameCardPic_Danica_P",
+        "card": "UI_Gacha_AvatarImg_Danica",
+        "skill": "Skill_S_Danica_01",
+        "burst": "Skill_E_Danica_01",
+        "passive1": "UI_Talent_S_Danica_05",
+        "passive2": "UI_Talent_S_Danica_06",
+        "passive3": "UI_Talent_S_Danica_07",
+        "passive": "UI_Talent_S_Danica_08",
+        "constellation1": "UI_Talent_S_Danica_01",
+        "constellation2": "UI_Talent_S_Danica_02",
+        "constellation3": "UI_Talent_U_Danica_02",
+        "constellation4": "UI_Talent_S_Danica_03",
+        "constellation5": "UI_Talent_U_Danica_01",
+        "constellation6": "UI_Talent_S_Danica_04"
+      },
+      "buffs": [
+        {
+          "source": "burst",
+          "stat": "atk",
+          "talentParam": {
+            "talent": "burst",
+            "index": 5
+          },
+          "value": 1,
+          "scaling": {
+            "stat": "atk",
+            "per": 1
+          },
+          "maxTalentParam": {
+            "talent": "burst",
+            "index": 6
+          },
+          "boost": {
+            "constellation": 1,
+            "factor": 1.8
+          },
+          "target": "team",
+          "condition": "Maid state",
+          "conditionState": "Defense Maid (Q off-field)"
+        },
+        {
+          "source": "passive1",
+          "stat": "electro_enemyRes_",
+          "value": -0.15,
+          "target": "team"
+        },
+        {
+          "source": "passive1",
+          "stat": "electro_enemyRes_",
+          "value": -0.15,
+          "target": "team",
+          "condition": "Radiance: Stellar-Conduct"
+        },
+        {
+          "source": "passive1",
+          "stat": "cryo_enemyRes_",
+          "value": -0.3,
+          "target": "team",
+          "condition": "Radiance: Stellar-Conduct"
+        },
+        {
+          "source": "passive2",
+          "stat": "atk_",
+          "value": 0.2,
+          "target": "self",
+          "condition": "Maid state",
+          "conditionState": "Defense Maid (Q off-field)",
+          "condition2": "A4 stacks",
+          "conditionState2": "1 stack"
+        },
+        {
+          "source": "passive2",
+          "stat": "atkSPD_",
+          "value": 0.2,
+          "target": "self",
+          "condition": "Maid state",
+          "conditionState": "Battle Maid (Q on-field)",
+          "condition2": "A4 stacks",
+          "conditionState2": "1 stack"
+        },
+        {
+          "source": "passive2",
+          "stat": "atk_",
+          "value": 0.4,
+          "target": "self",
+          "condition": "Maid state",
+          "conditionState": "Defense Maid (Q off-field)",
+          "condition2": "A4 stacks",
+          "conditionState2": "2 stacks"
+        },
+        {
+          "source": "passive2",
+          "stat": "atkSPD_",
+          "value": 0.4,
+          "target": "self",
+          "condition": "Maid state",
+          "conditionState": "Battle Maid (Q on-field)",
+          "condition2": "A4 stacks",
+          "conditionState2": "2 stacks"
+        },
+        {
+          "source": "passive2",
+          "stat": "atk_",
+          "value": 0.6,
+          "target": "self",
+          "condition": "Maid state",
+          "conditionState": "Defense Maid (Q off-field)",
+          "condition2": "A4 stacks",
+          "conditionState2": "3 stacks"
+        },
+        {
+          "source": "passive2",
+          "stat": "atkSPD_",
+          "value": 0.6,
+          "target": "self",
+          "condition": "Maid state",
+          "conditionState": "Battle Maid (Q on-field)",
+          "condition2": "A4 stacks",
+          "conditionState2": "3 stacks"
+        },
+        {
+          "source": "passive3",
+          "stat": "stellarconduct_baseDmg_",
+          "value": 0.007,
+          "scaling": {
+            "stat": "atk",
+            "per": 100
+          },
+          "max": 0.14,
+          "target": "team"
+        },
+        {
+          "source": "constellation2",
+          "stat": "stellarconduct_dmgInc",
+          "value": 1,
+          "scaling": {
+            "stat": "atk",
+            "per": 1
+          },
+          "target": "others",
+          "condition": "Toast (C2)"
+        },
+        {
+          "source": "constellation2",
+          "stat": "stellarconduct_dmgInc",
+          "value": 1,
+          "scaling": {
+            "stat": "atk",
+            "per": 1
+          },
+          "target": "self",
+          "condition": "Toast (C2)",
+          "condition2": "Maid state",
+          "conditionState2": "Defense Maid (Q off-field)"
+        },
+        {
+          "source": "constellation2",
+          "stat": "stellarconduct_dmgInc",
+          "value": 1.5,
+          "scaling": {
+            "stat": "atk",
+            "per": 1
+          },
+          "target": "self",
+          "condition": "Maid state",
+          "conditionState": "Battle Maid (Q on-field)",
+          "condition2": "Toast consumed by Danica (C2)",
+          "conditionState2": "1 stack"
+        },
+        {
+          "source": "constellation2",
+          "stat": "stellarconduct_dmgInc",
+          "value": 3,
+          "scaling": {
+            "stat": "atk",
+            "per": 1
+          },
+          "target": "self",
+          "condition": "Maid state",
+          "conditionState": "Battle Maid (Q on-field)",
+          "condition2": "Toast consumed by Danica (C2)",
+          "conditionState2": "2 stacks"
+        },
+        {
+          "source": "constellation2",
+          "stat": "stellarconduct_dmgInc",
+          "value": 4.5,
+          "scaling": {
+            "stat": "atk",
+            "per": 1
+          },
+          "target": "self",
+          "condition": "Maid state",
+          "conditionState": "Battle Maid (Q on-field)",
+          "condition2": "Toast consumed by Danica (C2)",
+          "conditionState2": "3 stacks"
+        },
+        {
+          "source": "constellation2",
+          "stat": "stellarconduct_dmgInc",
+          "value": 6,
+          "scaling": {
+            "stat": "atk",
+            "per": 1
+          },
+          "target": "self",
+          "condition": "Maid state",
+          "conditionState": "Battle Maid (Q on-field)",
+          "condition2": "Toast consumed by Danica (C2)",
+          "conditionState2": "4 stacks"
+        },
+        {
+          "source": "constellation2",
+          "stat": "stellarconduct_dmgInc",
+          "value": 7.5,
+          "scaling": {
+            "stat": "atk",
+            "per": 1
+          },
+          "target": "self",
+          "condition": "Maid state",
+          "conditionState": "Battle Maid (Q on-field)",
+          "condition2": "Toast consumed by Danica (C2)",
+          "conditionState2": "5 stacks"
+        },
+        {
+          "source": "constellation2",
+          "stat": "stellarconduct_dmgInc",
+          "value": 9,
+          "scaling": {
+            "stat": "atk",
+            "per": 1
+          },
+          "target": "self",
+          "condition": "Maid state",
+          "conditionState": "Battle Maid (Q on-field)",
+          "condition2": "Toast consumed by Danica (C2)",
+          "conditionState2": "6 stacks"
+        },
+        {
+          "source": "constellation2",
+          "stat": "stellarconduct_dmgInc",
+          "value": 10.5,
+          "scaling": {
+            "stat": "atk",
+            "per": 1
+          },
+          "target": "self",
+          "condition": "Maid state",
+          "conditionState": "Battle Maid (Q on-field)",
+          "condition2": "Toast consumed by Danica (C2)",
+          "conditionState2": "7 stacks"
+        },
+        {
+          "source": "constellation6",
+          "stat": "stellarconduct_dmg_",
+          "value": 0.2,
+          "target": "team"
+        },
+        {
+          "source": "constellation6",
+          "stat": "stellarconduct_dmg_",
+          "value": 0.1,
+          "scaling": {
+            "stat": "atk",
+            "per": 1000
+          },
+          "max": 0.4,
+          "target": "active",
+          "condition": "Maid state",
+          "conditionState": "Defense Maid (Q off-field)"
+        }
+      ],
+      "rowEffects": [
+        {
+          "source": "burst",
+          "kind": "bonus",
+          "stat": "stellarconduct_dmg_",
+          "talent": "skill",
+          "match": "On-Field E2",
+          "talentParam": {
+            "talent": "burst",
+            "index": 7
+          },
+          "value": 1,
+          "boost": {
+            "constellation": 1,
+            "factor": 2.2
+          },
+          "name": "Battle Maid: On-Field E2 DMG",
+          "condition": "Maid state",
+          "conditionState": "Battle Maid (Q on-field)"
+        },
+        {
+          "source": "constellation6",
+          "kind": "bonus",
+          "stat": "critRate_",
+          "talent": "skill",
+          "match": "On-Field E2",
+          "value": 0.025,
+          "scaling": {
+            "stat": "atk",
+            "per": 500
+          },
+          "max": 0.1,
+          "name": "C6 On-Field E2 CRIT Rate",
+          "condition": "Maid state",
+          "conditionState": "Battle Maid (Q on-field)"
+        },
+        {
+          "source": "constellation6",
+          "kind": "bonus",
+          "stat": "critDMG_",
+          "talent": "skill",
+          "match": "On-Field E2",
+          "value": 0.25,
+          "scaling": {
+            "stat": "atk",
+            "per": 500
+          },
+          "max": 1,
+          "name": "C6 On-Field E2 CRIT DMG",
+          "condition": "Maid state",
+          "conditionState": "Battle Maid (Q on-field)"
+        }
+      ]
+    }
+  ],
+  "weapons": [
+    {
+      "sourceId": 12517,
+      "name": "Torrents of Spring",
+      "weaponType": "claymore",
+      "rarity": 5,
+      "mainStat": {
+        "base": 49.1377,
+        "curve": "GROW_CURVE_ATTACK_303"
+      },
+      "subStat": {
+        "type": "atk_",
+        "base": 0.036,
+        "curve": "GROW_CURVE_CRITICAL_301"
+      },
+      "ascensionBonus": [0, 31.1, 62.2, 93.4, 124.5, 155.6, 186.7],
+      "passiveName": "Wavebreaking Thunder",
+      "passiveDescriptions": [
+        "testIncreases the equipper's ATK by 16%. When the equipper's Electro attacks hit opponents, they will gain \"Royal Decree\" for 15s: Stellar-Conduct reaction DMG dealt by the active character on the field is increased by 20%. While the effect lasts, when the equipper's Electro Stellar-Conduct attacks hit opponents, the order is considered Complete, enhancing the \"Royal Decree\" effect: the equipper's ATK is further increased by 16%, and Stellar-Conduct reaction DMG dealt by the active character on the field is additionally increased by 20%. The above effects also take effect while off-field.",
+        "testIncreases the equipped character's ATK by 20%. When the equipped character's Electro attacks hit opponents, they will gain \"Royal Decree\" for 15s: Stellar-Conduct reaction DMG dealt by the active character on the field is increased by 25%. While this effect is active, when the equipped character's Stellar-Conduct attacks hit opponents, it is considered as completing the order, enhancing the \"Royal Decree\" effect: the equipped character's ATK is further increased by 20%, and Stellar-Conduct reaction DMG dealt by the active character on the field is additionally increased by 25%. The above effects also apply in the background.",
+        "testIncreases the equipping character's ATK by 24%. When the equipping character's Electro attacks hit opponents, they will receive the \"Royal Decree\" effect for 15s: Stellar-Conduct reaction DMG dealt by the active character on the field is increased by 30%. While this effect is active, when the equipping character's Stellar-Conduct attacks hit opponents, it is considered as completing the order, enhancing the \"Royal Decree\" effect: the equipping character's ATK is further increased by 24%, and Stellar-Conduct reaction DMG dealt by the active character on the field is additionally increased by 30%. The above effects also apply off-field.",
+        "testIncreases the equipper's ATK by 28%. When the equipper's Electro attacks hit enemies, they will receive \"Imperial Edict\" for 15s: Stellar-Conduct reaction DMG dealt by the active character on the team is increased by 35%. While the effect lasts, when the equipper's Stellar-Conduct attacks hit enemies, it is considered as completing the order, enhancing the effect of \"Imperial Edict\": the equipper's ATK is further increased by 28%, and Stellar-Conduct reaction DMG dealt by the active character is additionally increased by 35%. The above effects also apply off-field.",
+        "testIncreases the equipper's ATK by 32%. When the equipper's Electro attacks hit enemies, they will receive the \"Imperial Edict\" effect for 15s: Stellar-Conduct reaction DMG dealt by the active character on the field increases by 40%. While this effect is active, when the equipper's Stellar-Conduct attacks hit enemies, it is considered as completing the order, enhancing the \"Imperial Edict\" effect: the equipper's ATK increases by an additional 32%, and Stellar-Conduct reaction DMG dealt by the active character on the field increases by an additional 40%. The above effects also take effect in the background."
+      ],
+      "passiveParams": [
+        [0.16, 15, 0.2, 0.16, 0.2],
+        [0.2, 15, 0.25, 0.2, 0.25],
+        [0.24, 15, 0.3, 0.24, 0.3],
+        [0.28, 15, 0.35, 0.28, 0.35],
+        [0.32, 15, 0.4, 0.32, 0.4]
+      ],
+      "imageNames": {
+        "icon": "UI_EquipIcon_Claymore_Anchor",
+        "awakenIcon": "UI_EquipIcon_Claymore_Anchor_Awaken"
+      },
+      "buffs": [
+        {
+          "stat": "atk_",
+          "target": "self",
+          "values": [0.16, 0.2, 0.24, 0.28, 0.32]
+        },
+        {
+          "stat": "stellarconduct_dmg_",
+          "target": "active",
+          "condition": "Royal Decree",
+          "conditionState": "Active (after Electro hit)",
+          "values": [0.2, 0.25, 0.3, 0.35, 0.4]
+        },
+        {
+          "stat": "stellarconduct_dmg_",
+          "target": "active",
+          "condition": "Royal Decree",
+          "conditionState": "Completed (after Electro Stellar-Conduct hit)",
+          "values": [0.2, 0.25, 0.3, 0.35, 0.4]
+        },
+        {
+          "stat": "atk_",
+          "target": "self",
+          "condition": "Royal Decree",
+          "conditionState": "Completed (after Electro Stellar-Conduct hit)",
+          "values": [0.16, 0.2, 0.24, 0.28, 0.32]
+        },
+        {
+          "stat": "stellarconduct_dmg_",
+          "target": "active",
+          "condition": "Royal Decree",
+          "conditionState": "Completed (after Electro Stellar-Conduct hit)",
+          "values": [0.2, 0.25, 0.3, 0.35, 0.4]
+        }
+      ]
+    }
+  ]
+}

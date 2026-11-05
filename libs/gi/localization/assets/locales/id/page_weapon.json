@@ -59,6 +59,9 @@
       "targetActive": "Karakter aktif"
     },
     "cancel": "Batal",
-    "save": "Simpan & muat ulang"
+    "save": "Simpan & muat ulang",
+    "builtin": "Bawaan GO",
+    "reset": "Reset ke default",
+    "resetConfirm": "Kembalikan {{name}} ke versi bawaan GO? Editanmu untuk senjata ini hilang."
   }
 }

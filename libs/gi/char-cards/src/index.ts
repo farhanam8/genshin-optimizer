@@ -1,5 +1,7 @@
 import type { CharacterKey, GenderKey } from '@genshin-optimizer/gi/consts'
 import { customCharacterDefs } from '@genshin-optimizer/gi/consts'
+import AnastasyaCard from './builtin/Anastasya_Card.webp'
+import DanicaCard from './builtin/Danica_Card.webp'
 import Aino from './Character_Aino_Card.webp'
 import Albedo from './Character_Albedo_Card.png'
 import Alhaitham from './Character_Alhaitham_Card.jpg'
@@ -251,9 +253,19 @@ const charCards = {
 } as const
 
 // Custom characters use their own card image if set, or their template's.
-for (const { key, template, images } of customCharacterDefs) {
+// Built-in characters (by source id) have bundled cards.
+const builtinCards: Record<number, string> = {
+  10000149: AnastasyaCard,
+  10000147: DanicaCard,
+}
+for (const def of customCharacterDefs) {
+  const { key, template, images } = def
   const cards = charCards as Record<string, string>
-  cards[key] = images?.card ?? cards[template]
+  const sourceId = 'sourceId' in def ? def.sourceId : undefined
+  cards[key] =
+    images?.card ??
+    (sourceId ? builtinCards[sourceId] : undefined) ??
+    cards[template]
 }
 
 export function charCard(charKey: CharacterKey, gender: GenderKey) {
