@@ -4,7 +4,9 @@ import { characterAsset, imgAssets } from '@genshin-optimizer/gi/assets'
 import type {
   CharacterKey,
   CustomCharacterAscStatKey,
+  CustomCharacterDataDef,
   CustomCharacterDef,
+  CustomCharacterTemplateDef,
   ElementKey,
   WeaponTypeKey,
 } from '@genshin-optimizer/gi/consts'
@@ -12,9 +14,9 @@ import {
   allElementKeys,
   allWeaponTypeKeys,
   customCharacterAscStatKeys,
-  isCustomCharacterKey,
+  isCustomCharacterDataDef,
   nextCustomCharacterKey,
-  nonTravelerCharacterKeys,
+  parseCustomCharacterPack,
   readCustomCharacterDefs,
   writeCustomCharacterDefs,
 } from '@genshin-optimizer/gi/consts'
@@ -29,6 +31,7 @@ import AddIcon from '@mui/icons-material/Add'
 import CloseIcon from '@mui/icons-material/Close'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
 import EditIcon from '@mui/icons-material/Edit'
+import FileUploadIcon from '@mui/icons-material/FileUpload'
 import {
   Alert,
   Autocomplete,
@@ -44,9 +47,14 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { useMemo, useState } from 'react'
+import type { ChangeEvent } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ArtifactIconStatWithUnit } from '../artifact/ArtifactStatKeyDisplay'
+import {
+  CustomCharacterDataForm,
+  imageTemplateKeys,
+} from './CustomCharacterDataForm'
 
 type FormState = {
   key: string
@@ -69,10 +77,57 @@ const round = (n: number, digits = 0) => {
   return Math.round(n * f) / f
 }
 
-function templateKeys(): CharacterKey[] {
-  return (nonTravelerCharacterKeys as readonly string[]).filter(
-    (key) => !isCustomCharacterKey(key)
-  ) as CharacterKey[]
+const templateKeys = imageTemplateKeys
+
+/** An existing character to borrow images from: same element and weapon if possible. */
+function pickImageTemplate(ele: ElementKey, weaponType: WeaponTypeKey) {
+  const keys = imageTemplateKeys()
+  return (
+    keys.find(
+      (k) => getCharEle(k) === ele && getCharStat(k).weaponType === weaponType
+    ) ??
+    keys.find((k) => getCharEle(k) === ele) ??
+    keys[0]
+  )
+}
+
+type ImportItem = { def: CustomCharacterDataDef; isNew: boolean }
+
+/**
+ * Turns the characters of a pack into definitions. A character already
+ * imported from the same source id is updated, keeping its key, name and images.
+ */
+function importPack(
+  json: string,
+  defs: CustomCharacterDef[]
+): { items: ImportItem[] } | { error: string } {
+  const parsed = parseCustomCharacterPack(json)
+  if ('error' in parsed) return parsed
+  const all = [...defs]
+  const items: ImportItem[] = []
+  for (const char of parsed.characters) {
+    const existing = all.find(
+      (d): d is CustomCharacterDataDef =>
+        isCustomCharacterDataDef(d) &&
+        d.sourceId !== undefined &&
+        d.sourceId === char.sourceId
+    )
+    const def: CustomCharacterDataDef = existing
+      ? {
+          ...char,
+          key: existing.key,
+          name: existing.name,
+          template: existing.template,
+        }
+      : {
+          ...char,
+          key: nextCustomCharacterKey(all),
+          template: pickImageTemplate(char.ele, char.weaponType),
+        }
+    if (!existing) all.push(def)
+    items.push({ def, isNew: !existing })
+  }
+  return { items }
 }
 
 /** Form values prefilled from a template character's level 90 stats. */
@@ -98,7 +153,7 @@ function formFromTemplate(template: CharacterKey, prev: FormState): FormState {
   }
 }
 
-function formFromDef(def: CustomCharacterDef): FormState {
+function formFromDef(def: CustomCharacterTemplateDef): FormState {
   return {
     key: def.key,
     name: def.name,
@@ -155,10 +210,39 @@ export function CustomCharacterModal({
   const database = useDatabase()
   const [defs] = useState(() => readCustomCharacterDefs())
   const [form, setForm] = useState<FormState | null>(null)
+  const [dataEdit, setDataEdit] = useState<CustomCharacterDataDef | null>(null)
+  const [imported, setImported] = useState<ImportItem[] | null>(null)
+  const [importError, setImportError] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const close = () => {
     setForm(null)
+    setDataEdit(null)
+    setImported(null)
+    setImportError('')
     onHide()
+  }
+
+  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const result = importPack(await file.text(), defs)
+    if ('error' in result) {
+      setImportError(t(`customChar.importErrors.${result.error}`))
+      setImported(null)
+    } else {
+      setImportError('')
+      setImported(result.items)
+    }
+  }
+
+  const saveOne = (def: CustomCharacterDef) => {
+    const isNew = !defs.some(({ key }) => key === def.key)
+    saveAndReload(
+      isNew ? [...defs, def] : defs.map((d) => (d.key === def.key ? def : d)),
+      isNew ? def.key : undefined
+    )
   }
 
   const onDelete = (def: CustomCharacterDef) => {
@@ -183,21 +267,78 @@ export function CustomCharacterModal({
         <Divider />
         <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Alert severity="info">{t('customChar.info')}</Alert>
-          {form ? (
+          {importError && <Alert severity="error">{importError}</Alert>}
+          {dataEdit ? (
+            <CustomCharacterDataForm
+              def={dataEdit}
+              onCancel={() => setDataEdit(null)}
+              onSave={saveOne}
+            />
+          ) : form ? (
             <CustomCharacterForm
               form={form}
               setForm={setForm}
               onCancel={() => setForm(null)}
-              onSave={(def) => {
-                const isNew = !defs.some(({ key }) => key === def.key)
-                saveAndReload(
-                  isNew
-                    ? [...defs, def]
-                    : defs.map((d) => (d.key === def.key ? def : d)),
-                  isNew ? def.key : undefined
-                )
-              }}
+              onSave={saveOne}
             />
+          ) : imported ? (
+            <>
+              <Typography>{t('customChar.importPreview')}</Typography>
+              {imported.map(({ def, isNew }) => (
+                <CardThemed bgt="light" key={def.key}>
+                  <CardContent
+                    sx={{ display: 'flex', alignItems: 'center', gap: 2 }}
+                  >
+                    <ImgIcon
+                      src={characterAsset(
+                        def.template as CharacterKey,
+                        'iconSide'
+                      )}
+                      size={3}
+                    />
+                    <Box flexGrow={1}>
+                      <Typography variant="h6">
+                        <ElementIcon
+                          ele={def.ele}
+                          iconProps={iconInlineProps}
+                        />{' '}
+                        {def.name} {'★'.repeat(def.rarity)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {t(
+                          isNew
+                            ? 'customChar.importNew'
+                            : 'customChar.importUpdate'
+                        )}
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </CardThemed>
+              ))}
+              <Box display="flex" gap={1} justifyContent="flex-end">
+                <Button color="secondary" onClick={() => setImported(null)}>
+                  {t('customChar.cancel')}
+                </Button>
+                <Button
+                  color="success"
+                  onClick={() => {
+                    const byKey = new Map(
+                      imported.map((i) => [i.def.key, i.def])
+                    )
+                    const firstNew = imported.find((i) => i.isNew)?.def.key
+                    saveAndReload(
+                      [
+                        ...defs.map((d) => byKey.get(d.key) ?? d),
+                        ...imported.filter((i) => i.isNew).map((i) => i.def),
+                      ],
+                      imported.length === 1 ? firstNew : undefined
+                    )
+                  }}
+                >
+                  {t('customChar.importConfirm')}
+                </Button>
+              </Box>
+            </>
           ) : (
             <>
               {defs.length === 0 && (
@@ -226,14 +367,22 @@ export function CustomCharacterModal({
                         {def.name}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {t('customChar.basedOn', {
-                          name: t(`charNames_gen:${def.template}`),
-                        })}
+                        {isCustomCharacterDataDef(def)
+                          ? t('customChar.importedFrom', {
+                              name: t(`charNames_gen:${def.template}`),
+                            })
+                          : t('customChar.basedOn', {
+                              name: t(`charNames_gen:${def.template}`),
+                            })}
                       </Typography>
                     </Box>
                     <Button
                       startIcon={<EditIcon />}
-                      onClick={() => setForm(formFromDef(def))}
+                      onClick={() =>
+                        isCustomCharacterDataDef(def)
+                          ? setDataEdit(def)
+                          : setForm(formFromDef(def))
+                      }
                     >
                       {t('customChar.edit')}
                     </Button>
@@ -247,13 +396,36 @@ export function CustomCharacterModal({
                   </CardContent>
                 </CardThemed>
               ))}
-              <Button
-                color="info"
-                startIcon={<AddIcon />}
-                onClick={() => setForm(emptyForm(nextCustomCharacterKey(defs)))}
-              >
-                {t('customChar.create')}
-              </Button>
+              <Box display="flex" gap={1} flexWrap="wrap">
+                <Button
+                  sx={{ flexGrow: 1 }}
+                  color="info"
+                  startIcon={<AddIcon />}
+                  onClick={() =>
+                    setForm(emptyForm(nextCustomCharacterKey(defs)))
+                  }
+                >
+                  {t('customChar.create')}
+                </Button>
+                <Button
+                  sx={{ flexGrow: 1 }}
+                  color="primary"
+                  startIcon={<FileUploadIcon />}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {t('customChar.import')}
+                </Button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".json,application/json"
+                  hidden
+                  onChange={onFile}
+                />
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                {t('customChar.importHelp')}
+              </Typography>
             </>
           )}
         </CardContent>

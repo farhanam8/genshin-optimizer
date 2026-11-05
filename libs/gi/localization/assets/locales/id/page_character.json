@@ -56,7 +56,7 @@
   "customChar": {
     "button": "Karakter Custom",
     "title": "Karakter Custom",
-    "info": "Karakter custom memakai talent, pasif, dan konstelasi dari karakter template, dengan nama, elemen, jenis senjata, rarity, dan stat dasarnya sendiri. GO akan dimuat ulang setelah disimpan. Karakter custom hanya tersimpan di browser ini.",
+    "info": "Karakter custom bisa memakai talent, pasif, dan konstelasi dari karakter template dengan stat-nya sendiri, atau di-import dari paket karakter custom. GO akan dimuat ulang setelah disimpan. Karakter custom hanya tersimpan di browser ini.",
     "empty": "Belum ada karakter custom.",
     "create": "Buat Karakter Custom",
     "edit": "Edit",
@@ -73,6 +73,24 @@
     "ascStat": "Stat ascension",
     "ascValue": "Nilai di ascension maks",
     "cancel": "Batal",
-    "save": "Simpan & muat ulang"
+    "save": "Simpan & muat ulang",
+    "import": "Import Karakter (.json)",
+    "importHelp": "Import paket karakter custom, misalnya hasil tools/custom-characters/nanoka-to-go.mjs. Karakter yang pernah di-import akan diperbarui.",
+    "importPreview": "Karakter berikut akan di-import:",
+    "importNew": "Karakter baru",
+    "importUpdate": "Memperbarui karakter yang sudah di-import (nama dan gambar tetap)",
+    "importConfirm": "Import & muat ulang",
+    "importErrors": {
+      "invalidJson": "File ini bukan JSON yang valid.",
+      "notAPack": "File ini bukan paket karakter custom.",
+      "invalidCharacter": "Ada karakter di paket ini yang datanya tidak valid."
+    },
+    "importedFrom": "Hasil import · gambar dari {{name}}",
+    "imageTemplate": "Gambar dari",
+    "imageTemplateHelp": "Karakter hasil import tidak punya gambar di GO, jadi memakai gambar karakter ini.",
+    "talentMultipliers": "Multiplier talent per level",
+    "talentMultipliersHelp": "Baris bertanda (%) adalah persen, misalnya 39.6 berarti 39,6%. Baris damage menjadi formula; baris lain ditampilkan sebagai nilai.",
+    "param": "Baris",
+    "level": "Lv. {{level}}"
   }
 }

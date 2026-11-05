@@ -7,6 +7,7 @@ import type {
 import {
   allTravelerKeys,
   customCharacterDefs,
+  isCustomCharacterDataDef,
 } from '@genshin-optimizer/gi/consts'
 import Aino from './Aino'
 import Albedo from './Albedo'
@@ -32,6 +33,7 @@ import Clorinde from './Clorinde'
 import Collei from './Collei'
 import Columbina from './Columbina'
 import Cyno from './Cyno'
+import { dataSheetForCustomCharacter } from './customDataSheet'
 import Dahlia from './Dahlia'
 import Dehya from './Dehya'
 import Diluc from './Diluc'
@@ -284,14 +286,21 @@ const characters: Record<CharacterSheetKey, CharacterSheet> = {
   Zibai,
 } as const
 
-// Custom characters reuse the talents, passives, constellations and formulas
-// of their template character, with their own stats (see `gi/stats`).
-for (const { key, template } of customCharacterDefs) {
-  const templateSheet = characters[template as CharacterSheetKey]
-  ;(characters as Record<string, CharacterSheet>)[key] = new CharacterSheet(
-    templateSheet.sheet,
-    dataObjForCustomCharacter(key as CharacterKey, template as CharacterKey)
-  )
+// Template custom characters reuse the talents, passives, constellations and
+// formulas of their template character, with their own stats (see `gi/stats`).
+// Imported custom characters get a sheet built from their talent data.
+for (const def of customCharacterDefs) {
+  const { key, template } = def
+  ;(characters as Record<string, CharacterSheet>)[key] =
+    isCustomCharacterDataDef(def)
+      ? dataSheetForCustomCharacter(def)
+      : new CharacterSheet(
+          characters[template as CharacterSheetKey].sheet,
+          dataObjForCustomCharacter(
+            key as CharacterKey,
+            template as CharacterKey
+          )
+        )
 }
 
 export function getCharSheet(charKey: CharacterKey, gender: GenderKey) {

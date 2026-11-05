@@ -121,7 +121,7 @@
   "customChar": {
     "button": "Custom Character",
     "title": "Custom Characters",
-    "info": "A custom character uses the talents, passives and constellations of a template character, with its own name, element, weapon type, rarity and base stats. GO reloads after saving. Custom characters are stored only in this browser.",
+    "info": "A custom character either uses the talents, passives and constellations of a template character with its own stats, or is imported from a custom character pack. GO reloads after saving. Custom characters are stored only in this browser.",
     "empty": "No custom characters yet.",
     "create": "Create Custom Character",
     "edit": "Edit",
@@ -138,6 +138,24 @@
     "ascStat": "Ascension stat",
     "ascValue": "Value at max ascension",
     "cancel": "Cancel",
-    "save": "Save & reload"
+    "save": "Save & reload",
+    "import": "Import Characters (.json)",
+    "importHelp": "Import a custom character pack, e.g. made with tools/custom-characters/nanoka-to-go.mjs. Characters imported before are updated.",
+    "importPreview": "These characters will be imported:",
+    "importNew": "New character",
+    "importUpdate": "Updates an imported character (keeps its name and images)",
+    "importConfirm": "Import & reload",
+    "importErrors": {
+      "invalidJson": "This file is not valid JSON.",
+      "notAPack": "This file is not a custom character pack.",
+      "invalidCharacter": "A character in this pack has invalid data."
+    },
+    "importedFrom": "Imported · images from {{name}}",
+    "imageTemplate": "Images from",
+    "imageTemplateHelp": "Imported characters have no images in GO, so they use this character's images.",
+    "talentMultipliers": "Talent multipliers per level",
+    "talentMultipliersHelp": "Rows marked (%) are percentages, e.g. 39.6 means 39.6%. Damage rows become formulas; other rows are shown as values.",
+    "param": "Row",
+    "level": "Lv. {{level}}"
   }
 }

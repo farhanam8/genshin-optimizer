@@ -2,14 +2,18 @@ import type {
   ArtifactSetKey,
   CharacterKey,
   CharacterSheetKey,
-  CustomCharacterDef,
+  CustomCharacterDataDef,
+  CustomCharacterTemplateDef,
   ElementKey,
   NonTravelerCharacterKey,
   WeaponKey,
 } from '@genshin-optimizer/gi/consts'
 import {
+  allRegionKeys,
   charKeyToLocCharKey,
+  customCharacterAscStatKeys,
   customCharacterDefs,
+  isCustomCharacterDataDef,
 } from '@genshin-optimizer/gi/consts'
 import * as allStat_gen from './allStat_gen.json'
 import type { AllStats, CharacterDataGen } from './executors/gen-stats/executor'
@@ -38,16 +42,23 @@ function curveAt(curve: CharGrowCurveKey, level: number): number {
 
 /**
  * Base HP/ATK/DEF at level 90/90 and the ascension special stat at max
- * ascension, as shown in-game. Used to prefill the custom character editor.
+ * ascension, as shown in-game. Used to prefill the custom character editors.
  */
-export function getCharRefStats(ck: CharacterKey): {
+export function getCharRefStats(ck: CharacterKey) {
+  return getRefStatsFromData(getCharStat(ck))
+}
+
+/** Same as `getCharRefStats`, from level curves and ascension stats. */
+export function getRefStatsFromData({
+  lvlCurves,
+  ascensionBonus,
+}: Pick<CharacterDataGen, 'lvlCurves' | 'ascensionBonus'>): {
   hp: number
   atk: number
   def: number
   ascStat?: string
   ascValue: number
 } {
-  const { lvlCurves, ascensionBonus } = getCharStat(ck)
   const base = (stat: BaseStatKey) => {
     const lc = lvlCurves.find(({ key }) => key === stat)
     const fromCurve = lc ? lc.base * curveAt(lc.curve, refLevel) : 0
@@ -71,7 +82,9 @@ export function getCharRefStats(ck: CharacterKey): {
  * ascension are kept, then scaled so that the level 90/90 value matches the
  * custom definition.
  */
-function customCharacterData(def: CustomCharacterDef): CharacterDataGen {
+function customCharacterData(
+  def: CustomCharacterTemplateDef
+): CharacterDataGen {
   const tmpl = (allStats.char.data as Record<string, CharacterDataGen>)[
     def.template
   ]
@@ -115,12 +128,89 @@ function customCharacterData(def: CustomCharacterDef): CharacterDataGen {
   }
 }
 
+/** Stat data of an imported (data kind) custom character, used as is. */
+function customCharacterDataFromDef(
+  def: CustomCharacterDataDef
+): CharacterDataGen {
+  const region = (allRegionKeys as readonly string[]).includes(def.region ?? '')
+    ? (def.region as CharacterDataGen['region'])
+    : undefined
+  return {
+    key: def.key as CharacterDataGen['key'],
+    ele: def.ele,
+    region,
+    weaponType: def.weaponType,
+    rarity: def.rarity,
+    birthday: def.birthday ?? {},
+    lvlCurves: def.lvlCurves.map((lc) => ({ ...lc })),
+    ascensionBonus: Object.fromEntries(
+      Object.entries(def.ascensionBonus).map(([k, v]) => [k, [...v]])
+    ),
+  }
+}
+
+/**
+ * Rescales an imported character's level curves and ascension stats so that
+ * its level 90/90 base stats and max ascension special stat match `target`,
+ * keeping the shape of its curves.
+ */
+export function scaleCustomCharacterStats(
+  def: Pick<CustomCharacterDataDef, 'lvlCurves' | 'ascensionBonus'>,
+  target: {
+    hp: number
+    atk: number
+    def: number
+    ascStat: string
+    ascValue: number
+  }
+): Pick<CustomCharacterDataDef, 'lvlCurves' | 'ascensionBonus'> {
+  const ascensionBonus: Record<string, number[]> = {}
+  const lvlCurves = def.lvlCurves.map((lc) => {
+    const asc = def.ascensionBonus[lc.key] ?? [0, 0, 0, 0, 0, 0, 0]
+    const current = lc.base * curveAt(lc.curve, refLevel) + asc[6]
+    const factor = current > 0 ? target[lc.key] / current : 0
+    ascensionBonus[lc.key] = asc.map((v) => v * factor)
+    return { ...lc, base: lc.base * factor }
+  })
+  const special = Object.entries(def.ascensionBonus).find(
+    ([key]) => !(baseStatKeys as readonly string[]).includes(key)
+  )
+  const pattern =
+    special && special[1][6] > 0
+      ? special[1].map((v) => v / special[1][6])
+      : specialStatAscPattern
+  if (
+    (customCharacterAscStatKeys as readonly string[]).includes(target.ascStat)
+  )
+    ascensionBonus[target.ascStat] = pattern.map((f) => f * target.ascValue)
+  return { lvlCurves, ascensionBonus }
+}
+
 // Register custom characters, so every lookup by key finds them.
 for (const def of customCharacterDefs) {
-  ;(allStats.char.data as Record<string, CharacterDataGen>)[def.key] =
-    customCharacterData(def)
+  const charData = allStats.char.data as Record<string, CharacterDataGen>
   const skillParam = allStats.char.skillParam as Record<string, unknown>
-  skillParam[def.key] = skillParam[def.template]
+  if (isCustomCharacterDataDef(def)) {
+    charData[def.key] = customCharacterDataFromDef(def)
+    skillParam[def.key] = {
+      auto: def.talents.auto.params,
+      skill: def.talents.skill.params,
+      burst: def.talents.burst.params,
+      passive1: [],
+      passive2: [],
+      passive3: [],
+      constellation1: [],
+      constellation2: [],
+      constellation3: [],
+      constellation4: [],
+      constellation5: [],
+      constellation6: [],
+      upgradeableSkills: [],
+    }
+  } else {
+    charData[def.key] = customCharacterData(def)
+    skillParam[def.key] = skillParam[def.template]
+  }
 }
 
 export function getCharEle(ck: CharacterSheetKey | CharacterKey): ElementKey {

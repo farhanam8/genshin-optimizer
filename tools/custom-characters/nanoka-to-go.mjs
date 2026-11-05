@@ -88,7 +88,9 @@ function toElement(raw) {
 
 function toRegion(raw) {
   const r = String(raw ?? '').toLowerCase()
-  return regions.find((region) => r.includes(region))
+  const region = regions.find((region) => r.includes(region))
+  // GO writes this region in camelCase
+  return region === 'nodkrai' ? 'nodKrai' : region
 }
 
 /** Game rich text to plain text: strips color/link tags, keeps line breaks. */

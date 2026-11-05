@@ -1,4 +1,11 @@
-import { customCharacterDefs } from '@genshin-optimizer/gi/consts'
+import type {
+  CustomCharacterDataDef,
+  CustomCharacterText,
+} from '@genshin-optimizer/gi/consts'
+import {
+  customCharacterDefs,
+  isCustomCharacterDataDef,
+} from '@genshin-optimizer/gi/consts'
 import i18n from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import Backend from 'i18next-http-backend'
@@ -78,6 +85,17 @@ i18n.store.on('added', (lng: string, ns: string) => {
       i18n.addResource(lng, ns, 'name', name, { silent: true })
   }
 })
+// Imported custom characters bring their own talent texts, in every language.
+for (const def of customCharacterDefs)
+  if (isCustomCharacterDataDef(def))
+    for (const lng of languageCodeList)
+      i18n.addResourceBundle(
+        lng,
+        `char_${def.key}_gen`,
+        dataCharacterTexts(def),
+        true,
+        true
+      )
 i18n.services.formatter?.add('percent', (value, _lng, options) => {
   return (value * 100).toFixed(options.fixed)
 })
@@ -88,11 +106,41 @@ console.log('i18n initialized')
 
 export { i18n }
 
-/** Maps a custom character's text namespace to its template's namespace. */
+/** Maps a template custom character's text namespace to its template's namespace. */
 function customCharacterNamespace(ns: string): string {
-  for (const { key, template } of customCharacterDefs) {
+  for (const def of customCharacterDefs) {
+    if (isCustomCharacterDataDef(def)) continue
+    const { key, template } = def
     if (ns === `char_${key}_gen`) return `char_${template}_gen`
     if (ns === `char_${key}`) return `char_${template}`
   }
   return ns
+}
+
+/** Talent texts of an imported custom character, in the `char_<key>_gen` layout. */
+function dataCharacterTexts(def: CustomCharacterDataDef) {
+  const lines = (text: string) =>
+    Object.fromEntries(
+      text
+        .split('\n')
+        .filter((line) => line.trim())
+        .map((line, i) => [i, line])
+    )
+  const entry = (t?: CustomCharacterText) =>
+    t ? { name: t.name, description: lines(t.description) } : undefined
+  return {
+    name: def.name,
+    title: def.title ?? '',
+    description: '',
+    constellationName: '',
+    auto: entry(def.talents.auto),
+    skill: entry(def.talents.skill),
+    burst: entry(def.talents.burst),
+    passive1: entry(def.passive1),
+    passive2: entry(def.passive2),
+    passive3: entry(def.passive3),
+    ...Object.fromEntries(
+      def.constellations.map((c, i) => [`constellation${i + 1}`, entry(c)])
+    ),
+  }
 }
