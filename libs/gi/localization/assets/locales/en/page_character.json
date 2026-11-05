@@ -152,10 +152,32 @@
     },
     "importedFrom": "Imported · images from {{name}}",
     "imageTemplate": "Images from",
-    "imageTemplateHelp": "Imported characters have no images in GO, so they use this character's images.",
+    "imageTemplateHelp": "Used for every image slot below that is left empty.",
     "talentMultipliers": "Talent multipliers per level",
     "talentMultipliersHelp": "Rows marked (%) are percentages, e.g. 39.6 means 39.6%. Damage rows become formulas; other rows are shown as values.",
     "param": "Row",
-    "level": "Lv. {{level}}"
+    "level": "Lv. {{level}}",
+    "images": "Images",
+    "imagesHelp": "Image URLs for this character. Empty slots (faded preview) use the images of the \"Images from\" character.",
+    "exampleUrl": "URL of any one image of this character on the source site",
+    "exampleUrlHelp": "In the browser, right-click an image of this character on the source site (e.g. its icon) and copy the image address.",
+    "fillImages": "Fill all images",
+    "imageSlots": {
+      "icon": "Avatar icon",
+      "iconSide": "Side icon",
+      "banner": "Banner (card, team and page background)",
+      "card": "Character card (large art)",
+      "skill": "Elemental Skill icon",
+      "burst": "Elemental Burst icon",
+      "passive1": "Passive 1 icon",
+      "passive2": "Passive 2 icon",
+      "passive3": "Passive 3 icon",
+      "constellation1": "C1 icon",
+      "constellation2": "C2 icon",
+      "constellation3": "C3 icon",
+      "constellation4": "C4 icon",
+      "constellation5": "C5 icon",
+      "constellation6": "C6 icon"
+    }
   }
 }

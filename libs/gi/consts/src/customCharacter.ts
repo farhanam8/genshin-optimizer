@@ -30,6 +30,43 @@ type CustomCharacterBase = {
   ele: ElementKey
   weaponType: WeaponTypeKey
   rarity: 4 | 5
+  /** Image URLs that replace the template's images */
+  images?: CustomCharacterImages
+}
+
+/**
+ * Image slots of a character in GO: `icon`/`iconSide` (avatar icons),
+ * `banner` (name card, the background of character cards, team cards and the
+ * character page), `card` (the large character art), and talent icons.
+ */
+export const customCharacterImageKeys = [
+  'icon',
+  'iconSide',
+  'banner',
+  'card',
+  'skill',
+  'burst',
+  'passive1',
+  'passive2',
+  'passive3',
+  'constellation1',
+  'constellation2',
+  'constellation3',
+  'constellation4',
+  'constellation5',
+  'constellation6',
+] as const
+export type CustomCharacterImageKey = (typeof customCharacterImageKeys)[number]
+export type CustomCharacterImages = Partial<
+  Record<CustomCharacterImageKey, string>
+>
+
+/** Accepts web URLs and (reasonably small) embedded images. */
+export function isCustomCharacterImageUrl(url: string): boolean {
+  return (
+    /^https?:\/\/\S+$/i.test(url) ||
+    (/^data:image\/[a-z+.-]+;base64,/i.test(url) && url.length < 400_000)
+  )
 }
 
 export type CustomCharacterTemplateDef = CustomCharacterBase & {
@@ -92,6 +129,11 @@ export type CustomCharacterDataDef = CustomCharacterBase & {
   passive2?: CustomCharacterText
   passive3?: CustomCharacterText
   constellations: CustomCharacterText[]
+  /**
+   * File names of the source site's images (without extension), per slot.
+   * With the URL of one of them, the URLs of all can be filled in.
+   */
+  imageNames?: Partial<Record<CustomCharacterImageKey, string>>
 }
 
 export function isCustomCharacterDataDef(
@@ -159,6 +201,7 @@ function validateBase(o: Record<string, unknown>) {
   if (!customElements.includes(ele as ElementKey)) return undefined
   if (!customWeaponTypes.includes(weaponType as WeaponTypeKey)) return undefined
   if (rarity !== 4 && rarity !== 5) return undefined
+  const images = validateImageMap(o['images'], isCustomCharacterImageUrl)
   return {
     key,
     name: typeof name === 'string' && name.trim() ? name.trim() : key,
@@ -166,7 +209,46 @@ function validateBase(o: Record<string, unknown>) {
     ele: ele as ElementKey,
     weaponType: weaponType as WeaponTypeKey,
     rarity: rarity as 4 | 5,
+    ...(images ? { images } : {}),
   }
+}
+
+/** Keeps the known image slots whose value passes `check`. */
+function validateImageMap(
+  o: unknown,
+  check: (value: string) => boolean
+): Partial<Record<CustomCharacterImageKey, string>> | undefined {
+  if (!isObj(o)) return undefined
+  const entries = customCharacterImageKeys.flatMap((k) => {
+    const v = o[k]
+    return typeof v === 'string' && v && check(v) ? [[k, v] as const] : []
+  })
+  return entries.length ? Object.fromEntries(entries) : undefined
+}
+
+/** File names only: letters, digits and a few separators. */
+const isImageName = (name: string) => /^[\w.-]{1,100}$/.test(name)
+
+/**
+ * Builds image URLs from a character's source image names and the URL of any
+ * one image of that site, e.g. `https://example.com/ui/UI_AvatarIcon_X.webp`:
+ * every name gets that URL's folder and extension.
+ */
+export function customCharacterImagesFromExample(
+  imageNames: Partial<Record<CustomCharacterImageKey, string>>,
+  exampleUrl: string
+): CustomCharacterImages | undefined {
+  const m = exampleUrl
+    .trim()
+    .match(/^(https?:\/\/\S+\/)[^/?#]+?(\.[a-z0-9]+)?([?#].*)?$/i)
+  if (!m) return undefined
+  const [, folder, ext = '', query = ''] = m
+  return Object.fromEntries(
+    Object.entries(imageNames).map(([k, name]) => [
+      k,
+      `${folder}${name}${ext}${query}`,
+    ])
+  )
 }
 
 function validateText(o: unknown): CustomCharacterText | undefined {
@@ -269,6 +351,7 @@ function validateDataDef(
     passive1: validateText(o['passive1']),
     passive2: validateText(o['passive2']),
     passive3: validateText(o['passive3']),
+    imageNames: validateImageMap(o['imageNames'], isImageName),
     constellations: Array.isArray(constellations)
       ? constellations
           .map(validateText)

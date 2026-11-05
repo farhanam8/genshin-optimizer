@@ -250,10 +250,10 @@ const charCards = {
   Zibai,
 } as const
 
-// Custom characters reuse the card of their template character.
-for (const { key, template } of customCharacterDefs) {
+// Custom characters use their own card image if set, or their template's.
+for (const { key, template, images } of customCharacterDefs) {
   const cards = charCards as Record<string, string>
-  cards[key] = cards[template]
+  cards[key] = images?.card ?? cards[template]
 }
 
 export function charCard(charKey: CharacterKey, gender: GenderKey) {

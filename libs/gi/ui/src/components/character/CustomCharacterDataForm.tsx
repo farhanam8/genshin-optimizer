@@ -1,10 +1,13 @@
 import { iconInlineProps } from '@genshin-optimizer/common/svgicons'
 import { ImgIcon } from '@genshin-optimizer/common/ui'
 import { characterAsset, imgAssets } from '@genshin-optimizer/gi/assets'
+import { charCard } from '@genshin-optimizer/gi/char-cards'
 import type {
   CharacterKey,
   CustomCharacterAscStatKey,
   CustomCharacterDataDef,
+  CustomCharacterImageKey,
+  CustomCharacterImages,
   CustomCharacterTalent,
   CustomCharacterTalentKey,
   ElementKey,
@@ -14,7 +17,10 @@ import {
   allElementKeys,
   allWeaponTypeKeys,
   customCharacterAscStatKeys,
+  customCharacterImageKeys,
+  customCharacterImagesFromExample,
   customCharacterTalentKeys,
+  isCustomCharacterImageUrl,
   isCustomCharacterKey,
   nonTravelerCharacterKeys,
 } from '@genshin-optimizer/gi/consts'
@@ -143,6 +149,21 @@ export function CustomCharacterDataForm({
       ) as TalentStrings
   )
   const [tab, setTab] = useState<CustomCharacterTalentKey>('auto')
+  const [images, setImages] = useState<Record<CustomCharacterImageKey, string>>(
+    () =>
+      Object.fromEntries(
+        customCharacterImageKeys.map((k) => [k, def.images?.[k] ?? ''])
+      ) as Record<CustomCharacterImageKey, string>
+  )
+  const [exampleUrl, setExampleUrl] = useState('')
+  const imageValid = (url: string) => !url || isCustomCharacterImageUrl(url)
+  const fromExample =
+    def.imageNames && exampleUrl
+      ? customCharacterImagesFromExample(def.imageNames, exampleUrl)
+      : undefined
+  /** What a slot shows when left empty: the image of the "Images from" character */
+  const fallbackImage = (k: CustomCharacterImageKey) =>
+    k === 'card' ? charCard(template, 'F') : characterAsset(template, k)
 
   const statNums = {
     hp: num(stats.hp),
@@ -153,7 +174,10 @@ export function CustomCharacterDataForm({
   const paramsValid = customCharacterTalentKeys.every((k) =>
     params[k].every((row) => row.every((v) => valid(num(v))))
   )
-  const canSave = Object.values(statNums).every(valid) && paramsValid
+  const canSave =
+    Object.values(statNums).every(valid) &&
+    paramsValid &&
+    Object.values(images).every(imageValid)
 
   const save = () => {
     if (!canSave) return
@@ -184,6 +208,9 @@ export function CustomCharacterDataForm({
       rarity,
       ...scaled,
       talents,
+      images: Object.fromEntries(
+        Object.entries(images).filter(([, url]) => url.trim())
+      ) as CustomCharacterImages,
     })
   }
 
@@ -285,6 +312,63 @@ export function CustomCharacterDataForm({
             <MenuItem value={4}>4★</MenuItem>
           </TextField>
         </Grid>
+      </Grid>
+
+      <Typography variant="subtitle1">{t('customChar.images')}</Typography>
+      <Typography variant="body2" color="text.secondary">
+        {t('customChar.imagesHelp')}
+      </Typography>
+      {def.imageNames && (
+        <Box display="flex" gap={1} alignItems="flex-start">
+          <TextField
+            fullWidth
+            size="small"
+            label={t('customChar.exampleUrl')}
+            placeholder="https://.../UI_AvatarIcon_Anastasya.webp"
+            value={exampleUrl}
+            onChange={(e) => setExampleUrl(e.target.value)}
+            error={!!exampleUrl && !fromExample}
+            helperText={t('customChar.exampleUrlHelp')}
+          />
+          <Button
+            disabled={!fromExample}
+            onClick={() =>
+              fromExample && setImages({ ...images, ...fromExample })
+            }
+            sx={{ whiteSpace: 'nowrap' }}
+          >
+            {t('customChar.fillImages')}
+          </Button>
+        </Box>
+      )}
+      <Grid container spacing={1}>
+        {customCharacterImageKeys.map((k) => (
+          <Grid item xs={12} md={6} key={k}>
+            <Box display="flex" gap={1} alignItems="center">
+              <Box
+                component="img"
+                src={images[k] || fallbackImage(k)}
+                alt=""
+                sx={{
+                  width: 40,
+                  height: 40,
+                  objectFit: 'contain',
+                  flexShrink: 0,
+                  opacity: images[k] ? 1 : 0.4,
+                }}
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label={t(`customChar.imageSlots.${k}`)}
+                value={images[k]}
+                onChange={(e) => setImages({ ...images, [k]: e.target.value })}
+                error={!imageValid(images[k])}
+                placeholder={def.imageNames?.[k]}
+              />
+            </Box>
+          </Grid>
+        ))}
       </Grid>
 
       <Typography variant="subtitle1">{t('customChar.baseStats')}</Typography>

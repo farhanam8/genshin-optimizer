@@ -13,10 +13,12 @@ import artifacts from './gen/artifacts'
 import chars from './gen/chars'
 import weapons from './gen/weapons'
 
-// Custom characters reuse the images of their template character.
-for (const { key, template } of customCharacterDefs) {
-  const charAssets = chars as Record<string, unknown>
-  charAssets[key] = charAssets[template]
+// Custom characters use their own image URLs where set, and the images of
+// their template character otherwise.
+for (const { key, template, images } of customCharacterDefs) {
+  const charAssets = chars as Record<string, Record<string, string>>
+  const { card: _card, ...assetImages } = images ?? {}
+  charAssets[key] = { ...charAssets[template], ...assetImages }
 }
 
 export * from './assets'

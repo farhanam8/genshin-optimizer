@@ -87,10 +87,32 @@
     },
     "importedFrom": "Hasil import · gambar dari {{name}}",
     "imageTemplate": "Gambar dari",
-    "imageTemplateHelp": "Karakter hasil import tidak punya gambar di GO, jadi memakai gambar karakter ini.",
+    "imageTemplateHelp": "Dipakai untuk setiap slot gambar di bawah yang dibiarkan kosong.",
     "talentMultipliers": "Multiplier talent per level",
     "talentMultipliersHelp": "Baris bertanda (%) adalah persen, misalnya 39.6 berarti 39,6%. Baris damage menjadi formula; baris lain ditampilkan sebagai nilai.",
     "param": "Baris",
-    "level": "Lv. {{level}}"
+    "level": "Lv. {{level}}",
+    "images": "Gambar",
+    "imagesHelp": "URL gambar untuk karakter ini. Slot yang kosong (pratinjau pudar) memakai gambar dari karakter di \"Gambar dari\".",
+    "exampleUrl": "URL salah satu gambar karakter ini di situs sumber",
+    "exampleUrlHelp": "Di browser, klik kanan salah satu gambar karakter ini di situs sumber (misalnya ikonnya), lalu salin alamat gambarnya.",
+    "fillImages": "Isi semua gambar",
+    "imageSlots": {
+      "icon": "Ikon avatar",
+      "iconSide": "Ikon samping",
+      "banner": "Banner (latar kartu, team, dan halaman karakter)",
+      "card": "Kartu karakter (gambar besar)",
+      "skill": "Ikon Elemental Skill",
+      "burst": "Ikon Elemental Burst",
+      "passive1": "Ikon pasif 1",
+      "passive2": "Ikon pasif 2",
+      "passive3": "Ikon pasif 3",
+      "constellation1": "Ikon C1",
+      "constellation2": "Ikon C2",
+      "constellation3": "Ikon C3",
+      "constellation4": "Ikon C4",
+      "constellation5": "Ikon C5",
+      "constellation6": "Ikon C6"
+    }
   }
 }

@@ -118,6 +118,8 @@ function importPack(
           key: existing.key,
           name: existing.name,
           template: existing.template,
+          // image URLs set in GO win over the pack's
+          images: { ...char.images, ...existing.images },
         }
       : {
           ...char,

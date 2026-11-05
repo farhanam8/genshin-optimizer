@@ -4,11 +4,17 @@
  * custom character pack, which GO can import as custom characters.
  *
  * Usage:
- *   node tools/custom-characters/nanoka-to-go.mjs <input.json | input-dir>... [-o output.json]
+ *   node tools/custom-characters/nanoka-to-go.mjs <input.json | input-dir>... [-o output.json] [--image-url <url>]
  *
  * Each input is a character JSON from gi.nanoka.cc (for example the response
  * for character 10000149), or a directory of such files. All characters are
  * written into a single pack. Without `-o`, the pack is printed to stdout.
+ *
+ * The pack always lists the file names of each character's images. With
+ * `--image-url` set to the address of any one image on that site (for example
+ * the address of an avatar icon, copied from the browser), the pack also gets
+ * full image URLs: every name gets that address's folder and extension.
+ * Image URLs can also be filled in later, in GO's custom character editor.
  *
  * Only Node.js built-ins are used, so the script runs without `yarn install`.
  */
@@ -221,12 +227,48 @@ export function convertNanokaCharacter(src, sourceId) {
     passive3: byUnlock(0)[0],
     otherPassives: byUnlock(0).slice(1),
     constellations,
-    images: {
-      icon: src.icon,
-      gacha: src.icon?.replace('UI_AvatarIcon_', 'UI_Gacha_AvatarImg_'),
-      namecard: src.chara_info?.namecard?.icon,
-    },
+    imageNames: imageNamesOf(src, talentSkills),
   }
+}
+
+/** File names of a character's images, per GO image slot. */
+function imageNamesOf(src, talentSkills) {
+  const talentIcon = (skill) =>
+    Object.values(skill.promote ?? {}).find((lvl) => lvl.icon)?.icon
+  const names = {
+    icon: src.icon,
+    iconSide: src.icon?.replace('UI_AvatarIcon_', 'UI_AvatarIcon_Side_'),
+    banner: src.chara_info?.namecard?.icon,
+    // nanoka has no portrait card; the wish art is the closest
+    card: src.icon?.replace('UI_AvatarIcon_', 'UI_Gacha_AvatarImg_'),
+    skill: talentIcon(talentSkills[1]),
+    burst: talentIcon(talentSkills[2]),
+  }
+  const passives = src.passives ?? []
+  const byUnlock = (n) => passives.filter((p) => (p.unlock ?? 0) === n)
+  names.passive1 = byUnlock(1)[0]?.icon
+  names.passive2 = byUnlock(4)[0]?.icon
+  names.passive3 = byUnlock(0)[0]?.icon
+  for (const [i, c] of (src.constellations ?? []).slice(0, 6).entries())
+    names[`constellation${i + 1}`] = c.icon
+  return Object.fromEntries(
+    Object.entries(names).filter(([, v]) => typeof v === 'string' && v)
+  )
+}
+
+/** Same as GO's `customCharacterImagesFromExample`. */
+export function imagesFromExample(imageNames, exampleUrl) {
+  const m = exampleUrl
+    .trim()
+    .match(/^(https?:\/\/\S+\/)[^/?#]+?(\.[a-z0-9]+)?([?#].*)?$/i)
+  if (!m) fail(`Not an image URL: ${exampleUrl}`)
+  const [, folder, ext = '', query = ''] = m
+  return Object.fromEntries(
+    Object.entries(imageNames).map(([k, name]) => [
+      k,
+      `${folder}${name}${ext}${query}`,
+    ])
+  )
 }
 
 export function makePack(characters, source = 'gi.nanoka.cc') {
@@ -260,9 +302,15 @@ function main(argv) {
     out = args[o + 1]
     args.splice(o, 2)
   }
+  let imageUrl
+  const u = args.indexOf('--image-url')
+  if (u !== -1) {
+    imageUrl = args[u + 1]
+    args.splice(u, 2)
+  }
   if (!args.length) {
     console.error(
-      'Usage: node nanoka-to-go.mjs <input.json | input-dir>... [-o output.json]'
+      'Usage: node nanoka-to-go.mjs <input.json | input-dir>... [-o output.json] [--image-url <url>]'
     )
     process.exit(1)
   }
@@ -275,6 +323,7 @@ function main(argv) {
       continue
     }
     const char = convertNanokaCharacter(data, id ? Number(id) : null)
+    if (imageUrl) char.images = imagesFromExample(char.imageNames, imageUrl)
     characters.push(char)
     console.error(`Converted ${char.name} (${file})`)
   }
