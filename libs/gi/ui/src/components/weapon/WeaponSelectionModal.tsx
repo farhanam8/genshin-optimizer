@@ -16,9 +16,11 @@ import { useDatabase } from '@genshin-optimizer/gi/db-ui'
 import type { WeaponSheet } from '@genshin-optimizer/gi/sheets'
 import { getWeaponSheet } from '@genshin-optimizer/gi/sheets'
 import { getWeaponStat } from '@genshin-optimizer/gi/stats'
+import AddIcon from '@mui/icons-material/Add'
 import CloseIcon from '@mui/icons-material/Close'
 import {
   Box,
+  Button,
   CardActionArea,
   CardContent,
   Divider,
@@ -40,6 +42,8 @@ type WeaponSelectionModalProps = {
   onSelect: (wKey: WeaponKey) => void
   filter?: (sheet: WeaponSheet) => boolean
   weaponTypeFilter?: WeaponTypeKey | ''
+  /** When set, shows a button to manage custom weapons */
+  onCreateCustom?: () => void
 }
 
 export function WeaponSelectionModal({
@@ -49,6 +53,7 @@ export function WeaponSelectionModal({
   onSelect,
   filter = () => true,
   weaponTypeFilter,
+  onCreateCustom,
 }: WeaponSelectionModalProps) {
   const { t } = useTranslation(['page_weapon', 'weaponNames_gen'])
   const [weaponFilter, setWeaponfilter] = useState<WeaponTypeKey[]>(
@@ -142,6 +147,18 @@ export function WeaponSelectionModal({
               sx: { height: '100%' },
             }}
           />
+          {onCreateCustom && (
+            <Button
+              color="info"
+              startIcon={<AddIcon />}
+              onClick={() => {
+                onHide()
+                onCreateCustom()
+              }}
+            >
+              {t('customWeapon.button')}
+            </Button>
+          )}
           <IconButton onClick={onHide} sx={{ ml: 'auto' }}>
             <CloseIcon />
           </IconButton>

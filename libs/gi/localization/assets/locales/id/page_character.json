@@ -83,7 +83,8 @@
     "importErrors": {
       "invalidJson": "File ini bukan JSON yang valid.",
       "notAPack": "File ini bukan paket karakter custom.",
-      "invalidCharacter": "Ada karakter di paket ini yang datanya tidak valid."
+      "invalidCharacter": "Ada karakter di paket ini yang datanya tidak valid.",
+      "noCharacters": "Paket ini tidak berisi karakter."
     },
     "importedFrom": "Hasil import · gambar dari {{name}}",
     "imageTemplate": "Gambar dari",

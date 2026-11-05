@@ -28,5 +28,62 @@
     "bow": "Bow",
     "catalyst": "Catalyst"
   },
-  "tcBuild": "TC Build"
+  "tcBuild": "TC Build",
+  "customWeapon": {
+    "button": "Custom Weapon",
+    "title": "Custom Weapons",
+    "info": "Custom weapons are imported from a custom character pack, with their own base ATK, substat, passive and passive buffs per refinement. GO reloads after saving. Custom weapons are stored only in this browser.",
+    "empty": "No custom weapons yet.",
+    "import": "Import Weapons (.json)",
+    "importHelp": "Import the weapons of a custom character pack, e.g. made with tools/custom-characters/nanoka-to-go.mjs. Weapons imported before are updated.",
+    "importPreview": "These weapons will be imported:",
+    "importNew": "New weapon",
+    "importUpdate": "Updates an imported weapon (keeps its name and images)",
+    "importConfirm": "Import & reload",
+    "importErrors": {
+      "invalidJson": "This file is not valid JSON.",
+      "notAPack": "This file is not a custom character pack.",
+      "noWeapons": "This pack has no weapons.",
+      "invalidWeapon": "A weapon in this pack has invalid data."
+    },
+    "imagesFrom": "Images from {{name}}",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete {{name}}? Copies of it in your database are removed after the reload.",
+    "name": "Name",
+    "passiveName": "Passive name",
+    "template": "Images from",
+    "templateHelp": "Used for images left empty below.",
+    "rarity": "Rarity",
+    "images": "Images",
+    "exampleUrl": "URL of any one image of this weapon on the source site",
+    "exampleUrlHelp": "In the browser, right-click an image of this weapon on the source site and copy the image address.",
+    "fillImages": "Fill all images",
+    "imageSlots": {
+      "icon": "Icon",
+      "awakenIcon": "Icon after ascension 2"
+    },
+    "stats": "Stats at Lv. 90/90",
+    "subStat": "Substat",
+    "noSubStat": "None",
+    "subValue": "Substat value",
+    "buffs": "Passive buffs",
+    "buffsHelp": "Stat bonuses from the passive, with their value at each refinement (R1–R5). Team buffs show under \"Received Team Buffs\" of every party member.",
+    "buff": {
+      "stat": "Stat",
+      "target": "Who",
+      "targetSelf": "Wielder",
+      "targetTeam": "Whole party",
+      "targetOthers": "Other party members",
+      "condition": "Toggle name (optional)",
+      "conditionState": "Toggle option (optional)",
+      "elements": "Only party members of:",
+      "excludeEles": "All except these",
+      "remove": "Remove buff",
+      "close": "Close",
+      "add": "Add Buff"
+    },
+    "cancel": "Cancel",
+    "save": "Save & reload"
+  }
 }

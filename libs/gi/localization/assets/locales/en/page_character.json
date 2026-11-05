@@ -148,7 +148,8 @@
     "importErrors": {
       "invalidJson": "This file is not valid JSON.",
       "notAPack": "This file is not a custom character pack.",
-      "invalidCharacter": "A character in this pack has invalid data."
+      "invalidCharacter": "A character in this pack has invalid data.",
+      "noCharacters": "This pack has no characters."
     },
     "importedFrom": "Imported · images from {{name}}",
     "imageTemplate": "Images from",

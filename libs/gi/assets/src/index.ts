@@ -8,6 +8,7 @@ import type {
 import {
   charKeyToLocGenderedCharKey,
   customCharacterDefs,
+  customWeaponDefs,
 } from '@genshin-optimizer/gi/consts'
 import artifacts from './gen/artifacts'
 import chars from './gen/chars'
@@ -19,6 +20,12 @@ for (const { key, template, images } of customCharacterDefs) {
   const charAssets = chars as Record<string, Record<string, string>>
   const { card: _card, ...assetImages } = images ?? {}
   charAssets[key] = { ...charAssets[template], ...assetImages }
+}
+
+// Custom weapons use their own image URLs where set, and their template's otherwise.
+for (const { key, template, images } of customWeaponDefs) {
+  const weaponAssets = weapons as Record<string, Record<string, string>>
+  weaponAssets[key] = { ...weaponAssets[template], ...images }
 }
 
 export * from './assets'

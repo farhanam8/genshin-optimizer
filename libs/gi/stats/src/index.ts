@@ -4,6 +4,8 @@ import type {
   CharacterSheetKey,
   CustomCharacterDataDef,
   CustomCharacterTemplateDef,
+  CustomWeaponDef,
+  CustomWeaponSubstat,
   ElementKey,
   NonTravelerCharacterKey,
   WeaponKey,
@@ -13,6 +15,7 @@ import {
   charKeyToLocCharKey,
   customCharacterAscStatKeys,
   customCharacterDefs,
+  customWeaponDefs,
   isCustomCharacterDataDef,
 } from '@genshin-optimizer/gi/consts'
 import * as allStat_gen from './allStat_gen.json'
@@ -24,6 +27,8 @@ export type {
   CharacterDataGen,
   WeaponDataGen,
 } from './executors/gen-stats/executor'
+
+import type { WeaponDataGen } from './executors/gen-stats/executor'
 
 const allStats = allStat_gen as AllStats
 
@@ -184,6 +189,86 @@ export function scaleCustomCharacterStats(
   )
     ascensionBonus[target.ascStat] = pattern.map((f) => f * target.ascValue)
   return { lvlCurves, ascensionBonus }
+}
+
+// Register custom weapons, so every lookup by key finds them. A growth curve
+// GO does not have falls back to the most common one of its kind.
+for (const def of customWeaponDefs) {
+  const curves = allStats.weapon.expCurve as Record<string, number[]>
+  const curve = (c: string, fallback: string) => (curves[c] ? c : fallback)
+  const mainCurve = curve(def.mainStat.curve, 'GROW_CURVE_ATTACK_301')
+  const subStat = def.subStat && {
+    ...def.subStat,
+    curve: curve(def.subStat.curve, 'GROW_CURVE_CRITICAL_301'),
+  }
+  const data: WeaponDataGen = {
+    weaponType: def.weaponType,
+    rarity: def.rarity,
+    mainStat: {
+      type: 'atk',
+      base: def.mainStat.base,
+      curve: mainCurve,
+    } as WeaponDataGen['mainStat'],
+    subStat: subStat as WeaponDataGen['subStat'],
+    lvlCurves: [
+      { key: 'atk', base: def.mainStat.base, curve: mainCurve },
+      ...(subStat
+        ? [{ key: subStat.type, base: subStat.base, curve: subStat.curve }]
+        : []),
+    ] as WeaponDataGen['lvlCurves'],
+    refinementBonus: {},
+    ascensionBonus: { atk: [...def.ascensionBonus] },
+  }
+  ;(allStats.weapon.data as Record<string, WeaponDataGen>)[def.key] = data
+}
+
+/** Base ATK and substat of a weapon at level 90/90 (or its max level). */
+export function getWeaponRefStats(wk: WeaponKey) {
+  const { mainStat, subStat, ascensionBonus, rarity } = getWeaponStat(wk)
+  const curves = allStats.weapon.expCurve as Record<string, number[]>
+  const lvl = rarity <= 2 ? 70 : 90
+  return {
+    atk:
+      mainStat.base * curves[mainStat.curve][lvl] +
+      (ascensionBonus['atk']?.at(-1) ?? 0),
+    subStat: subStat?.type,
+    subValue: subStat ? subStat.base * curves[subStat.curve][lvl] : 0,
+  }
+}
+
+/**
+ * Rescales a custom weapon's base ATK (curve and ascension bonus together)
+ * and substat so that their values at level 90/90 (70 for 1-2 stars) match
+ * `target`.
+ */
+export function scaleCustomWeaponStats(
+  def: Pick<
+    CustomWeaponDef,
+    'mainStat' | 'subStat' | 'ascensionBonus' | 'rarity'
+  >,
+  target: { atk: number; subValue?: number; subStat?: CustomWeaponSubstat }
+): Pick<CustomWeaponDef, 'mainStat' | 'subStat' | 'ascensionBonus'> {
+  const curves = allStats.weapon.expCurve as Record<string, number[]>
+  const lvl = def.rarity <= 2 ? 70 : 90
+  const at = (curve: string, fallback: string) =>
+    (curves[curve] ?? curves[fallback])[lvl]
+  const atkNow =
+    def.mainStat.base * at(def.mainStat.curve, 'GROW_CURVE_ATTACK_301') +
+    (def.ascensionBonus.at(-1) ?? 0)
+  const f = atkNow > 0 ? target.atk / atkNow : 0
+  const subCurve = def.subStat?.curve ?? 'GROW_CURVE_CRITICAL_301'
+  return {
+    mainStat: { ...def.mainStat, base: def.mainStat.base * f },
+    ascensionBonus: def.ascensionBonus.map((v) => v * f),
+    subStat:
+      target.subStat && target.subValue !== undefined
+        ? {
+            type: target.subStat,
+            base: target.subValue / at(subCurve, 'GROW_CURVE_CRITICAL_301'),
+            curve: subCurve,
+          }
+        : undefined,
+  }
 }
 
 // Register custom characters, so every lookup by key finds them.

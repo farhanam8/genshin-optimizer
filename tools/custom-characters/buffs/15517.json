@@ -1,0 +1,28 @@
+{
+  "name": "Silverdawn",
+  "notes": [
+    "White Crown's Bequest: after Elemental Skill or Burst, ATK and Stellar Glimmer reaction CRIT DMG of the wielder increase.",
+    "`param` is the index of the value in the passive's parameters (0: ATK, 1: Stellar Glimmer CRIT DMG); the converter fills in R1..R5.",
+    "Not included: Energy regeneration."
+  ],
+  "buffs": [
+    {
+      "stat": "atk_",
+      "param": 0,
+      "target": "self",
+      "condition": "White Crown's Bequest (after Skill/Burst)"
+    },
+    {
+      "stat": "stellarconduct_critDMG_",
+      "param": 1,
+      "target": "self",
+      "condition": "White Crown's Bequest (after Skill/Burst)"
+    },
+    {
+      "stat": "stellarswirl_critDMG_",
+      "param": 1,
+      "target": "self",
+      "condition": "White Crown's Bequest (after Skill/Burst)"
+    }
+  ]
+}

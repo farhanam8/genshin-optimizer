@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 /**
- * Converts character data from gi.nanoka.cc into a Genshin Optimizer
- * custom character pack, which GO can import as custom characters.
+ * Converts character and weapon data from gi.nanoka.cc into a Genshin
+ * Optimizer custom character pack, which GO can import as custom characters
+ * and custom weapons.
  *
  * Usage:
  *   node tools/custom-characters/nanoka-to-go.mjs <input.json | input-dir>... [-o output.json] [--image-url <url>]
  *
- * Each input is a character JSON from gi.nanoka.cc (for example the response
- * for character 10000149), or a directory of such files. All characters are
- * written into a single pack. Without `-o`, the pack is printed to stdout.
+ * Each input is a character or weapon JSON from gi.nanoka.cc (for example
+ * the response for character 10000149 or weapon 15517), or a directory of
+ * such files. Everything is written into a single pack. Without `-o`, the
+ * pack is printed to stdout.
  *
  * The pack always lists the file names of each character's images. With
  * `--image-url` set to the address of any one image on that site (for example
@@ -17,9 +19,11 @@
  * Image URLs can also be filled in later, in GO's custom character editor.
  *
  * Buffs (stat bonuses from passives and constellations) are not in the source
- * data. When `buffs/<character id>.json` exists next to this script, its
- * `buffs` and `rowEffects` are added to that character. Both can also be
- * edited in GO.
+ * data. When `buffs/<character or weapon id>.json` exists next to this
+ * script, its `buffs` (and, for characters, `rowEffects`) are added. A weapon
+ * buff can give `param` (an index into the passive's values) instead of
+ * `values`; its values at refinements 1..5 are then read from the source.
+ * Both can also be edited in GO.
  *
  * Only Node.js built-ins are used, so the script runs without `yarn install`.
  */
@@ -300,13 +304,79 @@ function buffPreset(sourceId) {
   }
 }
 
-export function makePack(characters, source = 'gi.nanoka.cc') {
+/** Main stat prop of weapons: GO only supports ATK */
+const weaponSubstatMap = {
+  FIGHT_PROP_ATTACK_PERCENT: 'atk_',
+  FIGHT_PROP_CRITICAL_HURT: 'critDMG_',
+  FIGHT_PROP_CRITICAL: 'critRate_',
+  FIGHT_PROP_DEFENSE_PERCENT: 'def_',
+  FIGHT_PROP_ELEMENT_MASTERY: 'eleMas',
+  FIGHT_PROP_CHARGE_EFFICIENCY: 'enerRech_',
+  FIGHT_PROP_HP_PERCENT: 'hp_',
+  FIGHT_PROP_PHYSICAL_ADD_HURT: 'physical_dmg_',
+}
+
+export function convertNanokaWeapon(src, sourceId) {
+  if (!src || typeof src !== 'object' || !Array.isArray(src.weapon_prop))
+    fail('Not a gi.nanoka.cc weapon JSON (missing weapon_prop)')
+  const name = src.name || fail('Missing name')
+  const weaponType = weaponMap[src.weapon_type]
+  if (!weaponType) fail(`${name}: unknown weapon type "${src.weapon_type}"`)
+  const rarity = Number(src.rarity)
+  if (!(rarity >= 1 && rarity <= 5))
+    fail(`${name}: unknown rarity "${src.rarity}"`)
+  const [main, sub] = src.weapon_prop
+  if (main?.prop_type !== 'FIGHT_PROP_BASE_ATTACK')
+    fail(`${name}: main stat must be base ATK, got ${main?.prop_type}`)
+  const subType = sub && weaponSubstatMap[sub.prop_type]
+  if (sub && !subType) fail(`${name}: unknown substat ${sub.prop_type}`)
+
+  // nanoka lists ascension phases 1..6 (1..4 for 1-2 star weapons); GO also has phase 0
+  const ascensionBonus = [0, 0, 0, 0, 0, 0, 0]
+  for (const [phase, props] of Object.entries(src.ascension ?? {}))
+    ascensionBonus[Number(phase)] = props.fight_prop_base_attack ?? 0
+  for (let i = 1; i < 7; i++)
+    if (!(String(i) in (src.ascension ?? {})))
+      ascensionBonus[i] = ascensionBonus[i - 1]
+
+  const refinements = [1, 2, 3, 4, 5].map((r) => src.refinement?.[r])
+  return {
+    sourceId: sourceId ?? null,
+    name,
+    weaponType,
+    rarity,
+    mainStat: { base: main.init_value, curve: main.type },
+    ...(sub
+      ? { subStat: { type: subType, base: sub.init_value, curve: sub.type } }
+      : {}),
+    ascensionBonus,
+    passiveName: refinements[0]?.name ?? '',
+    passiveDescriptions: refinements.map((r) => cleanText(r?.desc)),
+    passiveParams: refinements.map((r) => trimParams(r?.param_list)),
+    imageNames: {
+      icon: src.icon,
+      awakenIcon: src.icon ? `${src.icon}_Awaken` : undefined,
+    },
+  }
+}
+
+/** Weapon buffs with `param` get their values at refinements 1..5 from the passive. */
+function resolveWeaponBuffs(buffs, passiveParams) {
+  return buffs.map(({ param, ...b }) =>
+    param === undefined
+      ? b
+      : { ...b, values: passiveParams.map((p) => p?.[param] ?? 0) }
+  )
+}
+
+export function makePack(characters, source = 'gi.nanoka.cc', weapons = []) {
   return {
     format: PACK_FORMAT,
     version: PACK_VERSION,
     source,
     exportedAt: new Date().toISOString(),
     characters,
+    weapons,
   }
 }
 
@@ -344,11 +414,31 @@ function main(argv) {
     process.exit(1)
   }
   const characters = []
+  const weapons = []
   for (const { file, optional } of collectInputs(args)) {
-    const id = file.match(/(\d{8})[^\\/]*\.json$/)?.[1]
+    const id = file.match(/(\d{5,8})[^\\/]*\.json$/)?.[1]
     const data = JSON.parse(readFileSync(file, 'utf8'))
-    if (optional && !data?.stats_modifier) {
-      console.error(`Skipped ${file} (not a gi.nanoka.cc character JSON)`)
+    if (Array.isArray(data?.weapon_prop)) {
+      const weapon = convertNanokaWeapon(data, id ? Number(id) : null)
+      if (imageUrl)
+        weapon.images = imagesFromExample(weapon.imageNames, imageUrl)
+      const preset = buffPreset(weapon.sourceId)
+      if (preset) {
+        weapon.buffs = resolveWeaponBuffs(preset.buffs, weapon.passiveParams)
+        console.error(
+          `  + ${weapon.buffs.length} buffs from buffs/${weapon.sourceId}.json`
+        )
+      }
+      weapons.push(weapon)
+      console.error(`Converted weapon ${weapon.name} (${file})`)
+      continue
+    }
+    if (!Array.isArray(data?.skills)) {
+      if (!optional)
+        fail(`${file}: not a gi.nanoka.cc character or weapon JSON`)
+      console.error(
+        `Skipped ${file} (not a gi.nanoka.cc character or weapon JSON)`
+      )
       continue
     }
     const char = convertNanokaCharacter(data, id ? Number(id) : null)
@@ -364,10 +454,12 @@ function main(argv) {
     characters.push(char)
     console.error(`Converted ${char.name} (${file})`)
   }
-  const json = `${JSON.stringify(makePack(characters), null, 2)}\n`
+  const json = `${JSON.stringify(makePack(characters, undefined, weapons), null, 2)}\n`
   if (out) {
     writeFileSync(out, json)
-    console.error(`Wrote ${characters.length} character(s) to ${out}`)
+    console.error(
+      `Wrote ${characters.length} character(s) and ${weapons.length} weapon(s) to ${out}`
+    )
   } else process.stdout.write(json)
 }
 

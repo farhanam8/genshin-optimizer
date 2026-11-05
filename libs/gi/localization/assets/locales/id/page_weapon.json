@@ -2,5 +2,62 @@
   "edit": "Edit Senjata",
   "weaponName": "Nama Senjata",
   "removeWeapon": "Kamu yakin ingin menghapus {{value}}?",
-  "addWeapon": "Tambah Senjata Baru"
+  "addWeapon": "Tambah Senjata Baru",
+  "customWeapon": {
+    "button": "Senjata Custom",
+    "title": "Senjata Custom",
+    "info": "Senjata custom di-import dari paket karakter custom, dengan ATK dasar, substat, passive, dan buff passive per refinement sendiri. GO akan dimuat ulang setelah disimpan. Senjata custom hanya tersimpan di browser ini.",
+    "empty": "Belum ada senjata custom.",
+    "import": "Import Senjata (.json)",
+    "importHelp": "Import senjata dari paket karakter custom, misalnya hasil tools/custom-characters/nanoka-to-go.mjs. Senjata yang pernah di-import akan diperbarui.",
+    "importPreview": "Senjata berikut akan di-import:",
+    "importNew": "Senjata baru",
+    "importUpdate": "Memperbarui senjata yang sudah di-import (nama dan gambar tetap)",
+    "importConfirm": "Import & muat ulang",
+    "importErrors": {
+      "invalidJson": "File ini bukan JSON yang valid.",
+      "notAPack": "File ini bukan paket karakter custom.",
+      "noWeapons": "Paket ini tidak berisi senjata.",
+      "invalidWeapon": "Ada senjata di paket ini yang datanya tidak valid."
+    },
+    "imagesFrom": "Gambar dari {{name}}",
+    "edit": "Edit",
+    "delete": "Hapus",
+    "deleteConfirm": "Hapus {{name}}? Salinannya di database akan dihapus setelah dimuat ulang.",
+    "name": "Nama",
+    "passiveName": "Nama passive",
+    "template": "Gambar dari",
+    "templateHelp": "Dipakai untuk gambar yang dibiarkan kosong di bawah.",
+    "rarity": "Rarity",
+    "images": "Gambar",
+    "exampleUrl": "URL salah satu gambar senjata ini di situs sumber",
+    "exampleUrlHelp": "Di browser, klik kanan gambar senjata ini di situs sumber, lalu salin alamat gambarnya.",
+    "fillImages": "Isi semua gambar",
+    "imageSlots": {
+      "icon": "Ikon",
+      "awakenIcon": "Ikon setelah ascension 2"
+    },
+    "stats": "Stat di Lv. 90/90",
+    "subStat": "Substat",
+    "noSubStat": "Tidak ada",
+    "subValue": "Nilai substat",
+    "buffs": "Buff passive",
+    "buffsHelp": "Bonus stat dari passive, dengan nilainya di setiap refinement (R1–R5). Buff tim muncul di \"Received Team Buffs\" setiap anggota party.",
+    "buff": {
+      "stat": "Stat",
+      "target": "Untuk",
+      "targetSelf": "Pemakai",
+      "targetTeam": "Seluruh party",
+      "targetOthers": "Anggota party lain",
+      "condition": "Nama toggle (opsional)",
+      "conditionState": "Pilihan toggle (opsional)",
+      "elements": "Hanya anggota party:",
+      "excludeEles": "Semua kecuali ini",
+      "remove": "Hapus buff",
+      "close": "Tutup",
+      "add": "Tambah Buff"
+    },
+    "cancel": "Batal",
+    "save": "Simpan & muat ulang"
+  }
 }

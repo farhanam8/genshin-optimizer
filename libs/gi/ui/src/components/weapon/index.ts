@@ -1,3 +1,4 @@
+export * from './CustomWeaponModal'
 export * from './WeaponCard'
 export * from './WeaponCardNano'
 export * from './WeaponCardPico'

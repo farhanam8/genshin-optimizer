@@ -4,6 +4,7 @@ import type {
 } from '@genshin-optimizer/gi/consts'
 import {
   customCharacterDefs,
+  customWeaponDefs,
   isCustomCharacterDataDef,
 } from '@genshin-optimizer/gi/consts'
 import i18n from 'i18next'
@@ -84,7 +85,28 @@ i18n.store.on('added', (lng: string, ns: string) => {
     else if (ns === `char_${key}_gen`)
       i18n.addResource(lng, ns, 'name', name, { silent: true })
   }
+  if (ns === 'weaponNames_gen')
+    for (const { key, name } of customWeaponDefs)
+      i18n.addResource(lng, ns, key, name, { silent: true })
 })
+// Custom weapons bring their own name and passive texts, in every language.
+for (const def of customWeaponDefs)
+  for (const lng of languageCodeList)
+    i18n.addResourceBundle(
+      lng,
+      `weapon_${def.key}_gen`,
+      {
+        name: def.name,
+        // the source data has no flavor text
+        description: '',
+        passiveName: def.passiveName,
+        passiveDescription: Object.fromEntries(
+          def.passiveDescriptions.map((d, i) => [i, d])
+        ),
+      },
+      true,
+      true
+    )
 // Imported custom characters bring their own talent texts, in every language.
 for (const def of customCharacterDefs)
   if (isCustomCharacterDataDef(def))

@@ -1,5 +1,6 @@
 import { clamp } from '@genshin-optimizer/common/util'
 import { type AscensionKey, type RarityKey, validateLevelAsc } from './common'
+import { readCustomWeaponDefs } from './customWeapon'
 
 export const allWeaponTypeKeys = [
   'sword',
@@ -282,6 +283,30 @@ export const allWeaponCatalystKeys = [
   'WintersHeavyHeart',
 ] as const
 export type WeaponCatalystKey = (typeof allWeaponCatalystKeys)[number]
+
+/**
+ * User-defined custom weapons (see `./customWeapon`). Their keys are appended
+ * to the key list of their weapon type at load time, so every list built from
+ * them (`allWeaponKeys`, database schemas, ...) accepts these keys.
+ * They are intentionally not part of the `WeaponKey` type.
+ */
+export const customWeaponDefs = readCustomWeaponDefs()
+for (const { key, weaponType } of customWeaponDefs) {
+  const lists: Record<WeaponTypeKey, readonly string[]> = {
+    sword: allWeaponSwordKeys,
+    claymore: allWeaponClaymoreKeys,
+    polearm: allWeaponPolearmKeys,
+    bow: allWeaponBowKeys,
+    catalyst: allWeaponCatalystKeys,
+  }
+  ;(lists[weaponType] as string[]).push(key)
+}
+export function isCustomWeaponKey(key: string): boolean {
+  return customWeaponDefs.some((def) => def.key === key)
+}
+export function getCustomWeaponDef(key: string) {
+  return customWeaponDefs.find((def) => def.key === key)
+}
 
 export const allWeaponKeys = [
   ...allWeaponSwordKeys,

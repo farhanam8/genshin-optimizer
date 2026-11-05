@@ -498,10 +498,10 @@ const isImageName = (name: string) => /^[\w.-]{1,100}$/.test(name)
  * one image of that site, e.g. `https://example.com/ui/UI_AvatarIcon_X.webp`:
  * every name gets that URL's folder and extension.
  */
-export function customCharacterImagesFromExample(
-  imageNames: Partial<Record<CustomCharacterImageKey, string>>,
+export function customCharacterImagesFromExample<K extends string>(
+  imageNames: Partial<Record<K, string>>,
   exampleUrl: string
-): CustomCharacterImages | undefined {
+): Partial<Record<K, string>> | undefined {
   const m = exampleUrl
     .trim()
     .match(/^(https?:\/\/\S+\/)[^/?#]+?(\.[a-z0-9]+)?([?#].*)?$/i)
@@ -512,7 +512,7 @@ export function customCharacterImagesFromExample(
       k,
       `${folder}${name}${ext}${query}`,
     ])
-  )
+  ) as Partial<Record<K, string>>
 }
 
 function validateText(o: unknown): CustomCharacterText | undefined {
@@ -684,7 +684,10 @@ export function parseCustomCharacterPack(
   }
   if (!isObj(pack) || pack['format'] !== customCharacterPackFormat)
     return { error: 'notAPack' }
-  if (!Array.isArray(pack['characters'])) return { error: 'notAPack' }
+  if (!Array.isArray(pack['characters']) || !pack['characters'].length)
+    return {
+      error: Array.isArray(pack['weapons']) ? 'noCharacters' : 'notAPack',
+    }
   const characters: Omit<CustomCharacterDataDef, 'key' | 'template'>[] = []
   for (const char of pack['characters']) {
     if (!isObj(char)) return { error: 'invalidCharacter' }

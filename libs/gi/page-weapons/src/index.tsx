@@ -16,6 +16,7 @@ import type { WeaponKey } from '@genshin-optimizer/gi/consts'
 import { initialWeapon } from '@genshin-optimizer/gi/db'
 import { useDatabase } from '@genshin-optimizer/gi/db-ui'
 import {
+  CustomWeaponModal,
   WeaponCard,
   WeaponEditor,
   WeaponSelectionModal,
@@ -56,6 +57,7 @@ export default function PageWeapon() {
 
   const [newWeaponModalShow, onNewWeaponModalShow, onNewWeaponModalHide] =
     useBoolState(false)
+  const [customWeaponShow, setCustomWeaponShow] = useState(false)
   useEffect(() => {
     ReactGA.send({ hitType: 'pageview', page: '/weapon' })
   }, [])
@@ -191,8 +193,13 @@ export default function PageWeapon() {
           show={newWeaponModalShow}
           onHide={onNewWeaponModalHide}
           onSelect={newWeapon}
+          onCreateCustom={() => setCustomWeaponShow(true)}
         />
       </Suspense>
+      <CustomWeaponModal
+        show={customWeaponShow}
+        onHide={() => setCustomWeaponShow(false)}
+      />
       {/* Editor/character detail display */}
       <Suspense fallback={false}>
         <WeaponEditor
