@@ -49,6 +49,7 @@ export const customCharacterImageKeys = [
   'passive1',
   'passive2',
   'passive3',
+  'passive',
   'constellation1',
   'constellation2',
   'constellation3',
@@ -92,6 +93,44 @@ export type CustomCharacterTalentRow = {
   /** Params used by this row; `format` ends with `P` for percentages */
   params: { index: number; format: string }[]
 }
+/** Words that end a row label and are shared by all its values, e.g. "Plunge DMG" */
+const sharedSuffixWordRe =
+  /^(DMG|Plunge|Healing|Shield|Absorption|Regeneration|Bonus|Duration|CD|Cost)$/i
+
+/**
+ * The name of each value of a talent row. A row with several values names
+ * them with slashes, which are split here:
+ * "1-Hit Stellar-Conduct/Stellar Swirl DMG" gives "1-Hit Stellar-Conduct DMG"
+ * and "1-Hit Stellar Swirl DMG"; "Low/High Plunge DMG" gives "Low Plunge DMG"
+ * and "High Plunge DMG". Otherwise the values are numbered: "Label (1/2)".
+ */
+export function customCharacterRowLabels(
+  row: Pick<CustomCharacterTalentRow, 'label' | 'params'>
+): string[] {
+  const n = row.params.length
+  if (n < 2) return [row.label]
+  const parts = row.label.split('/').map((p) => p.trim())
+  if (parts.length === n && parts.every(Boolean)) {
+    const firstWords = parts[0].split(/\s+/)
+    const lastWords = parts[n - 1].split(/\s+/)
+    let suffixAt = lastWords.findIndex(
+      (w, i) => i > 0 && sharedSuffixWordRe.test(w)
+    )
+    if (suffixAt === -1) suffixAt = lastWords.length
+    const prefix = firstWords.slice(0, -1).join(' ')
+    const suffix = lastWords.slice(suffixAt).join(' ')
+    const alternatives = [
+      firstWords[firstWords.length - 1],
+      ...parts.slice(1, -1),
+      lastWords.slice(0, suffixAt).join(' '),
+    ]
+    return alternatives.map((alt) =>
+      [prefix, alt, suffix].filter(Boolean).join(' ')
+    )
+  }
+  return row.params.map((_, i) => `${row.label} (${i + 1}/${n})`)
+}
+
 export type CustomCharacterTalent = {
   name: string
   description: string
@@ -128,6 +167,8 @@ export type CustomCharacterDataDef = CustomCharacterBase & {
   passive1?: CustomCharacterText
   passive2?: CustomCharacterText
   passive3?: CustomCharacterText
+  /** Passives beyond the three standard ones; the first is shown in GO */
+  otherPassives?: CustomCharacterText[]
   constellations: CustomCharacterText[]
   /**
    * File names of the source site's images (without extension), per slot.
@@ -352,6 +393,9 @@ function validateDataDef(
     passive2: validateText(o['passive2']),
     passive3: validateText(o['passive3']),
     imageNames: validateImageMap(o['imageNames'], isImageName),
+    otherPassives: Array.isArray(o['otherPassives'])
+      ? o['otherPassives'].map(validateText).filter((c) => !!c)
+      : undefined,
     constellations: Array.isArray(constellations)
       ? constellations
           .map(validateText)

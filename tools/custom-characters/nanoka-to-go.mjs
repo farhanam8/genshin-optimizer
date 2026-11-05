@@ -249,6 +249,7 @@ function imageNamesOf(src, talentSkills) {
   names.passive1 = byUnlock(1)[0]?.icon
   names.passive2 = byUnlock(4)[0]?.icon
   names.passive3 = byUnlock(0)[0]?.icon
+  names.passive = byUnlock(0)[1]?.icon // a 4th passive, if any
   for (const [i, c] of (src.constellations ?? []).slice(0, 6).entries())
     names[`constellation${i + 1}`] = c.icon
   return Object.fromEntries(

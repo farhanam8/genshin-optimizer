@@ -4,14 +4,19 @@ import type {
   CustomCharacterDataDef,
   CustomCharacterTalent,
   CustomCharacterTalentKey,
-  CustomCharacterTalentRow,
+  ElementKey,
 } from '@genshin-optimizer/gi/consts'
+import { customCharacterRowLabels } from '@genshin-optimizer/gi/consts'
 import type { Data, NumNode } from '@genshin-optimizer/gi/wr'
 import { constant, greaterEq, infoMut, input } from '@genshin-optimizer/gi/wr'
 import type { IFieldDisplay } from '../fieldDisplay'
 import { CharacterSheet } from './CharacterSheet'
 import { charTemplates } from './charTemplates'
-import { dataObjForCharacterSheet, dmgNode } from './dataUtil'
+import {
+  dataObjForCharacterSheet,
+  dmgNode,
+  stellarTalentDmgNode,
+} from './dataUtil'
 import type { TalentSheet, TalentSheetElementKey } from './ICharacterSheet.d'
 
 /*
@@ -19,11 +24,14 @@ import type { TalentSheet, TalentSheetElementKey } from './ICharacterSheet.d'
  *
  * The imported data only has the talent rows shown in game ("1-Hit DMG",
  * "CD", ...) and their values per talent level, not how the game uses them.
- * So every percentage row whose label is a damage row (any Normal Attack
- * row, or a row named "... DMG") becomes a damage formula, scaling from the stat named in the row (ATK by default); every
- * other row is shown as a value for the current talent level. Passives and
- * constellations are shown as text, except constellations that increase a
- * talent level (usually C3/C5), which are applied.
+ * A row with several values ("Stellar-Conduct/Stellar Swirl DMG") is split
+ * into one entry per value. Every percentage value named as damage (any
+ * Normal Attack value, or one named "... DMG") becomes a damage formula,
+ * scaling from the stat named in the row (ATK by default); Stellar-Conduct
+ * and Stellar Swirl damage use GO's Stellar reaction formulas. Every other
+ * value is shown for the current talent level. Passives and constellations
+ * are shown as text, except constellations that increase a talent level
+ * (usually C3/C5), which are applied.
  */
 
 type Move =
@@ -34,8 +42,7 @@ type Move =
   | 'skill'
   | 'burst'
 
-const paramRe = /\{param(\d+):([A-Z0-9]+)\}/g
-/** Rows with these words are special reactions; their formula is unknown. */
+/** Other special reactions; GO has no talent formula for these. */
 const reactionRe =
   /stellar|lunar|moonsign|bloom|burgeon|hyperbloom|swirl|electro-charged|overloaded|superconduct|shatter|burning/i
 const notDamageRe = /increase|bonus|reduction|ratio|cost|interval|duration/i
@@ -68,11 +75,25 @@ function moveOf(talent: CustomCharacterTalentKey, label: string): Move {
   return 'normal'
 }
 
-function rowName(row: CustomCharacterTalentRow, part: number, after: string) {
-  const hits = after.match(/[×x]\s*(\d+)/)?.[1]
-  const parts =
-    row.params.length > 1 ? ` (${part + 1}/${row.params.length})` : ''
-  return `${row.label}${parts}${hits ? ` ×${hits}` : ''}`
+/** Stellar Glimmer reactions, and the element variant this character triggers. */
+function stellarOf(
+  name: string,
+  ele: ElementKey
+):
+  | { variant: 'stellarconduct'; eleVariant: 'electro' | 'cryo' }
+  | { variant: 'stellarswirl'; eleVariant: 'anemo' | 'cryo' }
+  | undefined {
+  if (/stellar[- ]conduct/i.test(name))
+    return {
+      variant: 'stellarconduct',
+      eleVariant: ele === 'cryo' ? 'cryo' : 'electro',
+    }
+  if (/stellar[- ]swirl/i.test(name))
+    return {
+      variant: 'stellarswirl',
+      eleVariant: ele === 'cryo' ? 'cryo' : 'anemo',
+    }
+  return undefined
 }
 
 /** Which talent a constellation description boosts by 3 levels, if any. */
@@ -107,17 +128,44 @@ export function dataSheetForCustomCharacter(
     const talent = def.talents[tk]
     const levelIndex = input.total[`${tk}Index`]
     talent.rows.forEach((row, r) => {
+      const labels = customCharacterRowLabels(row)
       row.params.forEach(({ index, format }, part) => {
         const values = talent.params[index]
         if (!values?.length) return
         const after = textAfter(row.template, index)
-        const name = rowName(row, part, after)
-        // Normal Attack rows are damage ("Aimed Shot"); other talents name it ("... DMG")
+        const hits = after.match(/[×x]\s*(\d+)/)?.[1]
+        const label = labels[part] ?? row.label
+        const name = hits ? `${label} ×${hits}` : label
+        const id = `${r}_${part}`
+        const section = (move: string) =>
+          tk === 'auto' ? move.split('_')[0] : tk
+        const addNode = (sectionKey: string, node: NumNode) => {
+          display[sectionKey] = { ...display[sectionKey], [id]: node }
+          fields[tk].push({ node })
+        }
+        const stellar = isPercent(format) && stellarOf(label, def.ele)
+        if (stellar) {
+          addNode(
+            section(moveOf(tk, label)),
+            infoMut(
+              stellarTalentDmgNode(
+                scalingStat(after),
+                values,
+                tk,
+                stellar.variant,
+                stellar.eleVariant
+              ),
+              { name }
+            )
+          )
+          return
+        }
+        // Normal Attack values are damage ("Aimed Shot"); other talents name it ("... DMG")
         const isDamage =
           isPercent(format) &&
-          (tk === 'auto' || /DMG/i.test(row.label)) &&
-          !notDamageRe.test(row.label) &&
-          !reactionRe.test(row.label)
+          (tk === 'auto' || /DMG/i.test(label)) &&
+          !notDamageRe.test(label) &&
+          !reactionRe.test(label)
         if (!isDamage) {
           const unit = isPercent(format)
             ? '%'
@@ -136,25 +184,22 @@ export function dataSheetForCustomCharacter(
           })
           return
         }
-        const move = moveOf(tk, row.label)
+        const move = moveOf(tk, label)
         const additional: Data = {}
         if (
           tk === 'auto' &&
-          (/fully[- ]charged/i.test(row.label) ||
-            new RegExp(def.ele, 'i').test(row.label))
+          (/fully[- ]charged/i.test(label) ||
+            new RegExp(def.ele, 'i').test(label))
         )
           additional.hit = { ele: constant(def.ele) }
         if (move === 'plunging_collision')
           additional.hit = { ...additional.hit, reaction: constant('') }
-        const node = infoMut(
-          dmgNode(scalingStat(after), values, move, additional),
-          {
+        addNode(
+          section(move),
+          infoMut(dmgNode(scalingStat(after), values, move, additional), {
             name,
-          }
+          })
         )
-        const section = tk === 'auto' ? move.split('_')[0] : tk
-        display[section] = { ...display[section], [`${r}_${part}`]: node }
-        fields[tk].push({ node })
       })
     })
   }
@@ -181,6 +226,7 @@ export function dataSheetForCustomCharacter(
   if (def.passive1) sheet.passive1 = ct.talentTem('passive1')
   if (def.passive2) sheet.passive2 = ct.talentTem('passive2')
   if (def.passive3) sheet.passive3 = ct.talentTem('passive3')
+  if (def.otherPassives?.length) sheet.passive = ct.talentTem('passive')
   def.constellations.forEach((_, i) => {
     const ck = `constellation${i + 1}` as TalentSheetElementKey
     const cFields = constellationFields[i + 1]

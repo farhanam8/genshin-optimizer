@@ -139,6 +139,7 @@ function dataCharacterTexts(def: CustomCharacterDataDef) {
     passive1: entry(def.passive1),
     passive2: entry(def.passive2),
     passive3: entry(def.passive3),
+    passive: entry(def.otherPassives?.[0]),
     ...Object.fromEntries(
       def.constellations.map((c, i) => [`constellation${i + 1}`, entry(c)])
     ),

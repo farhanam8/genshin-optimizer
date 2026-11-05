@@ -19,6 +19,7 @@ import {
   customCharacterAscStatKeys,
   customCharacterImageKeys,
   customCharacterImagesFromExample,
+  customCharacterRowLabels,
   customCharacterTalentKeys,
   isCustomCharacterImageUrl,
   isCustomCharacterKey,
@@ -72,17 +73,16 @@ function paramInfos(talent: CustomCharacterTalent): ParamInfo[] {
     label: `Param ${i + 1}`,
     percent: false,
   }))
-  for (const row of talent.rows)
+  for (const row of talent.rows) {
+    const labels = customCharacterRowLabels(row)
     row.params.forEach(({ index, format }, part) => {
       if (!infos[index]) return
       infos[index] = {
-        label:
-          row.params.length > 1
-            ? `${row.label} (${part + 1}/${row.params.length})`
-            : row.label,
+        label: labels[part] ?? row.label,
         percent: format.endsWith('P'),
       }
     })
+  }
   return infos
 }
 
