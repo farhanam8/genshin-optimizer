@@ -2,7 +2,7 @@
   "format": "genshin-optimizer-custom-characters",
   "version": 1,
   "source": "gi.nanoka.cc",
-  "exportedAt": "2026-11-05T01:04:05.081Z",
+  "exportedAt": "2026-11-05T02:21:19.473Z",
   "characters": [
     {
       "sourceId": 10000149,
@@ -1527,10 +1527,23 @@
           ]
         }
       ],
-      "images": {
+      "imageNames": {
         "icon": "UI_AvatarIcon_Anastasya",
-        "gacha": "UI_Gacha_AvatarImg_Anastasya",
-        "namecard": "UI_NameCardPic_Anastasya_P"
+        "iconSide": "UI_AvatarIcon_Side_Anastasya",
+        "banner": "UI_NameCardPic_Anastasya_P",
+        "card": "UI_Gacha_AvatarImg_Anastasya",
+        "skill": "Skill_S_Anastasya_01",
+        "burst": "Skill_E_Anastasya_01",
+        "passive1": "UI_Talent_S_Anastasya_05",
+        "passive2": "UI_Talent_S_Anastasya_06",
+        "passive3": "UI_Talent_S_Anastasya_07",
+        "passive": "UI_Talent_S_Anastasya_08",
+        "constellation1": "UI_Talent_S_Anastasya_01",
+        "constellation2": "UI_Talent_S_Anastasya_02",
+        "constellation3": "UI_Talent_U_Anastasya_01",
+        "constellation4": "UI_Talent_S_Anastasya_03",
+        "constellation5": "UI_Talent_U_Anastasya_02",
+        "constellation6": "UI_Talent_S_Anastasya_04"
       }
     }
   ]

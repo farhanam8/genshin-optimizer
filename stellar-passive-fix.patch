@@ -1,0 +1,370 @@
+From 922886cf6a32c3e6e946ae711520212f4849768c Mon Sep 17 00:00:00 2001
+From: Farhan <farhanabdm@gmail.com>
+Date: Thu, 5 Nov 2026 02:25:27 +0000
+Subject: [PATCH] fix(gi): split multi-value talent rows, Stellar damage, 4th
+ passive
+
+- A talent row with several values is split into one entry per value:
+  "1-Hit Stellar-Conduct/Stellar Swirl DMG" gives "1-Hit Stellar-Conduct
+  DMG" and "1-Hit Stellar Swirl DMG", "Low/High Plunge DMG" gives "Low
+  Plunge DMG" and "High Plunge DMG". The editor uses the same names.
+- Stellar-Conduct and Stellar Swirl values use GO's Stellar reaction
+  damage formulas instead of showing a raw percentage.
+- A 4th passive is imported and shown in the "passive" talent slot, with
+  its own image slot.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Asb8vZRqeTYT9zLpVizGNv
+---
+ libs/gi/consts/src/customCharacter.ts         |  44 ++++++++
+ libs/gi/i18n/src/i18n.ts                      |   1 +
+ .../assets/locales/en/page_character.json     |   3 +-
+ .../assets/locales/id/page_character.json     |   3 +-
+ .../sheets/src/Characters/customDataSheet.tsx | 104 +++++++++++++-----
+ .../character/CustomCharacterDataForm.tsx     |  10 +-
+ tools/custom-characters/nanoka-to-go.mjs      |   1 +
+ 7 files changed, 130 insertions(+), 36 deletions(-)
+
+diff --git a/libs/gi/consts/src/customCharacter.ts b/libs/gi/consts/src/customCharacter.ts
+index 9f005665..343efd06 100644
+--- a/libs/gi/consts/src/customCharacter.ts
++++ b/libs/gi/consts/src/customCharacter.ts
+@@ -49,6 +49,7 @@ export const customCharacterImageKeys = [
+   'passive1',
+   'passive2',
+   'passive3',
++  'passive',
+   'constellation1',
+   'constellation2',
+   'constellation3',
+@@ -92,6 +93,44 @@ export type CustomCharacterTalentRow = {
+   /** Params used by this row; `format` ends with `P` for percentages */
+   params: { index: number; format: string }[]
+ }
++/** Words that end a row label and are shared by all its values, e.g. "Plunge DMG" */
++const sharedSuffixWordRe =
++  /^(DMG|Plunge|Healing|Shield|Absorption|Regeneration|Bonus|Duration|CD|Cost)$/i
++
++/**
++ * The name of each value of a talent row. A row with several values names
++ * them with slashes, which are split here:
++ * "1-Hit Stellar-Conduct/Stellar Swirl DMG" gives "1-Hit Stellar-Conduct DMG"
++ * and "1-Hit Stellar Swirl DMG"; "Low/High Plunge DMG" gives "Low Plunge DMG"
++ * and "High Plunge DMG". Otherwise the values are numbered: "Label (1/2)".
++ */
++export function customCharacterRowLabels(
++  row: Pick<CustomCharacterTalentRow, 'label' | 'params'>
++): string[] {
++  const n = row.params.length
++  if (n < 2) return [row.label]
++  const parts = row.label.split('/').map((p) => p.trim())
++  if (parts.length === n && parts.every(Boolean)) {
++    const firstWords = parts[0].split(/\s+/)
++    const lastWords = parts[n - 1].split(/\s+/)
++    let suffixAt = lastWords.findIndex(
++      (w, i) => i > 0 && sharedSuffixWordRe.test(w)
++    )
++    if (suffixAt === -1) suffixAt = lastWords.length
++    const prefix = firstWords.slice(0, -1).join(' ')
++    const suffix = lastWords.slice(suffixAt).join(' ')
++    const alternatives = [
++      firstWords[firstWords.length - 1],
++      ...parts.slice(1, -1),
++      lastWords.slice(0, suffixAt).join(' '),
++    ]
++    return alternatives.map((alt) =>
++      [prefix, alt, suffix].filter(Boolean).join(' ')
++    )
++  }
++  return row.params.map((_, i) => `${row.label} (${i + 1}/${n})`)
++}
++
+ export type CustomCharacterTalent = {
+   name: string
+   description: string
+@@ -128,6 +167,8 @@ export type CustomCharacterDataDef = CustomCharacterBase & {
+   passive1?: CustomCharacterText
+   passive2?: CustomCharacterText
+   passive3?: CustomCharacterText
++  /** Passives beyond the three standard ones; the first is shown in GO */
++  otherPassives?: CustomCharacterText[]
+   constellations: CustomCharacterText[]
+   /**
+    * File names of the source site's images (without extension), per slot.
+@@ -352,6 +393,9 @@ function validateDataDef(
+     passive2: validateText(o['passive2']),
+     passive3: validateText(o['passive3']),
+     imageNames: validateImageMap(o['imageNames'], isImageName),
++    otherPassives: Array.isArray(o['otherPassives'])
++      ? o['otherPassives'].map(validateText).filter((c) => !!c)
++      : undefined,
+     constellations: Array.isArray(constellations)
+       ? constellations
+           .map(validateText)
+diff --git a/libs/gi/i18n/src/i18n.ts b/libs/gi/i18n/src/i18n.ts
+index 94d33098..d10bd5df 100644
+--- a/libs/gi/i18n/src/i18n.ts
++++ b/libs/gi/i18n/src/i18n.ts
+@@ -139,6 +139,7 @@ function dataCharacterTexts(def: CustomCharacterDataDef) {
+     passive1: entry(def.passive1),
+     passive2: entry(def.passive2),
+     passive3: entry(def.passive3),
++    passive: entry(def.otherPassives?.[0]),
+     ...Object.fromEntries(
+       def.constellations.map((c, i) => [`constellation${i + 1}`, entry(c)])
+     ),
+diff --git a/libs/gi/localization/assets/locales/en/page_character.json b/libs/gi/localization/assets/locales/en/page_character.json
+index ea2e3e03..7638cdba 100644
+--- a/libs/gi/localization/assets/locales/en/page_character.json
++++ b/libs/gi/localization/assets/locales/en/page_character.json
+@@ -177,7 +177,8 @@
+       "constellation3": "C3 icon",
+       "constellation4": "C4 icon",
+       "constellation5": "C5 icon",
+-      "constellation6": "C6 icon"
++      "constellation6": "C6 icon",
++      "passive": "Passive 4 icon"
+     }
+   }
+ }
+diff --git a/libs/gi/localization/assets/locales/id/page_character.json b/libs/gi/localization/assets/locales/id/page_character.json
+index 1b5e47d6..11346e6b 100644
+--- a/libs/gi/localization/assets/locales/id/page_character.json
++++ b/libs/gi/localization/assets/locales/id/page_character.json
+@@ -112,7 +112,8 @@
+       "constellation3": "Ikon C3",
+       "constellation4": "Ikon C4",
+       "constellation5": "Ikon C5",
+-      "constellation6": "Ikon C6"
++      "constellation6": "Ikon C6",
++      "passive": "Ikon pasif 4"
+     }
+   }
+ }
+diff --git a/libs/gi/sheets/src/Characters/customDataSheet.tsx b/libs/gi/sheets/src/Characters/customDataSheet.tsx
+index 50a414dc..9ea80d79 100644
+--- a/libs/gi/sheets/src/Characters/customDataSheet.tsx
++++ b/libs/gi/sheets/src/Characters/customDataSheet.tsx
+@@ -4,14 +4,19 @@ import type {
+   CustomCharacterDataDef,
+   CustomCharacterTalent,
+   CustomCharacterTalentKey,
+-  CustomCharacterTalentRow,
++  ElementKey,
+ } from '@genshin-optimizer/gi/consts'
++import { customCharacterRowLabels } from '@genshin-optimizer/gi/consts'
+ import type { Data, NumNode } from '@genshin-optimizer/gi/wr'
+ import { constant, greaterEq, infoMut, input } from '@genshin-optimizer/gi/wr'
+ import type { IFieldDisplay } from '../fieldDisplay'
+ import { CharacterSheet } from './CharacterSheet'
+ import { charTemplates } from './charTemplates'
+-import { dataObjForCharacterSheet, dmgNode } from './dataUtil'
++import {
++  dataObjForCharacterSheet,
++  dmgNode,
++  stellarTalentDmgNode,
++} from './dataUtil'
+ import type { TalentSheet, TalentSheetElementKey } from './ICharacterSheet.d'
+ 
+ /*
+@@ -19,11 +24,14 @@ import type { TalentSheet, TalentSheetElementKey } from './ICharacterSheet.d'
+  *
+  * The imported data only has the talent rows shown in game ("1-Hit DMG",
+  * "CD", ...) and their values per talent level, not how the game uses them.
+- * So every percentage row whose label is a damage row (any Normal Attack
+- * row, or a row named "... DMG") becomes a damage formula, scaling from the stat named in the row (ATK by default); every
+- * other row is shown as a value for the current talent level. Passives and
+- * constellations are shown as text, except constellations that increase a
+- * talent level (usually C3/C5), which are applied.
++ * A row with several values ("Stellar-Conduct/Stellar Swirl DMG") is split
++ * into one entry per value. Every percentage value named as damage (any
++ * Normal Attack value, or one named "... DMG") becomes a damage formula,
++ * scaling from the stat named in the row (ATK by default); Stellar-Conduct
++ * and Stellar Swirl damage use GO's Stellar reaction formulas. Every other
++ * value is shown for the current talent level. Passives and constellations
++ * are shown as text, except constellations that increase a talent level
++ * (usually C3/C5), which are applied.
+  */
+ 
+ type Move =
+@@ -34,8 +42,7 @@ type Move =
+   | 'skill'
+   | 'burst'
+ 
+-const paramRe = /\{param(\d+):([A-Z0-9]+)\}/g
+-/** Rows with these words are special reactions; their formula is unknown. */
++/** Other special reactions; GO has no talent formula for these. */
+ const reactionRe =
+   /stellar|lunar|moonsign|bloom|burgeon|hyperbloom|swirl|electro-charged|overloaded|superconduct|shatter|burning/i
+ const notDamageRe = /increase|bonus|reduction|ratio|cost|interval|duration/i
+@@ -68,11 +75,25 @@ function moveOf(talent: CustomCharacterTalentKey, label: string): Move {
+   return 'normal'
+ }
+ 
+-function rowName(row: CustomCharacterTalentRow, part: number, after: string) {
+-  const hits = after.match(/[×x]\s*(\d+)/)?.[1]
+-  const parts =
+-    row.params.length > 1 ? ` (${part + 1}/${row.params.length})` : ''
+-  return `${row.label}${parts}${hits ? ` ×${hits}` : ''}`
++/** Stellar Glimmer reactions, and the element variant this character triggers. */
++function stellarOf(
++  name: string,
++  ele: ElementKey
++):
++  | { variant: 'stellarconduct'; eleVariant: 'electro' | 'cryo' }
++  | { variant: 'stellarswirl'; eleVariant: 'anemo' | 'cryo' }
++  | undefined {
++  if (/stellar[- ]conduct/i.test(name))
++    return {
++      variant: 'stellarconduct',
++      eleVariant: ele === 'cryo' ? 'cryo' : 'electro',
++    }
++  if (/stellar[- ]swirl/i.test(name))
++    return {
++      variant: 'stellarswirl',
++      eleVariant: ele === 'cryo' ? 'cryo' : 'anemo',
++    }
++  return undefined
+ }
+ 
+ /** Which talent a constellation description boosts by 3 levels, if any. */
+@@ -107,17 +128,44 @@ export function dataSheetForCustomCharacter(
+     const talent = def.talents[tk]
+     const levelIndex = input.total[`${tk}Index`]
+     talent.rows.forEach((row, r) => {
++      const labels = customCharacterRowLabels(row)
+       row.params.forEach(({ index, format }, part) => {
+         const values = talent.params[index]
+         if (!values?.length) return
+         const after = textAfter(row.template, index)
+-        const name = rowName(row, part, after)
+-        // Normal Attack rows are damage ("Aimed Shot"); other talents name it ("... DMG")
++        const hits = after.match(/[×x]\s*(\d+)/)?.[1]
++        const label = labels[part] ?? row.label
++        const name = hits ? `${label} ×${hits}` : label
++        const id = `${r}_${part}`
++        const section = (move: string) =>
++          tk === 'auto' ? move.split('_')[0] : tk
++        const addNode = (sectionKey: string, node: NumNode) => {
++          display[sectionKey] = { ...display[sectionKey], [id]: node }
++          fields[tk].push({ node })
++        }
++        const stellar = isPercent(format) && stellarOf(label, def.ele)
++        if (stellar) {
++          addNode(
++            section(moveOf(tk, label)),
++            infoMut(
++              stellarTalentDmgNode(
++                scalingStat(after),
++                values,
++                tk,
++                stellar.variant,
++                stellar.eleVariant
++              ),
++              { name }
++            )
++          )
++          return
++        }
++        // Normal Attack values are damage ("Aimed Shot"); other talents name it ("... DMG")
+         const isDamage =
+           isPercent(format) &&
+-          (tk === 'auto' || /DMG/i.test(row.label)) &&
+-          !notDamageRe.test(row.label) &&
+-          !reactionRe.test(row.label)
++          (tk === 'auto' || /DMG/i.test(label)) &&
++          !notDamageRe.test(label) &&
++          !reactionRe.test(label)
+         if (!isDamage) {
+           const unit = isPercent(format)
+             ? '%'
+@@ -136,25 +184,22 @@ export function dataSheetForCustomCharacter(
+           })
+           return
+         }
+-        const move = moveOf(tk, row.label)
++        const move = moveOf(tk, label)
+         const additional: Data = {}
+         if (
+           tk === 'auto' &&
+-          (/fully[- ]charged/i.test(row.label) ||
+-            new RegExp(def.ele, 'i').test(row.label))
++          (/fully[- ]charged/i.test(label) ||
++            new RegExp(def.ele, 'i').test(label))
+         )
+           additional.hit = { ele: constant(def.ele) }
+         if (move === 'plunging_collision')
+           additional.hit = { ...additional.hit, reaction: constant('') }
+-        const node = infoMut(
+-          dmgNode(scalingStat(after), values, move, additional),
+-          {
++        addNode(
++          section(move),
++          infoMut(dmgNode(scalingStat(after), values, move, additional), {
+             name,
+-          }
++          })
+         )
+-        const section = tk === 'auto' ? move.split('_')[0] : tk
+-        display[section] = { ...display[section], [`${r}_${part}`]: node }
+-        fields[tk].push({ node })
+       })
+     })
+   }
+@@ -181,6 +226,7 @@ export function dataSheetForCustomCharacter(
+   if (def.passive1) sheet.passive1 = ct.talentTem('passive1')
+   if (def.passive2) sheet.passive2 = ct.talentTem('passive2')
+   if (def.passive3) sheet.passive3 = ct.talentTem('passive3')
++  if (def.otherPassives?.length) sheet.passive = ct.talentTem('passive')
+   def.constellations.forEach((_, i) => {
+     const ck = `constellation${i + 1}` as TalentSheetElementKey
+     const cFields = constellationFields[i + 1]
+diff --git a/libs/gi/ui/src/components/character/CustomCharacterDataForm.tsx b/libs/gi/ui/src/components/character/CustomCharacterDataForm.tsx
+index 8e2ddcd0..a4a6ece2 100644
+--- a/libs/gi/ui/src/components/character/CustomCharacterDataForm.tsx
++++ b/libs/gi/ui/src/components/character/CustomCharacterDataForm.tsx
+@@ -19,6 +19,7 @@ import {
+   customCharacterAscStatKeys,
+   customCharacterImageKeys,
+   customCharacterImagesFromExample,
++  customCharacterRowLabels,
+   customCharacterTalentKeys,
+   isCustomCharacterImageUrl,
+   isCustomCharacterKey,
+@@ -72,17 +73,16 @@ function paramInfos(talent: CustomCharacterTalent): ParamInfo[] {
+     label: `Param ${i + 1}`,
+     percent: false,
+   }))
+-  for (const row of talent.rows)
++  for (const row of talent.rows) {
++    const labels = customCharacterRowLabels(row)
+     row.params.forEach(({ index, format }, part) => {
+       if (!infos[index]) return
+       infos[index] = {
+-        label:
+-          row.params.length > 1
+-            ? `${row.label} (${part + 1}/${row.params.length})`
+-            : row.label,
++        label: labels[part] ?? row.label,
+         percent: format.endsWith('P'),
+       }
+     })
++  }
+   return infos
+ }
+ 
+diff --git a/tools/custom-characters/nanoka-to-go.mjs b/tools/custom-characters/nanoka-to-go.mjs
+index f2e2defb..36906b9b 100644
+--- a/tools/custom-characters/nanoka-to-go.mjs
++++ b/tools/custom-characters/nanoka-to-go.mjs
+@@ -249,6 +249,7 @@ function imageNamesOf(src, talentSkills) {
+   names.passive1 = byUnlock(1)[0]?.icon
+   names.passive2 = byUnlock(4)[0]?.icon
+   names.passive3 = byUnlock(0)[0]?.icon
++  names.passive = byUnlock(0)[1]?.icon // a 4th passive, if any
+   for (const [i, c] of (src.constellations ?? []).slice(0, 6).entries())
+     names[`constellation${i + 1}`] = c.icon
+   return Object.fromEntries(
+-- 
+2.43.0
+
