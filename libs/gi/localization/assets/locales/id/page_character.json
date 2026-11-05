@@ -135,7 +135,30 @@
       "excludeEles": "Semua kecuali ini",
       "remove": "Hapus buff",
       "add": "Tambah Buff",
-      "invalid": "Ada angka yang tidak valid di buff ini."
+      "invalid": "Ada angka yang tidak valid di buff ini.",
+      "targetOthers": "Anggota party lain",
+      "conditionState": "Pilihan toggle (opsional)",
+      "conditionStatePlaceholder": "mis. Love (E tap)",
+      "edit": "Edit",
+      "close": "Tutup"
+    },
+    "effects": "Efek talent",
+    "effectsHelp": "Perubahan nilai talent dari pasif dan konstelasi. Multiplier DMG: nilai yang cocok memberi % ini dari DMG aslinya (125% = multiplier ×1,25). Hit tambahan: menambah salinan setiap nilai yang cocok dengan % ini dari DMG-nya. Baris dicocokkan lewat namanya (regular expression; | berarti atau).",
+    "effect": {
+      "kind": "Jenis",
+      "multiplier": "Multiplier DMG",
+      "extraHit": "Hit tambahan",
+      "talent": "Talent",
+      "anyTalent": "Semua",
+      "match": "Nama baris seperti",
+      "value": "% dari DMG asli",
+      "name": "Nama",
+      "bonuses": "Stat khusus hit ini:",
+      "addBonus": "Tambah stat",
+      "matched_one": "Cocok dengan {{count}} nilai: {{names}}",
+      "matched_other": "Cocok dengan {{count}} nilai: {{names}}",
+      "noMatch": "Tidak cocok dengan nilai DMG mana pun.",
+      "add": "Tambah Efek Talent"
     }
   }
 }

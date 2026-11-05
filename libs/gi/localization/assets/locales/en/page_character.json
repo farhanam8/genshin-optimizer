@@ -200,7 +200,30 @@
       "excludeEles": "All except these",
       "remove": "Remove buff",
       "add": "Add Buff",
-      "invalid": "A number in this buff is invalid."
+      "invalid": "A number in this buff is invalid.",
+      "targetOthers": "Other party members",
+      "conditionState": "Toggle option (optional)",
+      "conditionStatePlaceholder": "e.g. Love (E tap)",
+      "edit": "Edit",
+      "close": "Close"
+    },
+    "effects": "Talent effects",
+    "effectsHelp": "Changes to talent values from passives and constellations. Multiplier: matched values deal this % of their original DMG (125% = ×1.25 on the multiplier). Extra hit: adds a copy of each matched value dealing this % of its DMG. Rows are matched by name (a regular expression; | means or).",
+    "effect": {
+      "kind": "Type",
+      "multiplier": "DMG multiplier",
+      "extraHit": "Extra hit",
+      "talent": "Talent",
+      "anyTalent": "Any",
+      "match": "Rows named like",
+      "value": "% of original DMG",
+      "name": "Name",
+      "bonuses": "Stats for this hit only:",
+      "addBonus": "Add stat",
+      "matched_one": "Matches {{count}} value: {{names}}",
+      "matched_other": "Matches {{count}} values: {{names}}",
+      "noMatch": "Matches no DMG value.",
+      "add": "Add Talent Effect"
     }
   }
 }

@@ -209,15 +209,107 @@ export type CustomCharacterBuff = {
   source: CustomCharacterBuffSource
   stat: CustomCharacterBuffStat
   value: number
-  /** `self`: only this character; `team`: every party member, including this one */
-  target: 'self' | 'team'
+  /**
+   * `self`: only this character; `team`: every party member, including this
+   * one; `others`: every party member except this one
+   */
+  target: CustomCharacterBuffTarget
   scaling?: { stat: 'atk' | 'hp' | 'def' | 'eleMas'; per: number }
   max?: number
   /** When set, the buff only applies while this toggle (shared by name) is on */
   condition?: string
-  /** For team buffs: only party members of these elements (or all others, with `excludeEles`) */
+  /**
+   * With `condition`: the buff applies only while the toggle is in this
+   * state. A toggle whose buffs name states becomes a choice between them.
+   */
+  conditionState?: string
+  /** For team/others buffs: only party members of these elements (or all others, with `excludeEles`) */
   eles?: ElementKey[]
   excludeEles?: boolean
+}
+
+export const customCharacterBuffTargets = ['self', 'team', 'others'] as const
+export type CustomCharacterBuffTarget =
+  (typeof customCharacterBuffTargets)[number]
+
+/**
+ * A change to talent rows rather than to a stat. Rows are picked by
+ * `match`, a case-insensitive regular expression tested on each value's name
+ * (e.g. "Doom" or "^Triumph"), optionally only in one talent.
+ * - `multiplier`: the matched values deal `value` times their DMG
+ *   (e.g. 1.25 = "125% of the original DMG")
+ * - `extraHit`: adds a copy of each matched value, dealing `value` times its
+ *   DMG (e.g. 2.5), shown under `source` as "`name`: <row name>", with
+ *   `bonuses` applied to that hit only
+ */
+export type CustomCharacterRowEffect = {
+  source: CustomCharacterBuffSource
+  kind: 'multiplier' | 'extraHit'
+  match: string
+  talent?: CustomCharacterTalentKey
+  value: number
+  name?: string
+  bonuses?: { stat: CustomCharacterBuffStat; value: number }[]
+  condition?: string
+  conditionState?: string
+}
+
+function cleanCondition(o: Record<string, unknown>) {
+  const { condition, conditionState } = o
+  if (typeof condition !== 'string' || !condition.trim()) return {}
+  return {
+    condition: condition.trim().slice(0, 80),
+    ...(typeof conditionState === 'string' && conditionState.trim()
+      ? { conditionState: conditionState.trim().slice(0, 80) }
+      : {}),
+  }
+}
+
+/** Sanitized copy of a row effect, or `undefined` if invalid. */
+export function validateCustomCharacterRowEffect(
+  o: unknown
+): CustomCharacterRowEffect | undefined {
+  if (typeof o !== 'object' || o === null || Array.isArray(o)) return undefined
+  const r = o as Record<string, unknown>
+  const { source, kind, match, talent, value, name, bonuses } = r
+  if (!customCharacterBuffSources.includes(source as CustomCharacterBuffSource))
+    return undefined
+  if (kind !== 'multiplier' && kind !== 'extraHit') return undefined
+  if (typeof match !== 'string' || !match.trim() || match.length > 200)
+    return undefined
+  try {
+    new RegExp(match, 'i')
+  } catch {
+    return undefined
+  }
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0)
+    return undefined
+  const effect: CustomCharacterRowEffect = {
+    source: source as CustomCharacterBuffSource,
+    kind,
+    match,
+    value,
+    ...cleanCondition(r),
+  }
+  if (customCharacterTalentKeys.includes(talent as CustomCharacterTalentKey))
+    effect.talent = talent as CustomCharacterTalentKey
+  if (typeof name === 'string' && name.trim())
+    effect.name = name.trim().slice(0, 80)
+  if (Array.isArray(bonuses)) {
+    const valid = bonuses.flatMap((b) => {
+      if (typeof b !== 'object' || b === null) return []
+      const { stat, value: v } = b as Record<string, unknown>
+      return customCharacterBuffStats.includes(
+        stat as CustomCharacterBuffStat
+      ) &&
+        typeof v === 'number' &&
+        Number.isFinite(v)
+        ? [{ stat: stat as CustomCharacterBuffStat, value: v }]
+        : []
+    })
+    if (valid.length) effect.bonuses = valid
+  }
+  return effect
 }
 
 /** Sanitized copy of a buff, or `undefined` if invalid. */
@@ -226,18 +318,20 @@ export function validateCustomCharacterBuff(
 ): CustomCharacterBuff | undefined {
   if (typeof o !== 'object' || o === null || Array.isArray(o)) return undefined
   const b = o as Record<string, unknown>
-  const { source, stat, value, target, scaling, max, condition, eles } = b
+  const { source, stat, value, target, scaling, max, eles } = b
   if (!customCharacterBuffSources.includes(source as CustomCharacterBuffSource))
     return undefined
   if (!customCharacterBuffStats.includes(stat as CustomCharacterBuffStat))
     return undefined
   if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
-  if (target !== 'self' && target !== 'team') return undefined
+  if (!customCharacterBuffTargets.includes(target as CustomCharacterBuffTarget))
+    return undefined
   const buff: CustomCharacterBuff = {
     source: source as CustomCharacterBuffSource,
     stat: stat as CustomCharacterBuffStat,
     value,
-    target,
+    target: target as CustomCharacterBuffTarget,
+    ...cleanCondition(b),
   }
   if (typeof scaling === 'object' && scaling !== null) {
     const { stat: sStat, per } = scaling as Record<string, unknown>
@@ -253,8 +347,6 @@ export function validateCustomCharacterBuff(
       buff.scaling = { stat: sStat, per }
   }
   if (typeof max === 'number' && Number.isFinite(max)) buff.max = max
-  if (typeof condition === 'string' && condition.trim())
-    buff.condition = condition.trim().slice(0, 80)
   if (Array.isArray(eles)) {
     const valid = eles.filter((e): e is ElementKey =>
       buffElements.includes(e as (typeof buffElements)[number])
@@ -298,6 +390,8 @@ export type CustomCharacterDataDef = CustomCharacterBase & {
   otherPassives?: CustomCharacterText[]
   /** Stat bonuses from passives and constellations */
   buffs?: CustomCharacterBuff[]
+  /** Changes to talent rows from passives and constellations */
+  rowEffects?: CustomCharacterRowEffect[]
   constellations: CustomCharacterText[]
   /**
    * File names of the source site's images (without extension), per slot.
@@ -526,6 +620,11 @@ function validateDataDef(
       ? o['buffs']
           .map(validateCustomCharacterBuff)
           .filter((b): b is CustomCharacterBuff => !!b)
+      : undefined,
+    rowEffects: Array.isArray(o['rowEffects'])
+      ? o['rowEffects']
+          .map(validateCustomCharacterRowEffect)
+          .filter((r): r is CustomCharacterRowEffect => !!r)
       : undefined,
     otherPassives: Array.isArray(o['otherPassives'])
       ? o['otherPassives'].map(validateText).filter((c) => !!c)

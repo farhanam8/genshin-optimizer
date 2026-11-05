@@ -4,6 +4,7 @@ import type {
   CustomCharacterBuff,
   CustomCharacterBuffSource,
   CustomCharacterDataDef,
+  CustomCharacterRowEffect,
   CustomCharacterTalent,
   CustomCharacterTalentKey,
   ElementKey,
@@ -17,6 +18,7 @@ import {
   infoMut,
   input,
   min,
+  one,
   percent,
   prod,
   sum,
@@ -46,9 +48,13 @@ import type { TalentSheet, TalentSheetElementKey } from './ICharacterSheet.d'
  * Normal Attack value, or one named "... DMG") becomes a damage formula,
  * scaling from the stat named in the row (ATK by default); Stellar-Conduct
  * and Stellar Swirl damage use GO's Stellar reaction formulas. Every other
- * value is shown for the current talent level. Passives and constellations
- * are shown as text, except constellations that increase a talent level
- * (usually C3/C5), which are applied.
+ * value is shown for the current talent level. Constellations that increase
+ * a talent level (usually C3/C5) are applied.
+ *
+ * Passives and constellations can also have buffs (stat bonuses for this
+ * character, the party, or the other party members) and row effects (DMG
+ * multipliers on matching talent values, or extra hits copying them), both
+ * optionally behind a named toggle that may have several states.
  */
 
 type Move =
@@ -138,28 +144,124 @@ function unlocked(source: CustomCharacterBuffSource, node: NumNode): NumNode {
   return node
 }
 
+const slug = (s: string) => s.replace(/[^a-z0-9]+/gi, '_').slice(0, 40)
+
 /**
- * Formulas for a character's buffs: stat bonuses for itself (`self`) and for
- * the whole party (`team`), plus the sections that show them under their
- * passive or constellation, with a toggle for each named condition.
+ * The named toggles of a character. A toggle used without states is on/off;
+ * a toggle whose users name states is a choice between those states.
  */
-function buffsOf(
+function conditions(
   key: CharacterKey,
-  buffs: CustomCharacterBuff[],
-  ct: ICharacterTemplate
+  users: { condition?: string; conditionState?: string }[]
 ) {
-  const self: Record<string, NumNode[]> = {}
-  const team: Record<string, NumNode[]> = {}
-  const conds = new Map<string, ReturnType<typeof cond>>()
-  const groups = new Map<
+  const all = new Map<
+    string,
+    { path: string[]; node: ReturnType<typeof cond>[1]; states: string[] }
+  >()
+  for (const { condition, conditionState } of users) {
+    if (!condition) continue
+    let c = all.get(condition)
+    if (!c) {
+      const [path, node] = cond(key, `buff_${slug(condition)}`)
+      c = { path, node, states: [] }
+      all.set(condition, c)
+    }
+    const state = conditionState ?? ''
+    if (!c.states.includes(state)) c.states.push(state)
+  }
+  const stateKey = (state = '') => (state ? slug(state) : 'on')
+  return {
+    all,
+    stateKey,
+    /** `node` only while the toggle is in `state` */
+    when(
+      condition: string | undefined,
+      state: string | undefined,
+      node: NumNode
+    ) {
+      const c = condition && all.get(condition)
+      return c ? equal(stateKey(state), c.node, node) : node
+    },
+  }
+}
+type Conditions = ReturnType<typeof conditions>
+
+/** Fields shown under a passive or constellation, per toggle and state. */
+class SourceFields {
+  private groups = new Map<
     string,
     {
       source: CustomCharacterBuffSource
       condition?: string
       team: boolean
-      fields: IFieldDisplay[]
+      fields: Map<string, IFieldDisplay[]>
     }
   >()
+  add(
+    source: CustomCharacterBuffSource,
+    condition: string | undefined,
+    state: string | undefined,
+    team: boolean,
+    field: IFieldDisplay
+  ) {
+    const k = `${source}|${condition ?? ''}`
+    const g = this.groups.get(k) ?? {
+      source,
+      condition,
+      team: false,
+      fields: new Map<string, IFieldDisplay[]>(),
+    }
+    g.team ||= team
+    const s = state ?? ''
+    g.fields.set(s, [...(g.fields.get(s) ?? []), field])
+    this.groups.set(k, g)
+  }
+  sections(ct: ICharacterTemplate, conds: Conditions) {
+    const sections: Partial<
+      Record<CustomCharacterBuffSource, DocumentSection[]>
+    > = {}
+    for (const g of this.groups.values()) {
+      const c = g.condition ? conds.all.get(g.condition) : undefined
+      const section: DocumentSection =
+        g.condition && c
+          ? ct.condTem(g.source, {
+              path: c.path,
+              value: c.node,
+              name: g.condition,
+              teamBuff: g.team,
+              // every state of the toggle can be picked from every card using it
+              states: Object.fromEntries(
+                c.states.map((state) => [
+                  conds.stateKey(state),
+                  {
+                    ...(state ? { name: state } : {}),
+                    fields: g.fields.get(state) ?? [],
+                  },
+                ])
+              ),
+            })
+          : ct.headerTem(g.source, {
+              teamBuff: g.team,
+              fields: g.fields.get('') ?? [],
+            })
+      sections[g.source] = [...(sections[g.source] ?? []), section]
+    }
+    return sections
+  }
+}
+
+/**
+ * Formulas for a character's buffs: stat bonuses for itself (`self`), and
+ * for the party (`team`, including itself, and `others`).
+ */
+function buffsOf(
+  key: CharacterKey,
+  buffs: CustomCharacterBuff[],
+  conds: Conditions,
+  shown: SourceFields
+) {
+  const self: Record<string, NumNode[]> = {}
+  const team: Record<string, NumNode[]> = {}
   for (const b of buffs) {
     if (!(b.stat in input.premod)) continue
     const isPercent = b.stat.endsWith('_')
@@ -168,56 +270,21 @@ function buffsOf(
     if (b.scaling)
       node = prod(node, input.total[b.scaling.stat], 1 / b.scaling.per)
     if (b.max !== undefined) node = min(node, amount(b.max))
-    if (b.target === 'team' && b.eles?.length) {
+    const forParty = b.target !== 'self'
+    if (forParty && b.eles?.length) {
       const base = node
       node = b.excludeEles
         ? b.eles.reduce<NumNode>((n, e) => unequal(target.charEle, e, n), base)
         : sum(...b.eles.map((e) => equal(target.charEle, e, base)))
     }
-    if (b.condition) {
-      let c = conds.get(b.condition)
-      if (!c) {
-        const slug = b.condition.replace(/[^a-z0-9]+/gi, '_').slice(0, 40)
-        c = cond(key, `buff_${slug}`)
-        conds.set(b.condition, c)
-      }
-      node = equal('on', c[1], node)
-    }
-    node = infoMut(unlocked(b.source, node), {
-      path: b.stat,
-      isTeamBuff: b.target === 'team',
-    })
-    const premod = b.target === 'team' ? team : self
+    if (b.target === 'others') node = unequal(target.charKey, key, node)
+    node = infoMut(
+      unlocked(b.source, conds.when(b.condition, b.conditionState, node)),
+      { path: b.stat, isTeamBuff: forParty }
+    )
+    const premod = forParty ? team : self
     premod[b.stat] = [...(premod[b.stat] ?? []), node]
-
-    const groupKey = `${b.source}|${b.condition ?? ''}`
-    const group = groups.get(groupKey) ?? {
-      source: b.source,
-      condition: b.condition,
-      team: false,
-      fields: [],
-    }
-    group.team ||= b.target === 'team'
-    group.fields.push({ node })
-    groups.set(groupKey, group)
-  }
-
-  const sections: Partial<
-    Record<CustomCharacterBuffSource, DocumentSection[]>
-  > = {}
-  for (const g of groups.values()) {
-    const section: DocumentSection = g.condition
-      ? ct.condTem(g.source, {
-          // biome-ignore lint/style/noNonNullAssertion: set for every condition above
-          path: conds.get(g.condition)![0],
-          // biome-ignore lint/style/noNonNullAssertion: set for every condition above
-          value: conds.get(g.condition)![1],
-          name: g.condition,
-          teamBuff: g.team,
-          states: { on: { fields: g.fields } },
-        })
-      : ct.headerTem(g.source, { teamBuff: g.team, fields: g.fields })
-    sections[g.source] = [...(sections[g.source] ?? []), section]
+    shown.add(b.source, b.condition, b.conditionState, forParty, { node })
   }
   const total = (nodes: Record<string, NumNode[]>) =>
     Object.fromEntries(
@@ -226,14 +293,23 @@ function buffsOf(
         list.length === 1 ? list[0] : sum(...list),
       ])
     )
-  return { self: total(self), team: total(team), sections }
+  return { self: total(self), team: total(team) }
 }
+
+const effectMatches = (
+  e: CustomCharacterRowEffect,
+  tk: CustomCharacterTalentKey,
+  name: string
+) => (!e.talent || e.talent === tk) && new RegExp(e.match, 'i').test(name)
 
 export function dataSheetForCustomCharacter(
   def: CustomCharacterDataDef
 ): CharacterSheet {
   const key = def.key as CharacterKey
   const ct = charTemplates(key as CharacterSheetKey)
+  const effects = def.rowEffects ?? []
+  const conds = conditions(key, [...(def.buffs ?? []), ...effects])
+  const shown = new SourceFields()
   const display: Record<string, Record<string, NumNode>> = {}
   const fields: Record<CustomCharacterTalentKey, IFieldDisplay[]> = {
     auto: [],
@@ -254,35 +330,14 @@ export function dataSheetForCustomCharacter(
         const label = labels[part] ?? row.label
         const name = hits ? `${label} ×${hits}` : label
         const id = `${r}_${part}`
-        const section = (move: string) =>
-          tk === 'auto' ? move.split('_')[0] : tk
-        const addNode = (sectionKey: string, node: NumNode) => {
-          display[sectionKey] = { ...display[sectionKey], [id]: node }
-          fields[tk].push({ node })
-        }
         const stellar = isPercent(format) && stellarOf(label, def.ele)
-        if (stellar) {
-          addNode(
-            section(moveOf(tk, label)),
-            infoMut(
-              stellarTalentDmgNode(
-                scalingStat(after),
-                values,
-                tk,
-                stellar.variant,
-                stellar.eleVariant
-              ),
-              { name }
-            )
-          )
-          return
-        }
         // Normal Attack values are damage ("Aimed Shot"); other talents name it ("... DMG")
         const isDamage =
-          isPercent(format) &&
-          (tk === 'auto' || /DMG/i.test(label)) &&
-          !notDamageRe.test(label) &&
-          !reactionRe.test(label)
+          !!stellar ||
+          (isPercent(format) &&
+            (tk === 'auto' || /DMG/i.test(label)) &&
+            !notDamageRe.test(label) &&
+            !reactionRe.test(label))
         if (!isDamage) {
           const unit = isPercent(format)
             ? '%'
@@ -301,25 +356,93 @@ export function dataSheetForCustomCharacter(
           })
           return
         }
+
         const move = moveOf(tk, label)
-        const additional: Data = {}
-        if (
-          tk === 'auto' &&
-          (/fully[- ]charged/i.test(label) ||
-            new RegExp(def.ele, 'i').test(label))
+        const section = tk === 'auto' ? move.split('_')[0] : tk
+        /** This value's DMG formula, times `multiplier`, with `extra` stats for this hit only. */
+        const dmg = (multiplier?: NumNode, extra?: Data['premod']) => {
+          const additional: Data = extra ? { premod: extra } : {}
+          if (stellar)
+            return stellarTalentDmgNode(
+              scalingStat(after),
+              values,
+              tk,
+              stellar.variant,
+              stellar.eleVariant,
+              additional,
+              multiplier
+            )
+          if (
+            tk === 'auto' &&
+            (/fully[- ]charged/i.test(label) ||
+              new RegExp(def.ele, 'i').test(label))
+          )
+            additional.hit = { ele: constant(def.ele) }
+          if (move === 'plunging_collision')
+            additional.hit = { ...additional.hit, reaction: constant('') }
+          return dmgNode(
+            scalingStat(after),
+            values,
+            move,
+            additional,
+            multiplier
+          )
+        }
+
+        // "deals 125% of its original DMG": 1 + 0.25 while active
+        const multipliers = effects
+          .filter((e) => e.kind === 'multiplier' && effectMatches(e, tk, label))
+          .map((e) =>
+            unlocked(
+              e.source,
+              conds.when(e.condition, e.conditionState, constant(e.value - 1))
+            )
+          )
+        const node = infoMut(
+          dmg(multipliers.length ? sum(one, ...multipliers) : undefined),
+          { name }
         )
-          additional.hit = { ele: constant(def.ele) }
-        if (move === 'plunging_collision')
-          additional.hit = { ...additional.hit, reaction: constant('') }
-        addNode(
-          section(move),
-          infoMut(dmgNode(scalingStat(after), values, move, additional), {
-            name,
+        display[section] = { ...display[section], [id]: node }
+        fields[tk].push({ node })
+
+        for (const e of effects) {
+          if (e.kind !== 'extraHit' || !effectMatches(e, tk, label)) continue
+          const extra = e.bonuses?.length
+            ? Object.fromEntries(
+                e.bonuses.map((b) => [
+                  b.stat,
+                  b.stat.endsWith('_') ? percent(b.value) : constant(b.value),
+                ])
+              )
+            : undefined
+          const hit = infoMut(
+            unlocked(
+              e.source,
+              conds.when(
+                e.condition,
+                e.conditionState,
+                dmg(constant(e.value), extra)
+              )
+            ),
+            { name: `${e.name ?? 'Extra hit'}: ${name}` }
+          )
+          display[e.source] = { ...display[e.source], [`${tk}_${id}`]: hit }
+          shown.add(e.source, e.condition, e.conditionState, false, {
+            node: hit,
           })
-        )
+        }
       })
     })
   }
+
+  for (const e of effects)
+    if (e.kind === 'multiplier')
+      shown.add(e.source, e.condition, e.conditionState, false, {
+        text: e.name ?? e.match,
+        value: e.value * 100,
+        fixed: 0,
+        unit: '%',
+      })
 
   const boosts: Partial<
     Record<'autoBoost' | 'skillBoost' | 'burstBoost', NumNode>
@@ -333,7 +456,8 @@ export function dataSheetForCustomCharacter(
     constellationFields[i + 1] = [{ node }]
   })
 
-  const buffs = buffsOf(key, def.buffs ?? [], ct)
+  const buffs = buffsOf(key, def.buffs ?? [], conds, shown)
+  const sourceSections = shown.sections(ct, conds)
   const data = dataObjForCharacterSheet(key, display, {
     premod: { ...buffs.self, ...boosts },
     teamBuff: { premod: buffs.team },
@@ -342,7 +466,7 @@ export function dataSheetForCustomCharacter(
     k: CustomCharacterBuffSource,
     sections?: DocumentSection[]
   ) => {
-    const all = [...(sections ?? []), ...(buffs.sections[k] ?? [])]
+    const all = [...(sections ?? []), ...(sourceSections[k] ?? [])]
     return all.length ? all : undefined
   }
 
@@ -351,13 +475,13 @@ export function dataSheetForCustomCharacter(
     skill: ct.talentTem('skill', [{ fields: fields.skill }]),
     burst: ct.talentTem('burst', [{ fields: fields.burst }]),
   }
-  if (def.passive1 || buffs.sections.passive1)
+  if (def.passive1 || sourceSections.passive1)
     sheet.passive1 = ct.talentTem('passive1', withBuffs('passive1'))
-  if (def.passive2 || buffs.sections.passive2)
+  if (def.passive2 || sourceSections.passive2)
     sheet.passive2 = ct.talentTem('passive2', withBuffs('passive2'))
-  if (def.passive3 || buffs.sections.passive3)
+  if (def.passive3 || sourceSections.passive3)
     sheet.passive3 = ct.talentTem('passive3', withBuffs('passive3'))
-  if (def.otherPassives?.length || buffs.sections.passive)
+  if (def.otherPassives?.length || sourceSections.passive)
     sheet.passive = ct.talentTem('passive', withBuffs('passive'))
   def.constellations.forEach((_, i) => {
     const ck = `constellation${i + 1}` as CustomCharacterBuffSource &

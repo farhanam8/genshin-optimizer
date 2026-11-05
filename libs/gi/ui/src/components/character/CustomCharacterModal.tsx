@@ -122,6 +122,7 @@ function importPack(
           images: { ...char.images, ...existing.images },
           // a pack without buffs keeps the buffs set in GO
           buffs: char.buffs ?? existing.buffs,
+          rowEffects: char.rowEffects ?? existing.rowEffects,
         }
       : {
           ...char,

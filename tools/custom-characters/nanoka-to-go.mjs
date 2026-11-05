@@ -18,7 +18,8 @@
  *
  * Buffs (stat bonuses from passives and constellations) are not in the source
  * data. When `buffs/<character id>.json` exists next to this script, its
- * `buffs` are added to that character. Buffs can also be edited in GO.
+ * `buffs` and `rowEffects` are added to that character. Both can also be
+ * edited in GO.
  *
  * Only Node.js built-ins are used, so the script runs without `yarn install`.
  */
@@ -283,7 +284,7 @@ export function imagesFromExample(imageNames, exampleUrl) {
   )
 }
 
-/** Hand-written buffs for a character, from `buffs/<id>.json`, if any. */
+/** Hand-written buffs and talent effects for a character, from `buffs/<id>.json`, if any. */
 function buffPreset(sourceId) {
   if (!sourceId) return undefined
   const file = join(
@@ -292,8 +293,11 @@ function buffPreset(sourceId) {
     `${sourceId}.json`
   )
   if (!existsSync(file)) return undefined
-  const { buffs } = JSON.parse(readFileSync(file, 'utf8'))
-  return Array.isArray(buffs) ? buffs : undefined
+  const { buffs, rowEffects } = JSON.parse(readFileSync(file, 'utf8'))
+  return {
+    buffs: Array.isArray(buffs) ? buffs : [],
+    rowEffects: Array.isArray(rowEffects) ? rowEffects : [],
+  }
 }
 
 export function makePack(characters, source = 'gi.nanoka.cc') {
@@ -349,11 +353,12 @@ function main(argv) {
     }
     const char = convertNanokaCharacter(data, id ? Number(id) : null)
     if (imageUrl) char.images = imagesFromExample(char.imageNames, imageUrl)
-    const buffs = buffPreset(char.sourceId)
-    if (buffs) {
-      char.buffs = buffs
+    const preset = buffPreset(char.sourceId)
+    if (preset) {
+      char.buffs = preset.buffs
+      char.rowEffects = preset.rowEffects
       console.error(
-        `  + ${buffs.length} buffs from buffs/${char.sourceId}.json`
+        `  + ${preset.buffs.length} buffs, ${preset.rowEffects.length} talent effects from buffs/${char.sourceId}.json`
       )
     }
     characters.push(char)

@@ -50,11 +50,14 @@ import {
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ArtifactIconStatWithUnit } from '../artifact/ArtifactStatKeyDisplay'
-import type { BuffRow } from './CustomCharacterBuffEditor'
+import type { BuffRow, RowEffectRow } from './CustomCharacterBuffEditor'
 import {
   buffToRow,
   CustomCharacterBuffEditor,
+  CustomCharacterRowEffectEditor,
+  rowEffectToRow,
   rowToBuff,
+  rowToRowEffect,
 } from './CustomCharacterBuffEditor'
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
@@ -167,6 +170,9 @@ export function CustomCharacterDataForm({
   const [buffRows, setBuffRows] = useState<BuffRow[]>(() =>
     (def.buffs ?? []).map(buffToRow)
   )
+  const [effectRows, setEffectRows] = useState<RowEffectRow[]>(() =>
+    (def.rowEffects ?? []).map(rowEffectToRow)
+  )
   const imageValid = (url: string) => !url || isCustomCharacterImageUrl(url)
   const fromExample =
     def.imageNames && exampleUrl
@@ -189,7 +195,8 @@ export function CustomCharacterDataForm({
     Object.values(statNums).every(valid) &&
     paramsValid &&
     Object.values(images).every(imageValid) &&
-    buffRows.every((r) => !!rowToBuff(r))
+    buffRows.every((r) => !!rowToBuff(r)) &&
+    effectRows.every((r) => !!rowToRowEffect(r))
 
   const save = () => {
     if (!canSave) return
@@ -225,6 +232,10 @@ export function CustomCharacterDataForm({
       buffs: buffRows.flatMap((r) => {
         const buff = rowToBuff(r)
         return buff ? [buff] : []
+      }),
+      rowEffects: effectRows.flatMap((r) => {
+        const effect = rowToRowEffect(r)
+        return effect ? [effect] : []
       }),
       images: Object.fromEntries(
         Object.entries(images).filter(([, url]) => url.trim())
@@ -504,6 +515,16 @@ export function CustomCharacterDataForm({
         def={def}
         rows={buffRows}
         setRows={setBuffRows}
+      />
+
+      <Typography variant="subtitle1">{t('customChar.effects')}</Typography>
+      <Typography variant="body2" color="text.secondary">
+        {t('customChar.effectsHelp')}
+      </Typography>
+      <CustomCharacterRowEffectEditor
+        def={def}
+        rows={effectRows}
+        setRows={setEffectRows}
       />
 
       <Box display="flex" gap={1} justifyContent="flex-end">
