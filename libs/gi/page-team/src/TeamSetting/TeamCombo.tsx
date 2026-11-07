@@ -1,13 +1,19 @@
-import { CardThemed } from '@genshin-optimizer/common/ui'
-import type { CharacterKey } from '@genshin-optimizer/gi/consts'
-import type { TeamComboPick } from '@genshin-optimizer/gi/db'
+import { CardThemed, ImgIcon, SqBadge } from '@genshin-optimizer/common/ui'
+import { artifactDefIcon, weaponAsset } from '@genshin-optimizer/gi/assets'
+import type { ArtifactSetKey, CharacterKey } from '@genshin-optimizer/gi/consts'
+import { allArtifactSetKeys } from '@genshin-optimizer/gi/consts'
+import type { ICachedWeapon, TeamComboPick } from '@genshin-optimizer/gi/db'
 import { useDatabase, useDBMeta, useTeam } from '@genshin-optimizer/gi/db-ui'
 import { getCharEle } from '@genshin-optimizer/gi/stats'
 import {
+  ArtifactSetName,
+  ArtifactSetTooltip,
   CharacterName,
   CharIconSide,
   useTeamDataNoContext,
+  WeaponName,
 } from '@genshin-optimizer/gi/ui'
+import { input } from '@genshin-optimizer/gi/wr'
 import TimerIcon from '@mui/icons-material/Timer'
 import {
   Box,
@@ -38,14 +44,75 @@ function useMemberTargets(teamId: string, teamCharId: string | undefined) {
   )
   const teamChar = teamCharId ? database.teamChars.get(teamCharId) : undefined
   if (!teamChar) return undefined
-  const display = teamData?.[teamChar.key]?.target.getDisplay()['custom']
+  const memberData = teamData?.[teamChar.key]
+  const display = memberData?.target.getDisplay()['custom']
+  // Pieces per set, as the build (equipped, saved or TC) is computed
+  const sets = memberData
+    ? allArtifactSetKeys
+        .map((setKey) => ({
+          setKey,
+          count: memberData.target.get(input.artSet[setKey]).value ?? 0,
+        }))
+        .filter(({ count }) => count >= 2)
+        .sort((a, b) => b.count - a.count)
+    : []
   return {
     characterKey: teamChar.key as CharacterKey,
+    weapon: memberData?.weapon,
+    sets,
     targets: teamChar.customMultiTargets.map(({ name }, i) => ({
       name,
       value: display?.[i]?.value as number | undefined,
     })),
   }
+}
+
+/** The weapon and artifact set bonuses of a team member's build */
+function MemberBuild({
+  weapon,
+  sets,
+}: {
+  weapon?: ICachedWeapon
+  sets: { setKey: ArtifactSetKey; count: number }[]
+}) {
+  const { t } = useTranslation('page_team')
+  return (
+    <Box display="flex" flexDirection="column" gap={0.5} px={2} pb={1}>
+      {weapon && (
+        <Box display="flex" alignItems="center" gap={1}>
+          <ImgIcon
+            src={weaponAsset(weapon.key, weapon.ascension >= 2)}
+            size={2}
+          />
+          <Typography variant="body2" noWrap flexGrow={1} minWidth={0}>
+            <WeaponName weaponKey={weapon.key} />
+          </Typography>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            Lv. {weapon.level} · R{weapon.refinement}
+          </Typography>
+        </Box>
+      )}
+      {sets.length ? (
+        sets.map(({ setKey, count }) => (
+          <ArtifactSetTooltip key={setKey} setKey={setKey} numInSet={count}>
+            <Box display="flex" alignItems="center" gap={1}>
+              <ImgIcon src={artifactDefIcon(setKey)} size={2} />
+              <SqBadge color={count >= 4 ? 'success' : 'primary'}>
+                {count >= 4 ? 4 : 2}
+              </SqBadge>
+              <Typography variant="body2" noWrap minWidth={0}>
+                <ArtifactSetName setKey={setKey} />
+              </Typography>
+            </Box>
+          </ArtifactSetTooltip>
+        ))
+      ) : (
+        <Typography variant="caption" color="text.secondary">
+          {t('teamSettings.combo.noSet')}
+        </Typography>
+      )}
+    </Box>
+  )
 }
 
 /** A number field that keeps what is typed and reports valid positive values */
@@ -153,6 +220,8 @@ export function TeamCombo({ teamId }: { teamId: string }) {
     return {
       teamCharId,
       characterKey: member.characterKey,
+      weapon: member.weapon,
+      sets: member.sets,
       targets,
       total: targets.reduce((a, x) => a + x.total, 0),
     }
@@ -184,6 +253,7 @@ export function TeamCombo({ teamId }: { teamId: string }) {
                       />
                     </Typography>
                   </Box>
+                  <MemberBuild weapon={row.weapon} sets={row.sets} />
                   <Divider />
                   <Box display="flex" flexDirection="column" gap={0.5} p={1}>
                     {!row.targets.length && (

@@ -47,7 +47,8 @@
       "subtotal": "Subtotal",
       "rotationTime": "Rotation length",
       "totalDmg": "Total team DMG",
-      "dps": "Team DPS ({{time}} s)"
+      "dps": "Team DPS ({{time}} s)",
+      "noSet": "No artifact set bonus"
     }
   },
   "exportModal": {

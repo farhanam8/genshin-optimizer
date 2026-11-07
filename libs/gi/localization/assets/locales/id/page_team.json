@@ -8,7 +8,8 @@
       "subtotal": "Subtotal",
       "rotationTime": "Durasi rotasi",
       "totalDmg": "Total DMG tim",
-      "dps": "DPS tim ({{time}} dtk)"
+      "dps": "DPS tim ({{time}} dtk)",
+      "noSet": "Tanpa bonus set artefak"
     }
   }
 }
