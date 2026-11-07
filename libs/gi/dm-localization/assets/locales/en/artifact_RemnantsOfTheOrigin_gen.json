@@ -1,0 +1,29 @@
+{
+  "setName": "Remnants of the Origin",
+  "setEffects": {
+    "2": "ATK +18%.",
+    "4": "The equipping character gains 1 Starspark when they use an Elemental Skill, Elemental Burst, or perform a Normal Attack. Up to 2 Starsparks can be held at once. The equipping character gains Undying Radiance while holding at least 1 Starspark. This effect increases the CRIT Rate of their <cryo>Cryo DMG</cryo> by 20%, with an additional 20% CRIT Rate if that DMG is Stellar Glimmer reaction DMG. This effect remains active even when the equipping character is off-field. The equipping character loses 1 Starspark every 3s while on the field. Undying Radiance ends when all Starsparks are extinguished."
+  },
+  "pieces": {
+    "flower": {
+      "name": "Remnants of the Origin: Flower of Life",
+      "desc": ""
+    },
+    "plume": {
+      "name": "Remnants of the Origin: Plume of Death",
+      "desc": ""
+    },
+    "sands": {
+      "name": "Remnants of the Origin: Sands of Eon",
+      "desc": ""
+    },
+    "goblet": {
+      "name": "Remnants of the Origin: Goblet of Eonothem",
+      "desc": ""
+    },
+    "circlet": {
+      "name": "Remnants of the Origin: Circlet of Logos",
+      "desc": ""
+    }
+  }
+}

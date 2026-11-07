@@ -45,6 +45,7 @@ export const allArtifactSetKeys = [
   'PrayersForIllumination',
   'PrayersForWisdom',
   'PrayersToSpringtime',
+  'RemnantsOfTheOrigin',
   'ResolutionOfSojourner',
   'RetracingBolide',
   'ScarletProof',

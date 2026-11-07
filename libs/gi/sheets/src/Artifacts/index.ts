@@ -47,6 +47,7 @@ import PrayersForDestiny from './PrayersForDestiny'
 import PrayersForIllumination from './PrayersForIllumination'
 import PrayersForWisdom from './PrayersForWisdom'
 import PrayersToSpringtime from './PrayersToSpringtime'
+import RemnantsOfTheOrigin from './RemnantsOfTheOrigin'
 import ResolutionOfSojourner from './ResolutionOfSojourner'
 import RetracingBolide from './RetracingBolide'
 import ScarletProof from './ScarletProof'
@@ -112,6 +113,7 @@ export const artifactSheets: Record<ArtifactSetKey, ArtifactSheet> = {
   PrayersForIllumination,
   PrayersForWisdom,
   PrayersToSpringtime,
+  RemnantsOfTheOrigin,
   ResolutionOfSojourner,
   RetracingBolide,
   ScarletProof,

@@ -359,15 +359,10 @@ function buffsOf(
   conds: Conditions,
   shown: SourceFields
 ) {
-  const phases = {
-    self: { premod: {}, total: {} } as Record<
-      string,
-      Record<string, NumNode[]>
-    >,
-    team: { premod: {}, total: {} } as Record<
-      string,
-      Record<string, NumNode[]>
-    >,
+  type Phases = Record<'premod' | 'total', Record<string, NumNode[]>>
+  const phases: Record<'self' | 'team', Phases> = {
+    self: { premod: {}, total: {} },
+    team: { premod: {}, total: {} },
   }
   for (const b of buffs) {
     if (!(b.stat in input.premod)) continue
