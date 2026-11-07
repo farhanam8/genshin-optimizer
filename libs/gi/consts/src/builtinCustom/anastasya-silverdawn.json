@@ -1159,6 +1159,28 @@
           "target": "self",
           "condition": "Blessing (after Elemental Skill)",
           "conditionState": "Honor (E hold)"
+        },
+        {
+          "source": "burst",
+          "stat": "stellarconduct_dmg_",
+          "talentParam": {
+            "talent": "burst",
+            "index": 1
+          },
+          "value": 1,
+          "target": "team",
+          "condition": "To the New World (Q after E tap)"
+        },
+        {
+          "source": "burst",
+          "stat": "stellarswirl_dmg_",
+          "talentParam": {
+            "talent": "burst",
+            "index": 1
+          },
+          "value": 1,
+          "target": "team",
+          "condition": "To the New World (Q after E tap)"
         }
       ],
       "rowEffects": [

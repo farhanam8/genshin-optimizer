@@ -6,7 +6,8 @@
     "C1 and C4 entries add to the lower constellations, so totals match, e.g. C4 with Anastasya Sealed: others 62.4% CRIT DMG.",
     "C2 Honor: Blessed Armament Normal Attacks (skill rows), The Evernight Yields to Dawn and Doom deal 125% of their original DMG.",
     "C6 Honor extra Doom hit: Anastasya holds the Accolades of the 3 other members (+3 x 15.6% CRIT DMG, +3 x 19.5% ATK), assuming none is Sealed.",
-    "Not included: A4 (Stellar Swirl base reaction multiplier +15%, no matching GO stat)."
+    "Not included: A4 (Stellar Swirl base reaction multiplier +15%, no matching GO stat).",
+    "To the New World (Q in Blessing of Love): party Stellar-Conduct and Stellar Swirl DMG + the burst's Stellar Glimmer Reaction DMG Increase (50% at Lv10), behind its own toggle."
   ],
   "buffs": [
     {
@@ -324,6 +325,28 @@
       "target": "self",
       "condition": "Blessing (after Elemental Skill)",
       "conditionState": "Honor (E hold)"
+    },
+    {
+      "source": "burst",
+      "stat": "stellarconduct_dmg_",
+      "talentParam": {
+        "talent": "burst",
+        "index": 1
+      },
+      "value": 1,
+      "target": "team",
+      "condition": "To the New World (Q after E tap)"
+    },
+    {
+      "source": "burst",
+      "stat": "stellarswirl_dmg_",
+      "talentParam": {
+        "talent": "burst",
+        "index": 1
+      },
+      "value": 1,
+      "target": "team",
+      "condition": "To the New World (Q after E tap)"
     }
   ],
   "rowEffects": [
