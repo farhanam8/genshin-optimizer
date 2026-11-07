@@ -10,7 +10,11 @@ import type {
   CustomCharacterTalentKey,
   ElementKey,
 } from '@genshin-optimizer/gi/consts'
-import { customCharacterRowLabels } from '@genshin-optimizer/gi/consts'
+import {
+  customCharacterRowLabels,
+  customCharacterTalentKeys,
+  plainCustomText,
+} from '@genshin-optimizer/gi/consts'
 import { KeyMap } from '@genshin-optimizer/gi/keymap'
 import type { Data, NumNode } from '@genshin-optimizer/gi/wr'
 import {
@@ -130,9 +134,10 @@ function stellarOf(
 
 /** Which talent a constellation description boosts by 3 levels, if any. */
 function boostedTalent(
-  description: string,
+  text: string,
   talents: Record<CustomCharacterTalentKey, CustomCharacterTalent>
 ): CustomCharacterTalentKey | undefined {
+  const description = plainCustomText(text)
   if (!/increases the level of/i.test(description)) return undefined
   if (talents.skill.name && description.includes(talents.skill.name))
     return 'skill'
@@ -427,6 +432,12 @@ export function dataSheetForCustomCharacter(
     skill: [],
     burst: [],
   }
+  /** Other values (durations, CD, ...), shown after the DMG values */
+  const valueFields: Record<CustomCharacterTalentKey, IFieldDisplay[]> = {
+    auto: [],
+    skill: [],
+    burst: [],
+  }
 
   for (const tk of ['auto', 'skill', 'burst'] as const) {
     const talent = def.talents[tk]
@@ -473,7 +484,7 @@ export function dataSheetForCustomCharacter(
             : /^\s*s\b/.test(after)
               ? 's'
               : undefined
-          fields[tk].push({
+          valueFields[tk].push({
             text: name,
             value: (data) => {
               const lvl = data.get(levelIndex).value
@@ -655,6 +666,9 @@ export function dataSheetForCustomCharacter(
     const all = [...(sections ?? []), ...(sourceSections[k] ?? [])]
     return all.length ? all : undefined
   }
+
+  for (const tk of customCharacterTalentKeys)
+    fields[tk] = [...fields[tk], ...valueFields[tk]]
 
   const sheet: TalentSheet = {
     auto: ct.talentTem('auto', [{ fields: fields.auto }]),

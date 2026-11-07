@@ -198,7 +198,7 @@
         },
         "skill": {
           "name": "Polestar's Divine Judgment",
-          "description": "Reveals the true nature of Transcendence, dealing AoE Cryo DMG and unleashing her power in different ways depending on whether the skill is tapped or held.\n\nTap\nGains the Blessing of Love and throws the Palestar Crown, an heirloom of the imperial court.\nThe Palestar Crown follows the active character and deals 2 instances of AoE Cryo DMG to nearby opponents every 2s.\nRadiance: Stellar Glimmer: The second instance of DMG dealt by each Palestar Crown attack becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.\n\nHold\nGains the Blessing of Honor and demonstrates the consummate skill at arms passed down by the imperial court.\nIn this mode, Anastasya's Normal Attacks are replaced by a sequence of up to 5 attacks with the Blessed Armament: Dekhomenon, dealing AoE Cryo DMG that cannot be overridden by other Elemental Infusions. She cannot perform Charged Attacks in this mode.\nRadiance: Stellar Glimmer: The final instance of DMG from each Normal Attack performed with the Blessed Armament becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
+          "description": "Reveals the true nature of [[Transcendence|Transcendence and Blessings]], dealing AoE Cryo DMG and unleashing her power in different ways depending on whether the skill is tapped or held.\n\n**Tap**\nGains the Blessing of **Love** and throws the **Palestar Crown**, an heirloom of the imperial court.\nThe **Palestar Crown** follows the active character and deals 2 instances of AoE Cryo DMG to nearby opponents every 2s.\n[[Radiance: Stellar Glimmer|@11500004]]: The second instance of DMG dealt by each **Palestar Crown** attack becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.\n\n**Hold**\nGains the Blessing of **Honor** and demonstrates the consummate skill at arms passed down by the imperial court.\nIn this mode, Anastasya's Normal Attacks are replaced by a sequence of up to 5 attacks with the **Blessed Armament: Dekhomenon**, dealing AoE Cryo DMG that cannot be overridden by other Elemental Infusions. She cannot perform Charged Attacks in this mode.\n[[Radiance: Stellar Glimmer|@11500004]]: The final instance of DMG from each Normal Attack performed with the **Blessed Armament** becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
           "icon": "Skill_S_Anastasya_01",
           "rows": [
             {
@@ -499,7 +499,7 @@
         },
         "burst": {
           "name": "To the New World",
-          "description": "Anastasya's current Blessing determines which Elemental Burst she can use and how she wields the power of Sealing.\n\nTo the New World\nCan be used while Anastasya holds the Blessing of Love. Deals AoE Cryo DMG and freezes the Palestar Crown's duration.\nDuring this time, all nearby party members deal increased Stellar Glimmer reaction DMG, and the Palestar Crown deals 1 additional instance of AoE Cryo DMG that is considered Stellar-Conduct reaction DMG with each attack. Anastasya also Seals herself when she switches off-field during this time. When her Sealed state ends, she can use the special unsealing Elemental Skill Palestar Edict: Triumph.\n\nThe Evernight Yields to Dawn\nCan be used while Anastasya holds the Blessing of Honor. Unleashes the power of the Blessed Armament, dealing AoE Cryo DMG considered Stellar-Conduct reaction DMG, and freezes the Blessing's duration.\nAnastasya also Seals up to 3 other party members. When the Sealed state ends, Anastasya can use the special unsealing Elemental Skill Palestar Edict: Doom.\n\nRadiance: Stellar Glimmer: All Stellar-Conduct reaction DMG described above is instead dealt as AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
+          "description": "Anastasya's current [[Blessing|Transcendence and Blessings]] determines which Elemental Burst she can use and how she wields the power of [[Sealing]].\n\n**To the New World**\nCan be used while Anastasya holds the Blessing of **Love**. Deals AoE Cryo DMG and [[freezes|Freeze]] the Palestar Crown's duration.\nDuring this time, all nearby party members deal increased Stellar Glimmer reaction DMG, and the Palestar Crown deals 1 additional instance of AoE Cryo DMG that is considered Stellar-Conduct reaction DMG with each attack. Anastasya also [[Seals|Sealing]] herself when she switches off-field during this time. When her **Sealed** state ends, she can use the special unsealing Elemental Skill [[Palestar Edict: Triumph]].\n\n**The Evernight Yields to Dawn**\nCan be used while Anastasya holds the Blessing of **Honor**. Unleashes the power of the **Blessed Armament**, dealing AoE Cryo DMG considered Stellar-Conduct reaction DMG, and [[freezes|Freeze]] the Blessing's duration.\nAnastasya also [[Seals|Sealing]] up to 3 other party members. When the **Sealed** state ends, Anastasya can use the special unsealing Elemental Skill [[Palestar Edict: Doom]].\n\n[[Radiance: Stellar Glimmer|@11500004]]: All Stellar-Conduct reaction DMG described above is instead dealt as AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
           "icon": "Skill_E_Anastasya_01",
           "rows": [
             {
@@ -655,6 +655,34 @@
                   "format": "I"
                 }
               ]
+            },
+            {
+              "label": "To the New World Instantaneous Stellar-Conduct/Stellar Swirl DMG",
+              "template": "{param1:F1P}/{param1:F1P}",
+              "params": [
+                {
+                  "index": 0,
+                  "format": "F1P"
+                },
+                {
+                  "index": 0,
+                  "format": "F1P"
+                }
+              ]
+            },
+            {
+              "label": "Doom 1-Hit Cryo Stellar-Conduct/Stellar Swirl DMG",
+              "template": "{param9:F1P}×5/{param9:F1P}×5",
+              "params": [
+                {
+                  "index": 8,
+                  "format": "F1P"
+                },
+                {
+                  "index": 8,
+                  "format": "F1P"
+                }
+              ]
             }
           ],
           "params": [
@@ -731,21 +759,21 @@
       },
       "passive1": {
         "name": "The Radiant Reign of Night",
-        "description": "All party members gain Accolades for 20s after Anastasya uses her Elemental Skill Polestar's Divine Judgment, increasing their CRIT DMG by 12%.\nWhen a party member is Sealed, their Accolades are temporarily divided equally among party members who are not Sealed until 8s after that character's Sealed state ends.",
+        "description": "All party members gain **Accolades** for 20s after Anastasya uses her Elemental Skill **Polestar's Divine Judgment**, increasing their CRIT DMG by 12%.\nWhen a party member is [[Sealed|Sealing]], their **Accolades** are temporarily divided equally among party members who are not [[Sealed|Sealing]] until 8s after that character's Sealed state ends.",
         "icon": "UI_Talent_S_Anastasya_05",
         "unlockAscension": 1,
         "params": [0.12, 20, 8]
       },
       "passive2": {
         "name": "Lament for the Lost",
-        "description": "While Anastasya is in the party, Stellar Glimmer reactions triggered by any party member gain the following effects:\n·Stellar-Conduct: The Polestar Field will be further enhanced each time it grants a buff, and creating a Starlight Prism will cause the Field to generate a buff instantly;\n·Stellar Swirl: Stellar Swirl's base reaction multiplier is increased by 15%. Newly created Stellar Vortices and Drifting Vortices are also immediately raised to Level 2. This level increase can trigger once every 1s.",
+        "description": "While Anastasya is in the party, Stellar Glimmer reactions triggered by any party member gain the following effects:\n·**Stellar-Conduct**: The Polestar Field will be further enhanced each time it grants a buff, and creating a Starlight Prism will cause the Field to generate a buff instantly;\n·**Stellar Swirl**: Stellar Swirl's base reaction multiplier is increased by 15%. Newly created Stellar Vortices and Drifting Vortices are also immediately raised to Level 2. This level increase can trigger once every 1s.",
         "icon": "UI_Talent_S_Anastasya_06",
         "unlockAscension": 4,
         "params": [1, 0.15]
       },
       "passive3": {
         "name": "Stellar Jubilee: Immaculate Return",
-        "description": "Anastasya will be in the Radiance: Stellar-Conduct state while within a Polestar Field, and in the Radiance: Stellar Swirl state for 8s after a party member triggers a Stellar Swirl reaction nearby.\nParty members trigger Stellar-Conduct/Stellar Swirl reactions instead of Superconduct/Cryo Swirl reactions, respectively. Anastasya also increases party members' Stellar-Conduct and Stellar Swirl base DMG by 0.7% for every 100 ATK she has, up to a maximum increase of 14%.",
+        "description": "Anastasya will be in the **Radiance: Stellar-Conduct** state while within a [[Polestar Field|@11330003]], and in the **Radiance: Stellar Swirl** state for 8s after a party member triggers a Stellar Swirl reaction nearby.\nParty members trigger Stellar-Conduct/Stellar Swirl reactions instead of Superconduct/Cryo Swirl reactions, respectively. Anastasya also increases party members' Stellar-Conduct and Stellar Swirl base DMG by 0.7% for every 100 ATK she has, up to a maximum increase of 14%.",
         "icon": "UI_Talent_S_Anastasya_07",
         "unlockAscension": 0,
         "params": [8, 0.007, 0.14]
@@ -762,37 +790,37 @@
       "constellations": [
         {
           "name": "To Years Past, To Hearts Still Alight",
-          "description": "The Ascension Passive The Radiant Reign of Night is enhanced: Accolades also increase the ATK of Cryo characters by 15% and the Elemental Mastery of characters of other Elemental Types by 60.\nAdditionally, when a character is Sealed, the division of Accolades will not cause the sharing character's Accolades to be dispelled. When Anastasya is Sealed, the Accolades she grants to other characters will provide 300% of their original bonuses.",
+          "description": "The Ascension Passive **The Radiant Reign of Night** is enhanced: **Accolades** also increase the ATK of Cryo characters by 15% and the Elemental Mastery of characters of other Elemental Types by 60.\nAdditionally, when a character is [[Sealed|Sealing]], the division of **Accolades** will not cause the sharing character's **Accolades** to be dispelled. When Anastasya is [[Sealed|Sealing]], the **Accolades** she grants to other characters will provide 300% of their original bonuses.",
           "icon": "UI_Talent_S_Anastasya_01",
           "params": [0.15, 60, 3]
         },
         {
           "name": "To Winter, All Who Taste Its Bite",
-          "description": "After Anastasya uses her Elemental Skill, Polestar's Divine Judgment, the following effects apply based on her current Blessing:\n· Love: The CRIT DMG of Stellar Glimmer Reaction DMG dealt by all party members is increased by 60% for 30s;\n· Honor: Anastasya's Normal Attacks, Elemental Burst The Evernight Yields to Dawn, and special Unsealing Elemental Skill Palestar Edict: Doom deal 125% of their original DMG for 15s.\n\nAdditionally, Stellar Glimmer Reaction DMG dealt by all nearby party members is Elevated by 5%.",
+          "description": "After Anastasya uses her Elemental Skill, **Polestar's Divine Judgment**, the following effects apply based on her current Blessing:\n· **Love**: The CRIT DMG of Stellar Glimmer Reaction DMG dealt by all party members is increased by 60% for 30s;\n· **Honor**: Anastasya's Normal Attacks, Elemental Burst **The Evernight Yields to Dawn**, and special Unsealing Elemental Skill [[Palestar Edict: Doom]] deal 125% of their original DMG for 15s.\n\nAdditionally, Stellar Glimmer Reaction DMG dealt by all nearby party members is [[Elevated|@11190007]] by 5%.",
           "icon": "UI_Talent_S_Anastasya_02",
           "params": [0.6, 30, 1.25, 15, 0.05]
         },
         {
           "name": "To White Nights, Set Our Grief Afire",
-          "description": "Increases the Level of the Elemental Burst To the New World by 3.\nMaximum upgrade level is 15.",
+          "description": "Increases the Level of the Elemental Burst **To the New World** by 3.\nMaximum upgrade level is 15.",
           "icon": "UI_Talent_U_Anastasya_01",
           "params": []
         },
         {
           "name": "To Tyrants, Sing The Rebel's Choir",
-          "description": "Enhances Accolades, increasing CRIT DMG, ATK, and Elemental Mastery bonuses to 130% of their original values.",
+          "description": "Enhances **Accolades**, increasing CRIT DMG, ATK, and Elemental Mastery bonuses to 130% of their original values.",
           "icon": "UI_Talent_S_Anastasya_03",
           "params": [0.3]
         },
         {
           "name": "March On, Till Rot's Last Ember Dies",
-          "description": "Increases the Level of Polestar's Divine Judgment by 3.\nMaximum upgrade level is 15.",
+          "description": "Increases the Level of **Polestar's Divine Judgment** by 3.\nMaximum upgrade level is 15.",
           "icon": "UI_Talent_U_Anastasya_02",
           "params": []
         },
         {
           "name": "Look Up, a Dawn Unstained Shall Rise",
-          "description": "After Anastasya uses her Elemental Skill, Polestar's Divine Judgment, the following effects apply based on her current Blessing:\n· Love: The next time another character is switched onto the field, an effect equivalent to Palestar Edict: Triumph is triggered, dealing 250% of its original DMG. Additionally, Stellar Glimmer Reaction DMG dealt by all nearby party members is Elevated by 10%;\n· Honor: The next time the Elemental Skill is tapped, an effect equivalent to the third attack of Palestar Edict: Doom is triggered, dealing 200% of its original DMG. If the other party members are not Sealed, Anastasya is considered to possess the Accolades of all party members for this attack. Additionally, Stellar Glimmer Reaction DMG dealt by Anastasya is Elevated by 20%.\n\nThe above effects last for 30s and can be triggered once every 15s. They are removed when other party members' Sealed status ends.",
+          "description": "After Anastasya uses her Elemental Skill, **Polestar's Divine Judgment**, the following effects apply based on her current Blessing:\n· **Love**: The next time another character is switched onto the field, an effect equivalent to [[Palestar Edict: Triumph]] is triggered, dealing 250% of its original DMG. Additionally, Stellar Glimmer Reaction DMG dealt by all nearby party members is [[Elevated|@11190007]] by 10%;\n· **Honor**: The next time the Elemental Skill is tapped, an effect equivalent to the third attack of [[Palestar Edict: Doom]] is triggered, dealing 200% of its original DMG. If the other party members are not [[Sealed|Sealing]], Anastasya is considered to possess the **Accolades** of all party members for this attack. Additionally, Stellar Glimmer Reaction DMG dealt by Anastasya is [[Elevated|@11190007]] by 20%.\n\nThe above effects last for 30s and can be triggered once every 15s. They are removed when other party members' [[Sealed|Sealing]] status ends.",
           "icon": "UI_Talent_S_Anastasya_04",
           "params": [30, 15, 2.5, 0.1, 2, 0.2]
         }
@@ -1183,6 +1211,28 @@
               "value": 0.585
             }
           ]
+        }
+      ],
+      "glossary": [
+        {
+          "name": "Transcendence and Blessings",
+          "description": "When Anastasya uses her Elemental Skill **Polestar's Divine Judgment**, she unleashes her power in different ways and gains a different Blessing depending on whether the skill is tapped or held.\n·**Tap**: Gains the Blessing of **Love**;\n·**Hold**: Gains the Blessing of **Honor**.\nEach Blessing allows Anastasya to use a different Elemental Burst and wield the power of **Sealing** differently.\nAnastasya always holds the Blessing of **Love** when she does not hold the Blessing of **Honor**."
+        },
+        {
+          "name": "Sealing",
+          "description": "A special state applied to characters when Anastasya uses her Elemental Burst. Characters in the Sealed state cannot be switched in.\nThe initial Sealing duration matches the duration of the corresponding Elemental Burst. Its remaining duration can be reduced through specific means.\nAnastasya's **Blessing** determines which Elemental Burst she uses and how she wields the power of Sealing:\n·**Love**: Anastasya Seals herself when she switches off-field. Stellar Glimmer reaction DMG dealt by any nearby party member can reduce the remaining duration of her Sealed state. For a limited time after her Sealed state ends, switching Anastasya in triggers the special unsealing Elemental Skill **Palestar Edict: Triumph**;\n·**Honor**: Anastasya Seals up to 3 other party members. Anastasya can reduce the remaining duration of Sealing by using Normal Attacks. For a limited time after a character's Sealed state ends, selecting that character for the first time triggers the special unsealing Elemental Skill **Palestar Edict: Doom** instead of switching them in."
+        },
+        {
+          "name": "Palestar Edict: Triumph",
+          "description": "A special Elemental Skill triggered by switching Anastasya in after her own Sealed state ends. Deals AoE Cryo DMG to nearby opponents. This DMG is considered Stellar-Conduct reaction DMG.\n**Radiance: Stellar Glimmer**: The aforementioned DMG is instead dealt as AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction."
+        },
+        {
+          "name": "Freeze",
+          "description": "A special mechanic. Pauses an effect's duration, preventing it from counting down until the effect that triggered the freeze ends."
+        },
+        {
+          "name": "Palestar Edict: Doom",
+          "description": "For a limited time after another party member's Sealed state ends, selecting that character for the first time triggers this special Elemental Skill instead of switching them in.\n**Palestar Edict: Doom** has 3 stages, performed in sequence by selecting the corresponding characters for the first time or pressing the Elemental Skill.\n·Stage 1: Performs a series of slashes with the **Blessed Armament: Dekhomenon**, dealing multiple instances of AoE Cryo DMG that cannot be overridden by other Elemental Infusions and are considered Elemental Skill DMG, followed by a final instance of AoE Cryo DMG that is considered Stellar-Conduct reaction DMG;\n·Stage 2: Leaps forward and performs a slash, dealing AoE Cryo DMG that is considered Stellar-Conduct reaction DMG;\n·Stage 3: Fires the **Blessed Armament** as an arrow, dealing greater AoE Cryo DMG considered Stellar-Conduct reaction DMG and ending the effect of **The Evernight Yields to Dawn**.\n**Radiance: Stellar Glimmer**: The Stellar-Conduct reaction DMG described above is instead dealt as AoE Cryo DMG considered DMG from the corresponding Stellar Glimmer reaction."
         }
       ]
     }

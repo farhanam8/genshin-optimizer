@@ -206,7 +206,7 @@
         },
         "skill": {
           "name": "testDanica Elemental Skill",
-          "description": "testSwings her chain and anchor, dealing AoE Electro DMG to nearby opponents and summoning an Anchor that follows the current on-field character's movements.\n\nWhile the Anchor is present, it will assist in combat in different ways depending on whether Danica is on the field.\nWhen Danica is Off-Field\nWhen the current on-field character in the party hits opponents with Electro or Cryo attacks, the Anchor will launch a Coordinated Attack, dealing AoE Electro DMG at the opponents' location. This effect can trigger at most once every 1.5s.\nWhen Danica is On-Field\nDanica's Normal Attacks will be converted into Special Attacks using the anchor, dealing Electro DMG that cannot be overridden by infusion. This DMG is considered Normal Attack DMG.\n\nExcitement\nWhile the Anchor is present, Danica can accumulate Excitement by performing anchor Special Normal Attacks or by having the current on-field character in the party hit opponents with Cryo or Electro attacks. When Excitement reaches its maximum, depending on whether Danica is on-field, all Excitement can be consumed to unleash different special Elemental Skills and enter the corresponding Maid Form:\nDefense Maid\nWhen Danica is off-field, switch to bring Danica on-field, automatically triggering \"Entry Skill E2\", and entering Defense Maid. Generates a Shield for the on-field character and refreshes the Anchor's Duration. During this time, \"On-Field Skill E2\" cannot be triggered.\nBattle Maid\nWhen Danica is on-field, the Elemental Skill will be replaced by \"On-Field Skill E2\". After using it, Danica enters Battle Maid. While in this state, after using \"On-Field Skill E2\", the anchor Special Normal Attacks can skip certain Normal Attack combo hits. During this time, \"Entry Skill E2\" cannot be triggered.\n\nAdditionally, when the Anchor disappears, Danica will exit the Maid Form. While the Anchor is present, Battle Maid and Defense Maid cannot coexist — upon entering one Maid Form, the other cannot be entered.",
+          "description": "testSwings her chain and anchor, dealing AoE Electro DMG to nearby opponents and summoning an **Anchor** that follows the current on-field character's movements.\n\nWhile the **Anchor** is present, it will assist in combat in different ways depending on whether Danica is on the field.\n**When Danica is Off-Field**\nWhen the current on-field character in the party hits opponents with Electro or Cryo attacks, the **Anchor** will launch a Coordinated Attack, dealing AoE Electro DMG at the opponents' location. This effect can trigger at most once every 1.5s.\n**When Danica is On-Field**\nDanica's Normal Attacks will be converted into Special Attacks using the anchor, dealing Electro DMG that cannot be overridden by infusion. This DMG is considered Normal Attack DMG.\n\n**Excitement**\nWhile the Anchor is present, Danica can accumulate [[Excitement]] by performing anchor Special Normal Attacks or by having the current on-field character in the party hit opponents with Cryo or Electro attacks. When Excitement reaches its maximum, depending on whether Danica is on-field, all Excitement can be consumed to unleash different special Elemental Skills and enter the corresponding Maid Form:\n**Defense Maid**\nWhen Danica is off-field, switch to bring Danica on-field, automatically triggering [[\"Entry Skill E2\"|Entry Skill E2]], and entering **Defense Maid**. Generates a Shield for the on-field character and refreshes the Anchor's Duration. During this time, **\"On-Field Skill E2\"** cannot be triggered.\n**Battle Maid**\nWhen Danica is on-field, the Elemental Skill will be replaced by [[\"On-Field Skill E2\"|On-Field Skill E2]]. After using it, Danica enters **Battle Maid**. While in this state, after using \"On-Field Skill E2\", the anchor Special Normal Attacks can skip certain Normal Attack combo hits. During this time, **\"Entry Skill E2\"** cannot be triggered.\n\nAdditionally, when the Anchor disappears, Danica will exit the Maid Form. While the Anchor is present, Battle Maid and Defense Maid cannot coexist — upon entering one Maid Form, the other cannot be entered.",
           "icon": "Skill_S_Danica_01",
           "rows": [
             {
@@ -390,7 +390,7 @@
         },
         "burst": {
           "name": "Danica's Elemental Burst",
-          "description": "test Commanding the battlefield with the poise of the Tsaritsa's handmaiden, launches a 5-hit wide-range attack, dealing AoE Electro DMG.\n\nRadiance: Stellar-Conduct:\n·The 1st and 5th hits additionally deal AoE Electro DMG that is considered Stellar-Conduct reaction DMG.\n·For a period of time after use, if Danica is in Maid Mode, the current Maid Mode will be Enhanced, granting the corresponding Enhancement effect based on the current mode:\nWhen Danica is in Defense Maid mode, increases ATK for all Characters in the party.\nWhen Danica is in Battle Maid mode, immediately restores all Excited energy and increases the DMG dealt by Danica's \"On-Field Skill E2\".\n\nWhen Maid Mode ends, the Enhancement effect will be removed.",
+          "description": "test Commanding the battlefield with the poise of the Tsaritsa's handmaiden, launches a 5-hit wide-range attack, dealing AoE Electro DMG.\n\n**Radiance: Stellar-Conduct:**\n·The 1st and 5th hits additionally deal AoE Electro DMG that is considered Stellar-Conduct reaction DMG.\n·For a period of time after use, if Danica is in Maid Mode, the current Maid Mode will be Enhanced, granting the corresponding Enhancement effect based on the current mode:\nWhen Danica is in [[Defense Maid]] mode, increases ATK for all Characters in the party.\nWhen Danica is in [[Battle Maid]] mode, immediately restores all Excited energy and increases the DMG dealt by Danica's **\"On-Field Skill E2\"**.\n\nWhen Maid Mode ends, the Enhancement effect will be removed.",
           "icon": "Skill_E_Danica_01",
           "rows": [
             {
@@ -538,21 +538,21 @@
       },
       "passive1": {
         "name": "testAscension Talent 1",
-        "description": "testAnchor decreases the Electro RES of nearby enemies by 15%.\n\nRadiance: Stellar-Conduct: Further decreases the Electro RES of nearby enemies by 15% and their Cryo RES by 30%.",
+        "description": "test**Anchor** decreases the Electro RES of nearby enemies by 15%.\n\n**Radiance: Stellar-Conduct:** Further decreases the Electro RES of nearby enemies by 15% and their Cryo RES by 30%.",
         "icon": "UI_Talent_S_Danica_05",
         "unlockAscension": 1,
         "params": [0.15, 0.15, 0.3]
       },
       "passive2": {
         "name": "Ascension Talent 2",
-        "description": "test After casting 「Entry Skill E2」, Danica's own ATK increases by 20%.\nAfter casting 「On-Field Skill E2」, Danica's own ATK SPD increases by 20%, and when the Special Anchor's Normal Attack hits an enemy, she additionally gains 25 Excited points. The above effects can stack up to 3 times.\nThe above effects last until exiting the current Defense Maid or Battle Maid state. Re-triggering will refresh the Duration.",
+        "description": "test After casting **「Entry Skill E2」**, Danica's own ATK increases by 20%.\nAfter casting **「On-Field Skill E2」**, Danica's own ATK SPD increases by 20%, and when the Special Anchor's Normal Attack hits an enemy, she additionally gains 25 **Excited** points. The above effects can stack up to 3 times.\nThe above effects last until exiting the current Defense Maid or Battle Maid state. Re-triggering will refresh the Duration.",
         "icon": "UI_Talent_S_Danica_06",
         "unlockAscension": 4,
         "params": [0.2]
       },
       "passive3": {
         "name": "test Stellar Talent",
-        "description": "When party members trigger Superconduct, it will be changed to Stellar-Conduct, and party members' Base Stellar-Conduct DMG will be increased based on Danica's ATK: Every point of ATK she has increases the Base Stellar-Conduct DMG by 0.7%. The maximum increase that can be gained this way is 14%.\nAdditionally, when Danica is within a Polestar Field, she will enter the Radiance: Stellar-Conduct state.",
+        "description": "When party members trigger Superconduct, it will be changed to Stellar-Conduct, and party members' Base Stellar-Conduct DMG will be increased based on Danica's ATK: Every point of ATK she has increases the Base Stellar-Conduct DMG by 0.7%. The maximum increase that can be gained this way is 14%.\nAdditionally, when Danica is within a [[Polestar Field|@11330003]], she will enter the **Radiance: Stellar-Conduct** state.",
         "icon": "UI_Talent_S_Danica_07",
         "unlockAscension": 0,
         "params": [0.007, 0.14]
@@ -569,7 +569,7 @@
       "constellations": [
         {
           "name": "test C1",
-          "description": "testWhen Danica uses \"Entry Skill E2\" or \"On-Field Skill E2\", she restores 20 Elemental Energy for herself. This effect can trigger at most once every 14 seconds.\nAdditionally, the Defense Maid enhancement effect in Elemental Burst is increased by 80%, and the Battle Maid enhancement effect is increased by 120%.",
+          "description": "testWhen Danica uses **\"Entry Skill E2\"** or **\"On-Field Skill E2\"**, she restores 20 Elemental Energy for herself. This effect can trigger at most once every 14 seconds.\nAdditionally, the [[Defense Maid]] enhancement effect in **Elemental Burst** is increased by 80%, and the [[Battle Maid]] enhancement effect is increased by 120%.",
           "icon": "UI_Talent_S_Danica_01",
           "params": [20, 14, 0.8, 1.2]
         },
@@ -581,7 +581,7 @@
         },
         {
           "name": "C3",
-          "description": "Increases the Level of Elemental Burst by 3.\nMaximum upgrade level is 15.",
+          "description": "Increases the Level of **Elemental Burst** by 3.\nMaximum upgrade level is 15.",
           "icon": "UI_Talent_U_Danica_02",
           "params": []
         },
@@ -593,13 +593,13 @@
         },
         {
           "name": "testC5",
-          "description": "Increases the Level of Elemental Skill by 3.\nMaximum upgrade level is 15.",
+          "description": "Increases the Level of **Elemental Skill** by 3.\nMaximum upgrade level is 15.",
           "icon": "UI_Talent_U_Danica_01",
           "params": []
         },
         {
           "name": "test C6",
-          "description": "While the test anchor is present, the Stellar-Conduct DMG dealt by nearby characters in the party is increased by 20%.\nAdditionally, when Danica enters the Defense Maid state, every 1,000 ATK Danica has increases the Stellar-Conduct DMG dealt by the on-field character by 10%, up to a maximum of 40%.\nWhen entering the Battle Maid state, every 500 ATK Danica has increases her own on-field Skill E2's CRIT Rate by 2.5% and the CRIT DMG dealt by 25%. CRIT Rate can be increased by up to 10% and CRIT DMG by up to 100%.\nThe above effects last until exiting the current Maid state.",
+          "description": "While the test anchor is present, the Stellar-Conduct DMG dealt by nearby characters in the party is increased by 20%.\nAdditionally, when Danica enters the [[Defense Maid]] state, every 1,000 ATK Danica has increases the Stellar-Conduct DMG dealt by the on-field character by 10%, up to a maximum of 40%.\nWhen entering the [[Battle Maid]] state, every 500 ATK Danica has increases her own on-field Skill E2's CRIT Rate by 2.5% and the CRIT DMG dealt by 25%. CRIT Rate can be increased by up to 10% and CRIT DMG by up to 100%.\nThe above effects last until exiting the current Maid state.",
           "icon": "UI_Talent_S_Danica_04",
           "params": [0.2, 1000, 0.1, 0.4, 500, 0.025, 0.25, 0.1, 1]
         }
@@ -931,6 +931,33 @@
           "name": "C6 On-Field E2 CRIT DMG",
           "condition": "Maid state",
           "conditionState": "Battle Maid (Q on-field)"
+        }
+      ],
+      "glossary": [
+        {
+          "name": "Excitement",
+          "title": "test Excited",
+          "description": "testWhile the anchor is present, Danica accumulates **Excitement**. Excitement can be gained in the following ways:\n·When Danica is off-field, when the active Character on the team hits an enemy with Electro or Cryo attacks, 50 points are gained, triggered at most once every 0.1 seconds;\n·When Danica is on-field, when the Special Anchor's Normal Attacks hit enemies, 25 points are gained, with Excitement gained this way at most once per Normal Attack hit.\nAdditionally, when Danica is in the **Defense Maid** state, Danica can only gain Excitement when the active Character on the team hits enemies with Electro or Cryo attacks; when in the **Combat Maid** state, Danica can only gain Excitement by landing hits with **Special Anchor Normal Attacks**.\nWhen Excitement reaches the maximum of 100 points, Danica can consume all Excitement to unleash the special Elemental Skill **\"Entry Skill E2\"** or **\"On-Field Skill E2\"**, and enter the corresponding **Maid Form** based on how it is used."
+        },
+        {
+          "name": "Entry Skill E2",
+          "title": "test\"Entry Skill E2\"",
+          "description": "testDanica swings her anchor chain to rapidly close in on enemies, then slams the anchor into the ground, dealing Electro DMG in an AoE, considered as Stellar-Conduct reaction DMG.\nAfter using this ability, Danica enters the **Guardian Maid** state, gaining the following effects:\n·Refreshes the anchor's Duration;\n·Generates a Shield for the current active Character in the party. The Shield lasts until the Guardian Maid state ends, and its DMG Absorption scales with Danica's ATK, with 250% effectiveness against Electro DMG."
+        },
+        {
+          "name": "On-Field Skill E2",
+          "title": "test\"On-Field Skill E2\"",
+          "description": "testSwings the anchor chain to rapidly close in on enemies, then slams the ship anchor into the ground, dealing a large amount of AoE Electro DMG that is considered Stellar-Conduct reaction DMG.\nAfter using this skill, Danica enters **Battle Maid** and gains the following effects: Each time \"On-Field Skill E2\" is used, the next round's **Special Anchor Normal Attack** will skip one Normal Attack stage, up to a maximum of skipping to the last Normal Attack stage.\nAfter using **\"On-Field Skill E2\"** 5 times, Danica will exit **Battle Maid** and destroy the ship anchor."
+        },
+        {
+          "name": "Defense Maid",
+          "title": "testDefense Maid",
+          "description": "testThe state Danica enters after using her special Elemental Skill **\"Entry Skill E2\"**. While in this state, she provides a Shield to the active Character on the field and refreshes the Duration of **Ship Anchor**."
+        },
+        {
+          "name": "Battle Maid",
+          "title": "test Battle Maid",
+          "description": "testThe state Danica enters after using the special Elemental Skill **\"On-Field Skill E2\"**. While in this state, each time \"On-Field Skill E2\" is used, the Special Anchor's Normal Attack will Jump over a Normal Attack stage, skipping up to the first three Normal Attack stages."
         }
       ]
     }

@@ -516,10 +516,109 @@ export type CustomCharacterDataDef = CustomCharacterBase & {
   rowEffects?: CustomCharacterRowEffect[]
   constellations: CustomCharacterText[]
   /**
+   * Terms shown in a tooltip where a text links to them (see
+   * `customTextToMarkup`), e.g. "Sealing".
+   */
+  glossary?: CustomCharacterGlossaryEntry[]
+  /**
    * File names of the source site's images (without extension), per slot.
    * With the URL of one of them, the URLs of all can be filled in.
    */
   imageNames?: Partial<Record<CustomCharacterImageKey, string>>
+}
+
+/** A term texts can link to: `name` is matched, `title` (if set) is shown. */
+export type CustomCharacterGlossaryEntry = {
+  name: string
+  title?: string
+  description: string
+}
+
+function validateGlossary(
+  o: unknown
+): CustomCharacterGlossaryEntry[] | undefined {
+  if (!Array.isArray(o)) return undefined
+  const entries = o.flatMap((e): CustomCharacterGlossaryEntry[] => {
+    if (!isObj(e)) return []
+    const name = str(e['name']).trim().slice(0, 80)
+    const description = str(e['description']).slice(0, 4000)
+    if (!name || !description) return []
+    const title = str(e['title']).trim().slice(0, 80)
+    return [{ name, ...(title ? { title } : {}), description }]
+  })
+  return entries.length ? entries.slice(0, 50) : undefined
+}
+
+const markupElements = [
+  'anemo',
+  'geo',
+  'electro',
+  'dendro',
+  'hydro',
+  'pyro',
+  'cryo',
+] as const
+const elementWordRe = new RegExp(
+  `\\b(?:AoE )?(${markupElements.map((e) => e[0].toUpperCase() + e.slice(1)).join('|')})(?: DMG| RES)?\\b(?!-)`,
+  'g'
+)
+const markupTokenRe = /(\[\[[^\]]+\]\]|\*\*[^*]+\*\*)/
+
+/**
+ * Text of a custom character in GO's text markup (as in `char_<key>_gen`):
+ * - `**text**` is bold;
+ * - `[[text]]` or `[[text|Term]]` is bold and shows the glossary entry named
+ *   Term (or text) in a tooltip; `[[text|@11500004]]` shows GO's tooltip with
+ *   that id (`tooltips_gen`). Without such an entry it is just bold;
+ * - element words ("AoE Cryo DMG", "Electro RES", "Cryo") get their color.
+ * In glossary texts (`links: false`), links are only bold.
+ */
+export function customTextToMarkup(
+  text: string,
+  {
+    ns,
+    glossary,
+    links = true,
+  }: {
+    ns: string
+    glossary?: CustomCharacterGlossaryEntry[]
+    links?: boolean
+  }
+): string {
+  const color = (t: string) =>
+    t.replace(elementWordRe, (m, ele: string) => {
+      const tag = ele.toLowerCase()
+      return `<${tag}>${m}</${tag}>`
+    })
+  return text
+    .replace(/[<>]/g, (c) => (c === '<' ? '‹' : '›'))
+    .split(markupTokenRe)
+    .map((part) => {
+      if (part.startsWith('**') && part.endsWith('**') && part.length > 4)
+        return `<strong>${color(part.slice(2, -2))}</strong>`
+      if (part.startsWith('[[') && part.endsWith(']]')) {
+        const [shown, term = shown] = part.slice(2, -2).split('|')
+        const inner = color(shown)
+        if (!links) return `<strong>${inner}</strong>`
+        const goTooltip = term.trim().match(/^@(\d+)$/)?.[1]
+        if (goTooltip)
+          return `<strong><tooltip ns=tooltips_gen baseKey18=${goTooltip} values=[]>${inner}</tooltip></strong>`
+        const i = (glossary ?? []).findIndex(
+          (g) => g.name.toLowerCase() === term.trim().toLowerCase()
+        )
+        if (i < 0) return `<strong>${inner}</strong>`
+        return `<strong><tooltip ns=${ns} baseKey18=glossary.g${i} values=[]>${inner}</tooltip></strong>`
+      }
+      return color(part)
+    })
+    .join('')
+}
+
+/** Text without markup: `[[text|Term]]` becomes text, `**text**` text. */
+export function plainCustomText(text: string): string {
+  return text
+    .replace(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
 }
 
 export function isCustomCharacterDataDef(
@@ -761,6 +860,7 @@ function validateDataDef(
           .filter((c) => !!c)
           .slice(0, 6)
       : [],
+    glossary: validateGlossary(o['glossary']),
   }
 }
 

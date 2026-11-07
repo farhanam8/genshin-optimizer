@@ -4,6 +4,7 @@ import type {
 } from '@genshin-optimizer/gi/consts'
 import {
   customCharacterDefs,
+  customTextToMarkup,
   customWeaponDefs,
   isCustomCharacterDataDef,
 } from '@genshin-optimizer/gi/consts'
@@ -139,14 +140,22 @@ function customCharacterNamespace(ns: string): string {
   return ns
 }
 
-/** Talent texts of an imported custom character, in the `char_<key>_gen` layout. */
+/**
+ * Talent texts of an imported custom character, in the `char_<key>_gen`
+ * layout, in GO's text markup (see `customTextToMarkup`), with the glossary
+ * its tooltips show under `glossary.g<index>`.
+ */
 function dataCharacterTexts(def: CustomCharacterDataDef) {
-  const lines = (text: string) =>
+  const ns = `char_${def.key}_gen`
+  const lines = (text: string, links = true) =>
     Object.fromEntries(
       text
         .split('\n')
         .filter((line) => line.trim())
-        .map((line, i) => [i, line])
+        .map((line, i) => [
+          i,
+          customTextToMarkup(line, { ns, glossary: def.glossary, links }),
+        ])
     )
   const entry = (t?: CustomCharacterText) =>
     t ? { name: t.name, description: lines(t.description) } : undefined
@@ -164,6 +173,12 @@ function dataCharacterTexts(def: CustomCharacterDataDef) {
     passive: entry(def.otherPassives?.[0]),
     ...Object.fromEntries(
       def.constellations.map((c, i) => [`constellation${i + 1}`, entry(c)])
+    ),
+    glossary: Object.fromEntries(
+      (def.glossary ?? []).map((g, i) => [
+        `g${i}`,
+        { name: g.title ?? g.name, description: lines(g.description, false) },
+      ])
     ),
   }
 }
