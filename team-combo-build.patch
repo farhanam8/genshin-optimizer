@@ -1,0 +1,172 @@
+From 48b8ea19fd60ce04278b9617ff3f52b1c8906360 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 7 Nov 2026 09:05:16 +0000
+Subject: [PATCH] feat(gi): show weapon and artifact sets in team combo DPS
+
+Each member card of the Team Combo DPS shows the weapon (icon, name,
+level, refinement) and the active artifact set bonuses (4-set or 2-set,
+with the set effects on hover), as the member's build is computed, so
+saved and TC builds show what they use too.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Asb8vZRqeTYT9zLpVizGNv
+---
+ .../assets/locales/en/page_team.json          |  3 +-
+ .../assets/locales/id/page_team.json          |  3 +-
+ .../page-team/src/TeamSetting/TeamCombo.tsx   | 78 ++++++++++++++++++-
+ 3 files changed, 78 insertions(+), 6 deletions(-)
+
+diff --git a/libs/gi/localization/assets/locales/en/page_team.json b/libs/gi/localization/assets/locales/en/page_team.json
+index 7239e99a..8dc88b76 100644
+--- a/libs/gi/localization/assets/locales/en/page_team.json
++++ b/libs/gi/localization/assets/locales/en/page_team.json
+@@ -47,7 +47,8 @@
+       "subtotal": "Subtotal",
+       "rotationTime": "Rotation length",
+       "totalDmg": "Total team DMG",
+-      "dps": "Team DPS ({{time}} s)"
++      "dps": "Team DPS ({{time}} s)",
++      "noSet": "No artifact set bonus"
+     }
+   },
+   "exportModal": {
+diff --git a/libs/gi/localization/assets/locales/id/page_team.json b/libs/gi/localization/assets/locales/id/page_team.json
+index 388dfe0c..01599e31 100644
+--- a/libs/gi/localization/assets/locales/id/page_team.json
++++ b/libs/gi/localization/assets/locales/id/page_team.json
+@@ -8,7 +8,8 @@
+       "subtotal": "Subtotal",
+       "rotationTime": "Durasi rotasi",
+       "totalDmg": "Total DMG tim",
+-      "dps": "DPS tim ({{time}} dtk)"
++      "dps": "DPS tim ({{time}} dtk)",
++      "noSet": "Tanpa bonus set artefak"
+     }
+   }
+ }
+diff --git a/libs/gi/page-team/src/TeamSetting/TeamCombo.tsx b/libs/gi/page-team/src/TeamSetting/TeamCombo.tsx
+index 495e93fc..23bed4d5 100644
+--- a/libs/gi/page-team/src/TeamSetting/TeamCombo.tsx
++++ b/libs/gi/page-team/src/TeamSetting/TeamCombo.tsx
+@@ -1,13 +1,19 @@
+-import { CardThemed } from '@genshin-optimizer/common/ui'
+-import type { CharacterKey } from '@genshin-optimizer/gi/consts'
+-import type { TeamComboPick } from '@genshin-optimizer/gi/db'
++import { CardThemed, ImgIcon, SqBadge } from '@genshin-optimizer/common/ui'
++import { artifactDefIcon, weaponAsset } from '@genshin-optimizer/gi/assets'
++import type { ArtifactSetKey, CharacterKey } from '@genshin-optimizer/gi/consts'
++import { allArtifactSetKeys } from '@genshin-optimizer/gi/consts'
++import type { ICachedWeapon, TeamComboPick } from '@genshin-optimizer/gi/db'
+ import { useDatabase, useDBMeta, useTeam } from '@genshin-optimizer/gi/db-ui'
+ import { getCharEle } from '@genshin-optimizer/gi/stats'
+ import {
++  ArtifactSetName,
++  ArtifactSetTooltip,
+   CharacterName,
+   CharIconSide,
+   useTeamDataNoContext,
++  WeaponName,
+ } from '@genshin-optimizer/gi/ui'
++import { input } from '@genshin-optimizer/gi/wr'
+ import TimerIcon from '@mui/icons-material/Timer'
+ import {
+   Box,
+@@ -38,9 +44,22 @@ function useMemberTargets(teamId: string, teamCharId: string | undefined) {
+   )
+   const teamChar = teamCharId ? database.teamChars.get(teamCharId) : undefined
+   if (!teamChar) return undefined
+-  const display = teamData?.[teamChar.key]?.target.getDisplay()['custom']
++  const memberData = teamData?.[teamChar.key]
++  const display = memberData?.target.getDisplay()['custom']
++  // Pieces per set, as the build (equipped, saved or TC) is computed
++  const sets = memberData
++    ? allArtifactSetKeys
++        .map((setKey) => ({
++          setKey,
++          count: memberData.target.get(input.artSet[setKey]).value ?? 0,
++        }))
++        .filter(({ count }) => count >= 2)
++        .sort((a, b) => b.count - a.count)
++    : []
+   return {
+     characterKey: teamChar.key as CharacterKey,
++    weapon: memberData?.weapon,
++    sets,
+     targets: teamChar.customMultiTargets.map(({ name }, i) => ({
+       name,
+       value: display?.[i]?.value as number | undefined,
+@@ -48,6 +67,54 @@ function useMemberTargets(teamId: string, teamCharId: string | undefined) {
+   }
+ }
+ 
++/** The weapon and artifact set bonuses of a team member's build */
++function MemberBuild({
++  weapon,
++  sets,
++}: {
++  weapon?: ICachedWeapon
++  sets: { setKey: ArtifactSetKey; count: number }[]
++}) {
++  const { t } = useTranslation('page_team')
++  return (
++    <Box display="flex" flexDirection="column" gap={0.5} px={2} pb={1}>
++      {weapon && (
++        <Box display="flex" alignItems="center" gap={1}>
++          <ImgIcon
++            src={weaponAsset(weapon.key, weapon.ascension >= 2)}
++            size={2}
++          />
++          <Typography variant="body2" noWrap flexGrow={1} minWidth={0}>
++            <WeaponName weaponKey={weapon.key} />
++          </Typography>
++          <Typography variant="caption" color="text.secondary" noWrap>
++            Lv. {weapon.level} · R{weapon.refinement}
++          </Typography>
++        </Box>
++      )}
++      {sets.length ? (
++        sets.map(({ setKey, count }) => (
++          <ArtifactSetTooltip key={setKey} setKey={setKey} numInSet={count}>
++            <Box display="flex" alignItems="center" gap={1}>
++              <ImgIcon src={artifactDefIcon(setKey)} size={2} />
++              <SqBadge color={count >= 4 ? 'success' : 'primary'}>
++                {count >= 4 ? 4 : 2}
++              </SqBadge>
++              <Typography variant="body2" noWrap minWidth={0}>
++                <ArtifactSetName setKey={setKey} />
++              </Typography>
++            </Box>
++          </ArtifactSetTooltip>
++        ))
++      ) : (
++        <Typography variant="caption" color="text.secondary">
++          {t('teamSettings.combo.noSet')}
++        </Typography>
++      )}
++    </Box>
++  )
++}
++
+ /** A number field that keeps what is typed and reports valid positive values */
+ function NumberField({
+   value,
+@@ -153,6 +220,8 @@ export function TeamCombo({ teamId }: { teamId: string }) {
+     return {
+       teamCharId,
+       characterKey: member.characterKey,
++      weapon: member.weapon,
++      sets: member.sets,
+       targets,
+       total: targets.reduce((a, x) => a + x.total, 0),
+     }
+@@ -184,6 +253,7 @@ export function TeamCombo({ teamId }: { teamId: string }) {
+                       />
+                     </Typography>
+                   </Box>
++                  <MemberBuild weapon={row.weapon} sets={row.sets} />
+                   <Divider />
+                   <Box display="flex" flexDirection="column" gap={0.5} p={1}>
+                     {!row.targets.length && (
+-- 
+2.43.0
+

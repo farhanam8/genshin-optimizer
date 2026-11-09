@@ -1,0 +1,588 @@
+From 46b5e63c54abe4dfa2090ee81bca67909d26f3e3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 7 Nov 2026 08:40:07 +0000
+Subject: [PATCH] feat(gi): styled talent texts, Anastasya burst Stellar rows
+
+Texts of imported custom characters use GO's text markup: element words
+("AoE Cryo DMG", "Electro RES") get their color, **text** is bold, and
+[[text|Term]] is bold and underlined with a tooltip showing the term
+from the character's new glossary ([[text|@id]] shows a GO tooltip).
+
+Anastasya and Danica's skill, burst, passive and constellation texts use
+it, with glossaries for Transcendence and Blessings, Sealing, Freeze,
+Palestar Edict: Triumph/Doom, Excitement, Entry/On-Field Skill E2 and
+the Maid states, plus GO's Radiance: Stellar Glimmer, Polestar Field
+and Elevation tooltips.
+
+Anastasya's burst gets Stellar-Conduct/Stellar Swirl values for To the
+New World's instantaneous DMG and Doom's 1-Hit Cryo DMG, with the same
+multipliers. Talent DMG values are listed before durations and costs.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Asb8vZRqeTYT9zLpVizGNv
+---
+ .../builtinCustom/anastasya-silverdawn.json   |  72 +++++++++++--
+ .../src/builtinCustom/danica-torrents.json    |  45 ++++++--
+ libs/gi/consts/src/customCharacter.ts         | 100 ++++++++++++++++++
+ libs/gi/i18n/src/i18n.ts                      |  21 +++-
+ .../sheets/src/Characters/customDataSheet.tsx |  20 +++-
+ .../sheets/src/Characters/customText.test.ts  |  41 +++++++
+ 6 files changed, 273 insertions(+), 26 deletions(-)
+ create mode 100644 libs/gi/sheets/src/Characters/customText.test.ts
+
+diff --git a/libs/gi/consts/src/builtinCustom/anastasya-silverdawn.json b/libs/gi/consts/src/builtinCustom/anastasya-silverdawn.json
+index 1b0a860b..905a403d 100644
+--- a/libs/gi/consts/src/builtinCustom/anastasya-silverdawn.json
++++ b/libs/gi/consts/src/builtinCustom/anastasya-silverdawn.json
+@@ -198,7 +198,7 @@
+         },
+         "skill": {
+           "name": "Polestar's Divine Judgment",
+-          "description": "Reveals the true nature of Transcendence, dealing AoE Cryo DMG and unleashing her power in different ways depending on whether the skill is tapped or held.\n\nTap\nGains the Blessing of Love and throws the Palestar Crown, an heirloom of the imperial court.\nThe Palestar Crown follows the active character and deals 2 instances of AoE Cryo DMG to nearby opponents every 2s.\nRadiance: Stellar Glimmer: The second instance of DMG dealt by each Palestar Crown attack becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.\n\nHold\nGains the Blessing of Honor and demonstrates the consummate skill at arms passed down by the imperial court.\nIn this mode, Anastasya's Normal Attacks are replaced by a sequence of up to 5 attacks with the Blessed Armament: Dekhomenon, dealing AoE Cryo DMG that cannot be overridden by other Elemental Infusions. She cannot perform Charged Attacks in this mode.\nRadiance: Stellar Glimmer: The final instance of DMG from each Normal Attack performed with the Blessed Armament becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
++          "description": "Reveals the true nature of [[Transcendence|Transcendence and Blessings]], dealing AoE Cryo DMG and unleashing her power in different ways depending on whether the skill is tapped or held.\n\n**Tap**\nGains the Blessing of **Love** and throws the **Palestar Crown**, an heirloom of the imperial court.\nThe **Palestar Crown** follows the active character and deals 2 instances of AoE Cryo DMG to nearby opponents every 2s.\n[[Radiance: Stellar Glimmer|@11500004]]: The second instance of DMG dealt by each **Palestar Crown** attack becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.\n\n**Hold**\nGains the Blessing of **Honor** and demonstrates the consummate skill at arms passed down by the imperial court.\nIn this mode, Anastasya's Normal Attacks are replaced by a sequence of up to 5 attacks with the **Blessed Armament: Dekhomenon**, dealing AoE Cryo DMG that cannot be overridden by other Elemental Infusions. She cannot perform Charged Attacks in this mode.\n[[Radiance: Stellar Glimmer|@11500004]]: The final instance of DMG from each Normal Attack performed with the **Blessed Armament** becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
+           "icon": "Skill_S_Anastasya_01",
+           "rows": [
+             {
+@@ -499,7 +499,7 @@
+         },
+         "burst": {
+           "name": "To the New World",
+-          "description": "Anastasya's current Blessing determines which Elemental Burst she can use and how she wields the power of Sealing.\n\nTo the New World\nCan be used while Anastasya holds the Blessing of Love. Deals AoE Cryo DMG and freezes the Palestar Crown's duration.\nDuring this time, all nearby party members deal increased Stellar Glimmer reaction DMG, and the Palestar Crown deals 1 additional instance of AoE Cryo DMG that is considered Stellar-Conduct reaction DMG with each attack. Anastasya also Seals herself when she switches off-field during this time. When her Sealed state ends, she can use the special unsealing Elemental Skill Palestar Edict: Triumph.\n\nThe Evernight Yields to Dawn\nCan be used while Anastasya holds the Blessing of Honor. Unleashes the power of the Blessed Armament, dealing AoE Cryo DMG considered Stellar-Conduct reaction DMG, and freezes the Blessing's duration.\nAnastasya also Seals up to 3 other party members. When the Sealed state ends, Anastasya can use the special unsealing Elemental Skill Palestar Edict: Doom.\n\nRadiance: Stellar Glimmer: All Stellar-Conduct reaction DMG described above is instead dealt as AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
++          "description": "Anastasya's current [[Blessing|Transcendence and Blessings]] determines which Elemental Burst she can use and how she wields the power of [[Sealing]].\n\n**To the New World**\nCan be used while Anastasya holds the Blessing of **Love**. Deals AoE Cryo DMG and [[freezes|Freeze]] the Palestar Crown's duration.\nDuring this time, all nearby party members deal increased Stellar Glimmer reaction DMG, and the Palestar Crown deals 1 additional instance of AoE Cryo DMG that is considered Stellar-Conduct reaction DMG with each attack. Anastasya also [[Seals|Sealing]] herself when she switches off-field during this time. When her **Sealed** state ends, she can use the special unsealing Elemental Skill [[Palestar Edict: Triumph]].\n\n**The Evernight Yields to Dawn**\nCan be used while Anastasya holds the Blessing of **Honor**. Unleashes the power of the **Blessed Armament**, dealing AoE Cryo DMG considered Stellar-Conduct reaction DMG, and [[freezes|Freeze]] the Blessing's duration.\nAnastasya also [[Seals|Sealing]] up to 3 other party members. When the **Sealed** state ends, Anastasya can use the special unsealing Elemental Skill [[Palestar Edict: Doom]].\n\n[[Radiance: Stellar Glimmer|@11500004]]: All Stellar-Conduct reaction DMG described above is instead dealt as AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
+           "icon": "Skill_E_Anastasya_01",
+           "rows": [
+             {
+@@ -655,6 +655,34 @@
+                   "format": "I"
+                 }
+               ]
++            },
++            {
++              "label": "To the New World Instantaneous Stellar-Conduct/Stellar Swirl DMG",
++              "template": "{param1:F1P}/{param1:F1P}",
++              "params": [
++                {
++                  "index": 0,
++                  "format": "F1P"
++                },
++                {
++                  "index": 0,
++                  "format": "F1P"
++                }
++              ]
++            },
++            {
++              "label": "Doom 1-Hit Cryo Stellar-Conduct/Stellar Swirl DMG",
++              "template": "{param9:F1P}×5/{param9:F1P}×5",
++              "params": [
++                {
++                  "index": 8,
++                  "format": "F1P"
++                },
++                {
++                  "index": 8,
++                  "format": "F1P"
++                }
++              ]
+             }
+           ],
+           "params": [
+@@ -731,21 +759,21 @@
+       },
+       "passive1": {
+         "name": "The Radiant Reign of Night",
+-        "description": "All party members gain Accolades for 20s after Anastasya uses her Elemental Skill Polestar's Divine Judgment, increasing their CRIT DMG by 12%.\nWhen a party member is Sealed, their Accolades are temporarily divided equally among party members who are not Sealed until 8s after that character's Sealed state ends.",
++        "description": "All party members gain **Accolades** for 20s after Anastasya uses her Elemental Skill **Polestar's Divine Judgment**, increasing their CRIT DMG by 12%.\nWhen a party member is [[Sealed|Sealing]], their **Accolades** are temporarily divided equally among party members who are not [[Sealed|Sealing]] until 8s after that character's Sealed state ends.",
+         "icon": "UI_Talent_S_Anastasya_05",
+         "unlockAscension": 1,
+         "params": [0.12, 20, 8]
+       },
+       "passive2": {
+         "name": "Lament for the Lost",
+-        "description": "While Anastasya is in the party, Stellar Glimmer reactions triggered by any party member gain the following effects:\n·Stellar-Conduct: The Polestar Field will be further enhanced each time it grants a buff, and creating a Starlight Prism will cause the Field to generate a buff instantly;\n·Stellar Swirl: Stellar Swirl's base reaction multiplier is increased by 15%. Newly created Stellar Vortices and Drifting Vortices are also immediately raised to Level 2. This level increase can trigger once every 1s.",
++        "description": "While Anastasya is in the party, Stellar Glimmer reactions triggered by any party member gain the following effects:\n·**Stellar-Conduct**: The Polestar Field will be further enhanced each time it grants a buff, and creating a Starlight Prism will cause the Field to generate a buff instantly;\n·**Stellar Swirl**: Stellar Swirl's base reaction multiplier is increased by 15%. Newly created Stellar Vortices and Drifting Vortices are also immediately raised to Level 2. This level increase can trigger once every 1s.",
+         "icon": "UI_Talent_S_Anastasya_06",
+         "unlockAscension": 4,
+         "params": [1, 0.15]
+       },
+       "passive3": {
+         "name": "Stellar Jubilee: Immaculate Return",
+-        "description": "Anastasya will be in the Radiance: Stellar-Conduct state while within a Polestar Field, and in the Radiance: Stellar Swirl state for 8s after a party member triggers a Stellar Swirl reaction nearby.\nParty members trigger Stellar-Conduct/Stellar Swirl reactions instead of Superconduct/Cryo Swirl reactions, respectively. Anastasya also increases party members' Stellar-Conduct and Stellar Swirl base DMG by 0.7% for every 100 ATK she has, up to a maximum increase of 14%.",
++        "description": "Anastasya will be in the **Radiance: Stellar-Conduct** state while within a [[Polestar Field|@11330003]], and in the **Radiance: Stellar Swirl** state for 8s after a party member triggers a Stellar Swirl reaction nearby.\nParty members trigger Stellar-Conduct/Stellar Swirl reactions instead of Superconduct/Cryo Swirl reactions, respectively. Anastasya also increases party members' Stellar-Conduct and Stellar Swirl base DMG by 0.7% for every 100 ATK she has, up to a maximum increase of 14%.",
+         "icon": "UI_Talent_S_Anastasya_07",
+         "unlockAscension": 0,
+         "params": [8, 0.007, 0.14]
+@@ -762,37 +790,37 @@
+       "constellations": [
+         {
+           "name": "To Years Past, To Hearts Still Alight",
+-          "description": "The Ascension Passive The Radiant Reign of Night is enhanced: Accolades also increase the ATK of Cryo characters by 15% and the Elemental Mastery of characters of other Elemental Types by 60.\nAdditionally, when a character is Sealed, the division of Accolades will not cause the sharing character's Accolades to be dispelled. When Anastasya is Sealed, the Accolades she grants to other characters will provide 300% of their original bonuses.",
++          "description": "The Ascension Passive **The Radiant Reign of Night** is enhanced: **Accolades** also increase the ATK of Cryo characters by 15% and the Elemental Mastery of characters of other Elemental Types by 60.\nAdditionally, when a character is [[Sealed|Sealing]], the division of **Accolades** will not cause the sharing character's **Accolades** to be dispelled. When Anastasya is [[Sealed|Sealing]], the **Accolades** she grants to other characters will provide 300% of their original bonuses.",
+           "icon": "UI_Talent_S_Anastasya_01",
+           "params": [0.15, 60, 3]
+         },
+         {
+           "name": "To Winter, All Who Taste Its Bite",
+-          "description": "After Anastasya uses her Elemental Skill, Polestar's Divine Judgment, the following effects apply based on her current Blessing:\n· Love: The CRIT DMG of Stellar Glimmer Reaction DMG dealt by all party members is increased by 60% for 30s;\n· Honor: Anastasya's Normal Attacks, Elemental Burst The Evernight Yields to Dawn, and special Unsealing Elemental Skill Palestar Edict: Doom deal 125% of their original DMG for 15s.\n\nAdditionally, Stellar Glimmer Reaction DMG dealt by all nearby party members is Elevated by 5%.",
++          "description": "After Anastasya uses her Elemental Skill, **Polestar's Divine Judgment**, the following effects apply based on her current Blessing:\n· **Love**: The CRIT DMG of Stellar Glimmer Reaction DMG dealt by all party members is increased by 60% for 30s;\n· **Honor**: Anastasya's Normal Attacks, Elemental Burst **The Evernight Yields to Dawn**, and special Unsealing Elemental Skill [[Palestar Edict: Doom]] deal 125% of their original DMG for 15s.\n\nAdditionally, Stellar Glimmer Reaction DMG dealt by all nearby party members is [[Elevated|@11190007]] by 5%.",
+           "icon": "UI_Talent_S_Anastasya_02",
+           "params": [0.6, 30, 1.25, 15, 0.05]
+         },
+         {
+           "name": "To White Nights, Set Our Grief Afire",
+-          "description": "Increases the Level of the Elemental Burst To the New World by 3.\nMaximum upgrade level is 15.",
++          "description": "Increases the Level of the Elemental Burst **To the New World** by 3.\nMaximum upgrade level is 15.",
+           "icon": "UI_Talent_U_Anastasya_01",
+           "params": []
+         },
+         {
+           "name": "To Tyrants, Sing The Rebel's Choir",
+-          "description": "Enhances Accolades, increasing CRIT DMG, ATK, and Elemental Mastery bonuses to 130% of their original values.",
++          "description": "Enhances **Accolades**, increasing CRIT DMG, ATK, and Elemental Mastery bonuses to 130% of their original values.",
+           "icon": "UI_Talent_S_Anastasya_03",
+           "params": [0.3]
+         },
+         {
+           "name": "March On, Till Rot's Last Ember Dies",
+-          "description": "Increases the Level of Polestar's Divine Judgment by 3.\nMaximum upgrade level is 15.",
++          "description": "Increases the Level of **Polestar's Divine Judgment** by 3.\nMaximum upgrade level is 15.",
+           "icon": "UI_Talent_U_Anastasya_02",
+           "params": []
+         },
+         {
+           "name": "Look Up, a Dawn Unstained Shall Rise",
+-          "description": "After Anastasya uses her Elemental Skill, Polestar's Divine Judgment, the following effects apply based on her current Blessing:\n· Love: The next time another character is switched onto the field, an effect equivalent to Palestar Edict: Triumph is triggered, dealing 250% of its original DMG. Additionally, Stellar Glimmer Reaction DMG dealt by all nearby party members is Elevated by 10%;\n· Honor: The next time the Elemental Skill is tapped, an effect equivalent to the third attack of Palestar Edict: Doom is triggered, dealing 200% of its original DMG. If the other party members are not Sealed, Anastasya is considered to possess the Accolades of all party members for this attack. Additionally, Stellar Glimmer Reaction DMG dealt by Anastasya is Elevated by 20%.\n\nThe above effects last for 30s and can be triggered once every 15s. They are removed when other party members' Sealed status ends.",
++          "description": "After Anastasya uses her Elemental Skill, **Polestar's Divine Judgment**, the following effects apply based on her current Blessing:\n· **Love**: The next time another character is switched onto the field, an effect equivalent to [[Palestar Edict: Triumph]] is triggered, dealing 250% of its original DMG. Additionally, Stellar Glimmer Reaction DMG dealt by all nearby party members is [[Elevated|@11190007]] by 10%;\n· **Honor**: The next time the Elemental Skill is tapped, an effect equivalent to the third attack of [[Palestar Edict: Doom]] is triggered, dealing 200% of its original DMG. If the other party members are not [[Sealed|Sealing]], Anastasya is considered to possess the **Accolades** of all party members for this attack. Additionally, Stellar Glimmer Reaction DMG dealt by Anastasya is [[Elevated|@11190007]] by 20%.\n\nThe above effects last for 30s and can be triggered once every 15s. They are removed when other party members' [[Sealed|Sealing]] status ends.",
+           "icon": "UI_Talent_S_Anastasya_04",
+           "params": [30, 15, 2.5, 0.1, 2, 0.2]
+         }
+@@ -1184,6 +1212,28 @@
+             }
+           ]
+         }
++      ],
++      "glossary": [
++        {
++          "name": "Transcendence and Blessings",
++          "description": "When Anastasya uses her Elemental Skill **Polestar's Divine Judgment**, she unleashes her power in different ways and gains a different Blessing depending on whether the skill is tapped or held.\n·**Tap**: Gains the Blessing of **Love**;\n·**Hold**: Gains the Blessing of **Honor**.\nEach Blessing allows Anastasya to use a different Elemental Burst and wield the power of **Sealing** differently.\nAnastasya always holds the Blessing of **Love** when she does not hold the Blessing of **Honor**."
++        },
++        {
++          "name": "Sealing",
++          "description": "A special state applied to characters when Anastasya uses her Elemental Burst. Characters in the Sealed state cannot be switched in.\nThe initial Sealing duration matches the duration of the corresponding Elemental Burst. Its remaining duration can be reduced through specific means.\nAnastasya's **Blessing** determines which Elemental Burst she uses and how she wields the power of Sealing:\n·**Love**: Anastasya Seals herself when she switches off-field. Stellar Glimmer reaction DMG dealt by any nearby party member can reduce the remaining duration of her Sealed state. For a limited time after her Sealed state ends, switching Anastasya in triggers the special unsealing Elemental Skill **Palestar Edict: Triumph**;\n·**Honor**: Anastasya Seals up to 3 other party members. Anastasya can reduce the remaining duration of Sealing by using Normal Attacks. For a limited time after a character's Sealed state ends, selecting that character for the first time triggers the special unsealing Elemental Skill **Palestar Edict: Doom** instead of switching them in."
++        },
++        {
++          "name": "Palestar Edict: Triumph",
++          "description": "A special Elemental Skill triggered by switching Anastasya in after her own Sealed state ends. Deals AoE Cryo DMG to nearby opponents. This DMG is considered Stellar-Conduct reaction DMG.\n**Radiance: Stellar Glimmer**: The aforementioned DMG is instead dealt as AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction."
++        },
++        {
++          "name": "Freeze",
++          "description": "A special mechanic. Pauses an effect's duration, preventing it from counting down until the effect that triggered the freeze ends."
++        },
++        {
++          "name": "Palestar Edict: Doom",
++          "description": "For a limited time after another party member's Sealed state ends, selecting that character for the first time triggers this special Elemental Skill instead of switching them in.\n**Palestar Edict: Doom** has 3 stages, performed in sequence by selecting the corresponding characters for the first time or pressing the Elemental Skill.\n·Stage 1: Performs a series of slashes with the **Blessed Armament: Dekhomenon**, dealing multiple instances of AoE Cryo DMG that cannot be overridden by other Elemental Infusions and are considered Elemental Skill DMG, followed by a final instance of AoE Cryo DMG that is considered Stellar-Conduct reaction DMG;\n·Stage 2: Leaps forward and performs a slash, dealing AoE Cryo DMG that is considered Stellar-Conduct reaction DMG;\n·Stage 3: Fires the **Blessed Armament** as an arrow, dealing greater AoE Cryo DMG considered Stellar-Conduct reaction DMG and ending the effect of **The Evernight Yields to Dawn**.\n**Radiance: Stellar Glimmer**: The Stellar-Conduct reaction DMG described above is instead dealt as AoE Cryo DMG considered DMG from the corresponding Stellar Glimmer reaction."
++        }
+       ]
+     }
+   ],
+diff --git a/libs/gi/consts/src/builtinCustom/danica-torrents.json b/libs/gi/consts/src/builtinCustom/danica-torrents.json
+index ec178b00..b2e8e187 100644
+--- a/libs/gi/consts/src/builtinCustom/danica-torrents.json
++++ b/libs/gi/consts/src/builtinCustom/danica-torrents.json
+@@ -206,7 +206,7 @@
+         },
+         "skill": {
+           "name": "testDanica Elemental Skill",
+-          "description": "testSwings her chain and anchor, dealing AoE Electro DMG to nearby opponents and summoning an Anchor that follows the current on-field character's movements.\n\nWhile the Anchor is present, it will assist in combat in different ways depending on whether Danica is on the field.\nWhen Danica is Off-Field\nWhen the current on-field character in the party hits opponents with Electro or Cryo attacks, the Anchor will launch a Coordinated Attack, dealing AoE Electro DMG at the opponents' location. This effect can trigger at most once every 1.5s.\nWhen Danica is On-Field\nDanica's Normal Attacks will be converted into Special Attacks using the anchor, dealing Electro DMG that cannot be overridden by infusion. This DMG is considered Normal Attack DMG.\n\nExcitement\nWhile the Anchor is present, Danica can accumulate Excitement by performing anchor Special Normal Attacks or by having the current on-field character in the party hit opponents with Cryo or Electro attacks. When Excitement reaches its maximum, depending on whether Danica is on-field, all Excitement can be consumed to unleash different special Elemental Skills and enter the corresponding Maid Form:\nDefense Maid\nWhen Danica is off-field, switch to bring Danica on-field, automatically triggering \"Entry Skill E2\", and entering Defense Maid. Generates a Shield for the on-field character and refreshes the Anchor's Duration. During this time, \"On-Field Skill E2\" cannot be triggered.\nBattle Maid\nWhen Danica is on-field, the Elemental Skill will be replaced by \"On-Field Skill E2\". After using it, Danica enters Battle Maid. While in this state, after using \"On-Field Skill E2\", the anchor Special Normal Attacks can skip certain Normal Attack combo hits. During this time, \"Entry Skill E2\" cannot be triggered.\n\nAdditionally, when the Anchor disappears, Danica will exit the Maid Form. While the Anchor is present, Battle Maid and Defense Maid cannot coexist — upon entering one Maid Form, the other cannot be entered.",
++          "description": "testSwings her chain and anchor, dealing AoE Electro DMG to nearby opponents and summoning an **Anchor** that follows the current on-field character's movements.\n\nWhile the **Anchor** is present, it will assist in combat in different ways depending on whether Danica is on the field.\n**When Danica is Off-Field**\nWhen the current on-field character in the party hits opponents with Electro or Cryo attacks, the **Anchor** will launch a Coordinated Attack, dealing AoE Electro DMG at the opponents' location. This effect can trigger at most once every 1.5s.\n**When Danica is On-Field**\nDanica's Normal Attacks will be converted into Special Attacks using the anchor, dealing Electro DMG that cannot be overridden by infusion. This DMG is considered Normal Attack DMG.\n\n**Excitement**\nWhile the Anchor is present, Danica can accumulate [[Excitement]] by performing anchor Special Normal Attacks or by having the current on-field character in the party hit opponents with Cryo or Electro attacks. When Excitement reaches its maximum, depending on whether Danica is on-field, all Excitement can be consumed to unleash different special Elemental Skills and enter the corresponding Maid Form:\n**Defense Maid**\nWhen Danica is off-field, switch to bring Danica on-field, automatically triggering [[\"Entry Skill E2\"|Entry Skill E2]], and entering **Defense Maid**. Generates a Shield for the on-field character and refreshes the Anchor's Duration. During this time, **\"On-Field Skill E2\"** cannot be triggered.\n**Battle Maid**\nWhen Danica is on-field, the Elemental Skill will be replaced by [[\"On-Field Skill E2\"|On-Field Skill E2]]. After using it, Danica enters **Battle Maid**. While in this state, after using \"On-Field Skill E2\", the anchor Special Normal Attacks can skip certain Normal Attack combo hits. During this time, **\"Entry Skill E2\"** cannot be triggered.\n\nAdditionally, when the Anchor disappears, Danica will exit the Maid Form. While the Anchor is present, Battle Maid and Defense Maid cannot coexist — upon entering one Maid Form, the other cannot be entered.",
+           "icon": "Skill_S_Danica_01",
+           "rows": [
+             {
+@@ -390,7 +390,7 @@
+         },
+         "burst": {
+           "name": "Danica's Elemental Burst",
+-          "description": "test Commanding the battlefield with the poise of the Tsaritsa's handmaiden, launches a 5-hit wide-range attack, dealing AoE Electro DMG.\n\nRadiance: Stellar-Conduct:\n·The 1st and 5th hits additionally deal AoE Electro DMG that is considered Stellar-Conduct reaction DMG.\n·For a period of time after use, if Danica is in Maid Mode, the current Maid Mode will be Enhanced, granting the corresponding Enhancement effect based on the current mode:\nWhen Danica is in Defense Maid mode, increases ATK for all Characters in the party.\nWhen Danica is in Battle Maid mode, immediately restores all Excited energy and increases the DMG dealt by Danica's \"On-Field Skill E2\".\n\nWhen Maid Mode ends, the Enhancement effect will be removed.",
++          "description": "test Commanding the battlefield with the poise of the Tsaritsa's handmaiden, launches a 5-hit wide-range attack, dealing AoE Electro DMG.\n\n**Radiance: Stellar-Conduct:**\n·The 1st and 5th hits additionally deal AoE Electro DMG that is considered Stellar-Conduct reaction DMG.\n·For a period of time after use, if Danica is in Maid Mode, the current Maid Mode will be Enhanced, granting the corresponding Enhancement effect based on the current mode:\nWhen Danica is in [[Defense Maid]] mode, increases ATK for all Characters in the party.\nWhen Danica is in [[Battle Maid]] mode, immediately restores all Excited energy and increases the DMG dealt by Danica's **\"On-Field Skill E2\"**.\n\nWhen Maid Mode ends, the Enhancement effect will be removed.",
+           "icon": "Skill_E_Danica_01",
+           "rows": [
+             {
+@@ -538,21 +538,21 @@
+       },
+       "passive1": {
+         "name": "testAscension Talent 1",
+-        "description": "testAnchor decreases the Electro RES of nearby enemies by 15%.\n\nRadiance: Stellar-Conduct: Further decreases the Electro RES of nearby enemies by 15% and their Cryo RES by 30%.",
++        "description": "test**Anchor** decreases the Electro RES of nearby enemies by 15%.\n\n**Radiance: Stellar-Conduct:** Further decreases the Electro RES of nearby enemies by 15% and their Cryo RES by 30%.",
+         "icon": "UI_Talent_S_Danica_05",
+         "unlockAscension": 1,
+         "params": [0.15, 0.15, 0.3]
+       },
+       "passive2": {
+         "name": "Ascension Talent 2",
+-        "description": "test After casting 「Entry Skill E2」, Danica's own ATK increases by 20%.\nAfter casting 「On-Field Skill E2」, Danica's own ATK SPD increases by 20%, and when the Special Anchor's Normal Attack hits an enemy, she additionally gains 25 Excited points. The above effects can stack up to 3 times.\nThe above effects last until exiting the current Defense Maid or Battle Maid state. Re-triggering will refresh the Duration.",
++        "description": "test After casting **「Entry Skill E2」**, Danica's own ATK increases by 20%.\nAfter casting **「On-Field Skill E2」**, Danica's own ATK SPD increases by 20%, and when the Special Anchor's Normal Attack hits an enemy, she additionally gains 25 **Excited** points. The above effects can stack up to 3 times.\nThe above effects last until exiting the current Defense Maid or Battle Maid state. Re-triggering will refresh the Duration.",
+         "icon": "UI_Talent_S_Danica_06",
+         "unlockAscension": 4,
+         "params": [0.2]
+       },
+       "passive3": {
+         "name": "test Stellar Talent",
+-        "description": "When party members trigger Superconduct, it will be changed to Stellar-Conduct, and party members' Base Stellar-Conduct DMG will be increased based on Danica's ATK: Every point of ATK she has increases the Base Stellar-Conduct DMG by 0.7%. The maximum increase that can be gained this way is 14%.\nAdditionally, when Danica is within a Polestar Field, she will enter the Radiance: Stellar-Conduct state.",
++        "description": "When party members trigger Superconduct, it will be changed to Stellar-Conduct, and party members' Base Stellar-Conduct DMG will be increased based on Danica's ATK: Every point of ATK she has increases the Base Stellar-Conduct DMG by 0.7%. The maximum increase that can be gained this way is 14%.\nAdditionally, when Danica is within a [[Polestar Field|@11330003]], she will enter the **Radiance: Stellar-Conduct** state.",
+         "icon": "UI_Talent_S_Danica_07",
+         "unlockAscension": 0,
+         "params": [0.007, 0.14]
+@@ -569,7 +569,7 @@
+       "constellations": [
+         {
+           "name": "test C1",
+-          "description": "testWhen Danica uses \"Entry Skill E2\" or \"On-Field Skill E2\", she restores 20 Elemental Energy for herself. This effect can trigger at most once every 14 seconds.\nAdditionally, the Defense Maid enhancement effect in Elemental Burst is increased by 80%, and the Battle Maid enhancement effect is increased by 120%.",
++          "description": "testWhen Danica uses **\"Entry Skill E2\"** or **\"On-Field Skill E2\"**, she restores 20 Elemental Energy for herself. This effect can trigger at most once every 14 seconds.\nAdditionally, the [[Defense Maid]] enhancement effect in **Elemental Burst** is increased by 80%, and the [[Battle Maid]] enhancement effect is increased by 120%.",
+           "icon": "UI_Talent_S_Danica_01",
+           "params": [20, 14, 0.8, 1.2]
+         },
+@@ -581,7 +581,7 @@
+         },
+         {
+           "name": "C3",
+-          "description": "Increases the Level of Elemental Burst by 3.\nMaximum upgrade level is 15.",
++          "description": "Increases the Level of **Elemental Burst** by 3.\nMaximum upgrade level is 15.",
+           "icon": "UI_Talent_U_Danica_02",
+           "params": []
+         },
+@@ -593,13 +593,13 @@
+         },
+         {
+           "name": "testC5",
+-          "description": "Increases the Level of Elemental Skill by 3.\nMaximum upgrade level is 15.",
++          "description": "Increases the Level of **Elemental Skill** by 3.\nMaximum upgrade level is 15.",
+           "icon": "UI_Talent_U_Danica_01",
+           "params": []
+         },
+         {
+           "name": "test C6",
+-          "description": "While the test anchor is present, the Stellar-Conduct DMG dealt by nearby characters in the party is increased by 20%.\nAdditionally, when Danica enters the Defense Maid state, every 1,000 ATK Danica has increases the Stellar-Conduct DMG dealt by the on-field character by 10%, up to a maximum of 40%.\nWhen entering the Battle Maid state, every 500 ATK Danica has increases her own on-field Skill E2's CRIT Rate by 2.5% and the CRIT DMG dealt by 25%. CRIT Rate can be increased by up to 10% and CRIT DMG by up to 100%.\nThe above effects last until exiting the current Maid state.",
++          "description": "While the test anchor is present, the Stellar-Conduct DMG dealt by nearby characters in the party is increased by 20%.\nAdditionally, when Danica enters the [[Defense Maid]] state, every 1,000 ATK Danica has increases the Stellar-Conduct DMG dealt by the on-field character by 10%, up to a maximum of 40%.\nWhen entering the [[Battle Maid]] state, every 500 ATK Danica has increases her own on-field Skill E2's CRIT Rate by 2.5% and the CRIT DMG dealt by 25%. CRIT Rate can be increased by up to 10% and CRIT DMG by up to 100%.\nThe above effects last until exiting the current Maid state.",
+           "icon": "UI_Talent_S_Danica_04",
+           "params": [0.2, 1000, 0.1, 0.4, 500, 0.025, 0.25, 0.1, 1]
+         }
+@@ -932,6 +932,33 @@
+           "condition": "Maid state",
+           "conditionState": "Battle Maid (Q on-field)"
+         }
++      ],
++      "glossary": [
++        {
++          "name": "Excitement",
++          "title": "test Excited",
++          "description": "testWhile the anchor is present, Danica accumulates **Excitement**. Excitement can be gained in the following ways:\n·When Danica is off-field, when the active Character on the team hits an enemy with Electro or Cryo attacks, 50 points are gained, triggered at most once every 0.1 seconds;\n·When Danica is on-field, when the Special Anchor's Normal Attacks hit enemies, 25 points are gained, with Excitement gained this way at most once per Normal Attack hit.\nAdditionally, when Danica is in the **Defense Maid** state, Danica can only gain Excitement when the active Character on the team hits enemies with Electro or Cryo attacks; when in the **Combat Maid** state, Danica can only gain Excitement by landing hits with **Special Anchor Normal Attacks**.\nWhen Excitement reaches the maximum of 100 points, Danica can consume all Excitement to unleash the special Elemental Skill **\"Entry Skill E2\"** or **\"On-Field Skill E2\"**, and enter the corresponding **Maid Form** based on how it is used."
++        },
++        {
++          "name": "Entry Skill E2",
++          "title": "test\"Entry Skill E2\"",
++          "description": "testDanica swings her anchor chain to rapidly close in on enemies, then slams the anchor into the ground, dealing Electro DMG in an AoE, considered as Stellar-Conduct reaction DMG.\nAfter using this ability, Danica enters the **Guardian Maid** state, gaining the following effects:\n·Refreshes the anchor's Duration;\n·Generates a Shield for the current active Character in the party. The Shield lasts until the Guardian Maid state ends, and its DMG Absorption scales with Danica's ATK, with 250% effectiveness against Electro DMG."
++        },
++        {
++          "name": "On-Field Skill E2",
++          "title": "test\"On-Field Skill E2\"",
++          "description": "testSwings the anchor chain to rapidly close in on enemies, then slams the ship anchor into the ground, dealing a large amount of AoE Electro DMG that is considered Stellar-Conduct reaction DMG.\nAfter using this skill, Danica enters **Battle Maid** and gains the following effects: Each time \"On-Field Skill E2\" is used, the next round's **Special Anchor Normal Attack** will skip one Normal Attack stage, up to a maximum of skipping to the last Normal Attack stage.\nAfter using **\"On-Field Skill E2\"** 5 times, Danica will exit **Battle Maid** and destroy the ship anchor."
++        },
++        {
++          "name": "Defense Maid",
++          "title": "testDefense Maid",
++          "description": "testThe state Danica enters after using her special Elemental Skill **\"Entry Skill E2\"**. While in this state, she provides a Shield to the active Character on the field and refreshes the Duration of **Ship Anchor**."
++        },
++        {
++          "name": "Battle Maid",
++          "title": "test Battle Maid",
++          "description": "testThe state Danica enters after using the special Elemental Skill **\"On-Field Skill E2\"**. While in this state, each time \"On-Field Skill E2\" is used, the Special Anchor's Normal Attack will Jump over a Normal Attack stage, skipping up to the first three Normal Attack stages."
++        }
+       ]
+     }
+   ],
+diff --git a/libs/gi/consts/src/customCharacter.ts b/libs/gi/consts/src/customCharacter.ts
+index b1f3d4d4..c5e8376f 100644
+--- a/libs/gi/consts/src/customCharacter.ts
++++ b/libs/gi/consts/src/customCharacter.ts
+@@ -515,6 +515,11 @@ export type CustomCharacterDataDef = CustomCharacterBase & {
+   /** Changes to talent rows from passives and constellations */
+   rowEffects?: CustomCharacterRowEffect[]
+   constellations: CustomCharacterText[]
++  /**
++   * Terms shown in a tooltip where a text links to them (see
++   * `customTextToMarkup`), e.g. "Sealing".
++   */
++  glossary?: CustomCharacterGlossaryEntry[]
+   /**
+    * File names of the source site's images (without extension), per slot.
+    * With the URL of one of them, the URLs of all can be filled in.
+@@ -522,6 +527,100 @@ export type CustomCharacterDataDef = CustomCharacterBase & {
+   imageNames?: Partial<Record<CustomCharacterImageKey, string>>
+ }
+ 
++/** A term texts can link to: `name` is matched, `title` (if set) is shown. */
++export type CustomCharacterGlossaryEntry = {
++  name: string
++  title?: string
++  description: string
++}
++
++function validateGlossary(
++  o: unknown
++): CustomCharacterGlossaryEntry[] | undefined {
++  if (!Array.isArray(o)) return undefined
++  const entries = o.flatMap((e): CustomCharacterGlossaryEntry[] => {
++    if (!isObj(e)) return []
++    const name = str(e['name']).trim().slice(0, 80)
++    const description = str(e['description']).slice(0, 4000)
++    if (!name || !description) return []
++    const title = str(e['title']).trim().slice(0, 80)
++    return [{ name, ...(title ? { title } : {}), description }]
++  })
++  return entries.length ? entries.slice(0, 50) : undefined
++}
++
++const markupElements = [
++  'anemo',
++  'geo',
++  'electro',
++  'dendro',
++  'hydro',
++  'pyro',
++  'cryo',
++] as const
++const elementWordRe = new RegExp(
++  `\\b(?:AoE )?(${markupElements.map((e) => e[0].toUpperCase() + e.slice(1)).join('|')})(?: DMG| RES)?\\b(?!-)`,
++  'g'
++)
++const markupTokenRe = /(\[\[[^\]]+\]\]|\*\*[^*]+\*\*)/
++
++/**
++ * Text of a custom character in GO's text markup (as in `char_<key>_gen`):
++ * - `**text**` is bold;
++ * - `[[text]]` or `[[text|Term]]` is bold and shows the glossary entry named
++ *   Term (or text) in a tooltip; `[[text|@11500004]]` shows GO's tooltip with
++ *   that id (`tooltips_gen`). Without such an entry it is just bold;
++ * - element words ("AoE Cryo DMG", "Electro RES", "Cryo") get their color.
++ * In glossary texts (`links: false`), links are only bold.
++ */
++export function customTextToMarkup(
++  text: string,
++  {
++    ns,
++    glossary,
++    links = true,
++  }: {
++    ns: string
++    glossary?: CustomCharacterGlossaryEntry[]
++    links?: boolean
++  }
++): string {
++  const color = (t: string) =>
++    t.replace(elementWordRe, (m, ele: string) => {
++      const tag = ele.toLowerCase()
++      return `<${tag}>${m}</${tag}>`
++    })
++  return text
++    .replace(/[<>]/g, (c) => (c === '<' ? '‹' : '›'))
++    .split(markupTokenRe)
++    .map((part) => {
++      if (part.startsWith('**') && part.endsWith('**') && part.length > 4)
++        return `<strong>${color(part.slice(2, -2))}</strong>`
++      if (part.startsWith('[[') && part.endsWith(']]')) {
++        const [shown, term = shown] = part.slice(2, -2).split('|')
++        const inner = color(shown)
++        if (!links) return `<strong>${inner}</strong>`
++        const goTooltip = term.trim().match(/^@(\d+)$/)?.[1]
++        if (goTooltip)
++          return `<strong><tooltip ns=tooltips_gen baseKey18=${goTooltip} values=[]>${inner}</tooltip></strong>`
++        const i = (glossary ?? []).findIndex(
++          (g) => g.name.toLowerCase() === term.trim().toLowerCase()
++        )
++        if (i < 0) return `<strong>${inner}</strong>`
++        return `<strong><tooltip ns=${ns} baseKey18=glossary.g${i} values=[]>${inner}</tooltip></strong>`
++      }
++      return color(part)
++    })
++    .join('')
++}
++
++/** Text without markup: `[[text|Term]]` becomes text, `**text**` text. */
++export function plainCustomText(text: string): string {
++  return text
++    .replace(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g, '$1')
++    .replace(/\*\*([^*]+)\*\*/g, '$1')
++}
++
+ export function isCustomCharacterDataDef(
+   def: CustomCharacterDef
+ ): def is CustomCharacterDataDef {
+@@ -761,6 +860,7 @@ function validateDataDef(
+           .filter((c) => !!c)
+           .slice(0, 6)
+       : [],
++    glossary: validateGlossary(o['glossary']),
+   }
+ }
+ 
+diff --git a/libs/gi/i18n/src/i18n.ts b/libs/gi/i18n/src/i18n.ts
+index 28103314..d279f670 100644
+--- a/libs/gi/i18n/src/i18n.ts
++++ b/libs/gi/i18n/src/i18n.ts
+@@ -4,6 +4,7 @@ import type {
+ } from '@genshin-optimizer/gi/consts'
+ import {
+   customCharacterDefs,
++  customTextToMarkup,
+   customWeaponDefs,
+   isCustomCharacterDataDef,
+ } from '@genshin-optimizer/gi/consts'
+@@ -139,14 +140,22 @@ function customCharacterNamespace(ns: string): string {
+   return ns
+ }
+ 
+-/** Talent texts of an imported custom character, in the `char_<key>_gen` layout. */
++/**
++ * Talent texts of an imported custom character, in the `char_<key>_gen`
++ * layout, in GO's text markup (see `customTextToMarkup`), with the glossary
++ * its tooltips show under `glossary.g<index>`.
++ */
+ function dataCharacterTexts(def: CustomCharacterDataDef) {
+-  const lines = (text: string) =>
++  const ns = `char_${def.key}_gen`
++  const lines = (text: string, links = true) =>
+     Object.fromEntries(
+       text
+         .split('\n')
+         .filter((line) => line.trim())
+-        .map((line, i) => [i, line])
++        .map((line, i) => [
++          i,
++          customTextToMarkup(line, { ns, glossary: def.glossary, links }),
++        ])
+     )
+   const entry = (t?: CustomCharacterText) =>
+     t ? { name: t.name, description: lines(t.description) } : undefined
+@@ -165,5 +174,11 @@ function dataCharacterTexts(def: CustomCharacterDataDef) {
+     ...Object.fromEntries(
+       def.constellations.map((c, i) => [`constellation${i + 1}`, entry(c)])
+     ),
++    glossary: Object.fromEntries(
++      (def.glossary ?? []).map((g, i) => [
++        `g${i}`,
++        { name: g.title ?? g.name, description: lines(g.description, false) },
++      ])
++    ),
+   }
+ }
+diff --git a/libs/gi/sheets/src/Characters/customDataSheet.tsx b/libs/gi/sheets/src/Characters/customDataSheet.tsx
+index 3e82bed1..55f04e19 100644
+--- a/libs/gi/sheets/src/Characters/customDataSheet.tsx
++++ b/libs/gi/sheets/src/Characters/customDataSheet.tsx
+@@ -10,7 +10,11 @@ import type {
+   CustomCharacterTalentKey,
+   ElementKey,
+ } from '@genshin-optimizer/gi/consts'
+-import { customCharacterRowLabels } from '@genshin-optimizer/gi/consts'
++import {
++  customCharacterRowLabels,
++  customCharacterTalentKeys,
++  plainCustomText,
++} from '@genshin-optimizer/gi/consts'
+ import { KeyMap } from '@genshin-optimizer/gi/keymap'
+ import type { Data, NumNode } from '@genshin-optimizer/gi/wr'
+ import {
+@@ -130,9 +134,10 @@ function stellarOf(
+ 
+ /** Which talent a constellation description boosts by 3 levels, if any. */
+ function boostedTalent(
+-  description: string,
++  text: string,
+   talents: Record<CustomCharacterTalentKey, CustomCharacterTalent>
+ ): CustomCharacterTalentKey | undefined {
++  const description = plainCustomText(text)
+   if (!/increases the level of/i.test(description)) return undefined
+   if (talents.skill.name && description.includes(talents.skill.name))
+     return 'skill'
+@@ -427,6 +432,12 @@ export function dataSheetForCustomCharacter(
+     skill: [],
+     burst: [],
+   }
++  /** Other values (durations, CD, ...), shown after the DMG values */
++  const valueFields: Record<CustomCharacterTalentKey, IFieldDisplay[]> = {
++    auto: [],
++    skill: [],
++    burst: [],
++  }
+ 
+   for (const tk of ['auto', 'skill', 'burst'] as const) {
+     const talent = def.talents[tk]
+@@ -473,7 +484,7 @@ export function dataSheetForCustomCharacter(
+             : /^\s*s\b/.test(after)
+               ? 's'
+               : undefined
+-          fields[tk].push({
++          valueFields[tk].push({
+             text: name,
+             value: (data) => {
+               const lvl = data.get(levelIndex).value
+@@ -656,6 +667,9 @@ export function dataSheetForCustomCharacter(
+     return all.length ? all : undefined
+   }
+ 
++  for (const tk of customCharacterTalentKeys)
++    fields[tk] = [...fields[tk], ...valueFields[tk]]
++
+   const sheet: TalentSheet = {
+     auto: ct.talentTem('auto', [{ fields: fields.auto }]),
+     skill: ct.talentTem(
+diff --git a/libs/gi/sheets/src/Characters/customText.test.ts b/libs/gi/sheets/src/Characters/customText.test.ts
+new file mode 100644
+index 00000000..507c4c36
+--- /dev/null
++++ b/libs/gi/sheets/src/Characters/customText.test.ts
+@@ -0,0 +1,41 @@
++import { describe, expect, it } from 'vitest'
++import { customTextToMarkup, plainCustomText } from '@genshin-optimizer/gi/consts'
++
++describe('customTextToMarkup', () => {
++  const glossary = [{ name: 'Sealing', description: 'A special state.' }]
++  const opts = { ns: 'char_Test_gen', glossary }
++
++  it('colors element words', () => {
++    expect(customTextToMarkup('dealing AoE Cryo DMG', opts)).toBe(
++      'dealing <cryo>AoE Cryo DMG</cryo>'
++    )
++    expect(customTextToMarkup('Electro RES and Electro-Charged', opts)).toBe(
++      '<electro>Electro RES</electro> and Electro-Charged'
++    )
++  })
++
++  it('makes bold text and glossary tooltips', () => {
++    expect(customTextToMarkup('**Tap**: [[Seals|Sealing]]', opts)).toBe(
++      '<strong>Tap</strong>: <strong><tooltip ns=char_Test_gen baseKey18=glossary.g0 values=[]>Seals</tooltip></strong>'
++    )
++    expect(customTextToMarkup('[[Unknown]]', opts)).toBe(
++      '<strong>Unknown</strong>'
++    )
++    expect(customTextToMarkup('[[Radiance|@11500004]]', opts)).toBe(
++      '<strong><tooltip ns=tooltips_gen baseKey18=11500004 values=[]>Radiance</tooltip></strong>'
++    )
++    expect(
++      customTextToMarkup('[[Seals|Sealing]]', { ...opts, links: false })
++    ).toBe('<strong>Seals</strong>')
++  })
++
++  it('does not pass raw tags through', () => {
++    expect(customTextToMarkup('<b>x</b>', opts)).toBe('‹b›x‹/b›')
++  })
++
++  it('strips markup for plain text', () => {
++    expect(plainCustomText('**To the New World** and [[Seals|Sealing]]')).toBe(
++      'To the New World and Seals'
++    )
++  })
++})
+-- 
+2.43.0
+
