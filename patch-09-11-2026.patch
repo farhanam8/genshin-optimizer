@@ -1,0 +1,453 @@
+From 3b9ff8aa3bb8a9d3340feb97e6caf2e915a41f10 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 9 Nov 2026 13:26:41 +0000
+Subject: [PATCH] feat(gi): patch 09-11-2026 - Epochal Advent and Anastasya v2
+
+Artifact set:
+- Remnants of the Origin is renamed Epochal Advent (key EpochalAdvent),
+  with its piece names. Artifacts and TC builds saved with the old key
+  get the new one when loaded.
+- The 4-piece effect only applies while the wielder is the on-field
+  character; its description no longer says it works off-field.
+
+Anastasya (v2 kit):
+- Blessed Armament: Dekhomenon is now Blessed Spear: Dolgomernoye, and
+  Blessed Armament is Blessed Spear, in her texts and C2 effect name.
+- Palestar Crown Stellar-Conduct/Stellar Swirl DMG: 60.5%/90.7% at
+  Lv. 10 (all levels x0.84).
+- To the New World Stellar Glimmer Reaction DMG Increase: 30% at
+  Lv. 10 (all levels x0.6), so the party buff is 30%.
+- C1 text: "the equal division of Accolades"; Palestar Edict: Doom's
+  third stage ends the Blessed target's freeze effect.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Asb8vZRqeTYT9zLpVizGNv
+---
+ .../UI_RelicIcon_15049_1.webp                 | Bin
+ .../UI_RelicIcon_15049_2.webp                 | Bin
+ .../UI_RelicIcon_15049_3.webp                 | Bin
+ .../UI_RelicIcon_15049_4.webp                 | Bin
+ .../UI_RelicIcon_15049_5.webp                 | Bin
+ .../index.ts                                  |   0
+ libs/gi/assets/src/gen/artifacts/index.ts     |   4 ++--
+ libs/gi/consts/src/artifact.ts                |  15 +++++++++++-
+ .../builtinCustom/anastasya-silverdawn.json   |  22 +++++++++---------
+ .../DataManagers/ArtifactDataManager.ts       |  13 ++++++++++-
+ .../DataManagers/BuildTcDataManager.ts        |   4 +++-
+ .../assets/locales/en/artifactNames_gen.json  | Bin 2841 -> 2827 bytes
+ ...n.json => artifact_EpochalAdvent_gen.json} | Bin 1202 -> 1169 bytes
+ libs/gi/dm/src/mapping/artifact.ts            |   2 +-
+ .../index.tsx                                 |  19 +++++++++------
+ libs/gi/sheets/src/Artifacts/index.ts         |   4 ++--
+ libs/gi/stats/src/allStat_gen.json            | Bin 2279424 -> 2279418 bytes
+ tools/custom-characters/buffs/10000149.json   |   6 ++---
+ 18 files changed, 60 insertions(+), 29 deletions(-)
+ rename libs/gi/assets/src/gen/artifacts/{RemnantsOfTheOrigin => EpochalAdvent}/UI_RelicIcon_15049_1.webp (100%)
+ rename libs/gi/assets/src/gen/artifacts/{RemnantsOfTheOrigin => EpochalAdvent}/UI_RelicIcon_15049_2.webp (100%)
+ rename libs/gi/assets/src/gen/artifacts/{RemnantsOfTheOrigin => EpochalAdvent}/UI_RelicIcon_15049_3.webp (100%)
+ rename libs/gi/assets/src/gen/artifacts/{RemnantsOfTheOrigin => EpochalAdvent}/UI_RelicIcon_15049_4.webp (100%)
+ rename libs/gi/assets/src/gen/artifacts/{RemnantsOfTheOrigin => EpochalAdvent}/UI_RelicIcon_15049_5.webp (100%)
+ rename libs/gi/assets/src/gen/artifacts/{RemnantsOfTheOrigin => EpochalAdvent}/index.ts (100%)
+ rename libs/gi/dm-localization/assets/locales/en/{artifact_RemnantsOfTheOrigin_gen.json => artifact_EpochalAdvent_gen.json} (52%)
+ rename libs/gi/sheets/src/Artifacts/{RemnantsOfTheOrigin => EpochalAdvent}/index.tsx (83%)
+
+diff --git a/libs/gi/assets/src/gen/artifacts/RemnantsOfTheOrigin/UI_RelicIcon_15049_1.webp b/libs/gi/assets/src/gen/artifacts/EpochalAdvent/UI_RelicIcon_15049_1.webp
+similarity index 100%
+rename from libs/gi/assets/src/gen/artifacts/RemnantsOfTheOrigin/UI_RelicIcon_15049_1.webp
+rename to libs/gi/assets/src/gen/artifacts/EpochalAdvent/UI_RelicIcon_15049_1.webp
+diff --git a/libs/gi/assets/src/gen/artifacts/RemnantsOfTheOrigin/UI_RelicIcon_15049_2.webp b/libs/gi/assets/src/gen/artifacts/EpochalAdvent/UI_RelicIcon_15049_2.webp
+similarity index 100%
+rename from libs/gi/assets/src/gen/artifacts/RemnantsOfTheOrigin/UI_RelicIcon_15049_2.webp
+rename to libs/gi/assets/src/gen/artifacts/EpochalAdvent/UI_RelicIcon_15049_2.webp
+diff --git a/libs/gi/assets/src/gen/artifacts/RemnantsOfTheOrigin/UI_RelicIcon_15049_3.webp b/libs/gi/assets/src/gen/artifacts/EpochalAdvent/UI_RelicIcon_15049_3.webp
+similarity index 100%
+rename from libs/gi/assets/src/gen/artifacts/RemnantsOfTheOrigin/UI_RelicIcon_15049_3.webp
+rename to libs/gi/assets/src/gen/artifacts/EpochalAdvent/UI_RelicIcon_15049_3.webp
+diff --git a/libs/gi/assets/src/gen/artifacts/RemnantsOfTheOrigin/UI_RelicIcon_15049_4.webp b/libs/gi/assets/src/gen/artifacts/EpochalAdvent/UI_RelicIcon_15049_4.webp
+similarity index 100%
+rename from libs/gi/assets/src/gen/artifacts/RemnantsOfTheOrigin/UI_RelicIcon_15049_4.webp
+rename to libs/gi/assets/src/gen/artifacts/EpochalAdvent/UI_RelicIcon_15049_4.webp
+diff --git a/libs/gi/assets/src/gen/artifacts/RemnantsOfTheOrigin/UI_RelicIcon_15049_5.webp b/libs/gi/assets/src/gen/artifacts/EpochalAdvent/UI_RelicIcon_15049_5.webp
+similarity index 100%
+rename from libs/gi/assets/src/gen/artifacts/RemnantsOfTheOrigin/UI_RelicIcon_15049_5.webp
+rename to libs/gi/assets/src/gen/artifacts/EpochalAdvent/UI_RelicIcon_15049_5.webp
+diff --git a/libs/gi/assets/src/gen/artifacts/RemnantsOfTheOrigin/index.ts b/libs/gi/assets/src/gen/artifacts/EpochalAdvent/index.ts
+similarity index 100%
+rename from libs/gi/assets/src/gen/artifacts/RemnantsOfTheOrigin/index.ts
+rename to libs/gi/assets/src/gen/artifacts/EpochalAdvent/index.ts
+diff --git a/libs/gi/assets/src/gen/artifacts/index.ts b/libs/gi/assets/src/gen/artifacts/index.ts
+index 1515c9bc..833b6f50 100644
+--- a/libs/gi/assets/src/gen/artifacts/index.ts
++++ b/libs/gi/assets/src/gen/artifacts/index.ts
+@@ -15,6 +15,7 @@ import DesertPavilionChronicle from './DesertPavilionChronicle'
+ import DisenchantmentInDeepShadow from './DisenchantmentInDeepShadow'
+ import EchoesOfAnOffering from './EchoesOfAnOffering'
+ import EmblemOfSeveredFate from './EmblemOfSeveredFate'
++import EpochalAdvent from './EpochalAdvent'
+ import FinaleOfTheDeepGalleries from './FinaleOfTheDeepGalleries'
+ import FlowerOfParadiseLost from './FlowerOfParadiseLost'
+ import FragmentOfHarmonicWhimsy from './FragmentOfHarmonicWhimsy'
+@@ -43,7 +44,6 @@ import PrayersForDestiny from './PrayersForDestiny'
+ import PrayersForIllumination from './PrayersForIllumination'
+ import PrayersForWisdom from './PrayersForWisdom'
+ import PrayersToSpringtime from './PrayersToSpringtime'
+-import RemnantsOfTheOrigin from './RemnantsOfTheOrigin'
+ import ResolutionOfSojourner from './ResolutionOfSojourner'
+ import RetracingBolide from './RetracingBolide'
+ import ScarletProof from './ScarletProof'
+@@ -81,6 +81,7 @@ const data = {
+   DisenchantmentInDeepShadow,
+   EchoesOfAnOffering,
+   EmblemOfSeveredFate,
++  EpochalAdvent,
+   FinaleOfTheDeepGalleries,
+   FlowerOfParadiseLost,
+   FragmentOfHarmonicWhimsy,
+@@ -109,7 +110,6 @@ const data = {
+   PrayersForIllumination,
+   PrayersForWisdom,
+   PrayersToSpringtime,
+-  RemnantsOfTheOrigin,
+   ResolutionOfSojourner,
+   RetracingBolide,
+   ScarletProof,
+diff --git a/libs/gi/consts/src/artifact.ts b/libs/gi/consts/src/artifact.ts
+index fc6dc996..bc25b44c 100644
+--- a/libs/gi/consts/src/artifact.ts
++++ b/libs/gi/consts/src/artifact.ts
+@@ -17,6 +17,7 @@ export const allArtifactSetKeys = [
+   'DisenchantmentInDeepShadow',
+   'EchoesOfAnOffering',
+   'EmblemOfSeveredFate',
++  'EpochalAdvent',
+   'FinaleOfTheDeepGalleries',
+   'FlowerOfParadiseLost',
+   'FragmentOfHarmonicWhimsy',
+@@ -45,7 +46,6 @@ export const allArtifactSetKeys = [
+   'PrayersForIllumination',
+   'PrayersForWisdom',
+   'PrayersToSpringtime',
+-  'RemnantsOfTheOrigin',
+   'ResolutionOfSojourner',
+   'RetracingBolide',
+   'ScarletProof',
+@@ -67,6 +67,19 @@ export const allArtifactSetKeys = [
+   'WanderersTroupe',
+ ] as const
+ export type ArtifactSetKey = (typeof allArtifactSetKeys)[number]
++/**
++ * Set keys that were renamed, mapped to their current key, so artifacts and
++ * builds saved with the old key keep working.
++ */
++export const renamedArtifactSetKeys: Record<string, ArtifactSetKey> = {
++  RemnantsOfTheOrigin: 'EpochalAdvent',
++}
++/** The current key of a set saved as `key` (renamed sets get their new key). */
++export function currentArtifactSetKey(key: string): string {
++  return Object.prototype.hasOwnProperty.call(renamedArtifactSetKeys, key)
++    ? renamedArtifactSetKeys[key]
++    : key
++}
+ 
+ export const allArtifactSlotKeys = [
+   'flower',
+diff --git a/libs/gi/consts/src/builtinCustom/anastasya-silverdawn.json b/libs/gi/consts/src/builtinCustom/anastasya-silverdawn.json
+index fb7ca6cd..69714111 100644
+--- a/libs/gi/consts/src/builtinCustom/anastasya-silverdawn.json
++++ b/libs/gi/consts/src/builtinCustom/anastasya-silverdawn.json
+@@ -198,7 +198,7 @@
+         },
+         "skill": {
+           "name": "Polestar's Divine Judgment",
+-          "description": "Reveals the true nature of [[Transcendence|Transcendence and Blessings]], dealing AoE Cryo DMG and unleashing her power in different ways depending on whether the skill is tapped or held.\n\n**Tap**\nGains the Blessing of **Love** and throws the **Palestar Crown**, an heirloom of the imperial court.\nThe **Palestar Crown** follows the active character and deals 2 instances of AoE Cryo DMG to nearby opponents every 2s.\n[[Radiance: Stellar Glimmer|@11500004]]: The second instance of DMG dealt by each **Palestar Crown** attack becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.\n\n**Hold**\nGains the Blessing of **Honor** and demonstrates the consummate skill at arms passed down by the imperial court.\nIn this mode, Anastasya's Normal Attacks are replaced by a sequence of up to 5 attacks with the **Blessed Armament: Dekhomenon**, dealing AoE Cryo DMG that cannot be overridden by other Elemental Infusions. She cannot perform Charged Attacks in this mode.\n[[Radiance: Stellar Glimmer|@11500004]]: The final instance of DMG from each Normal Attack performed with the **Blessed Armament** becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
++          "description": "Reveals the true nature of [[Transcendence|Transcendence and Blessings]], dealing AoE Cryo DMG and unleashing her power in different ways depending on whether the skill is tapped or held.\n\n**Tap**\nGains the Blessing of **Love** and throws the **Palestar Crown**, an heirloom of the imperial court.\nThe **Palestar Crown** follows the active character and deals 2 instances of AoE Cryo DMG to nearby opponents every 2s.\n[[Radiance: Stellar Glimmer|@11500004]]: The second instance of DMG dealt by each **Palestar Crown** attack becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.\n\n**Hold**\nGains the Blessing of **Honor** and demonstrates the consummate skill at arms passed down by the imperial court.\nIn this mode, Anastasya's Normal Attacks are replaced by a sequence of up to 5 attacks with the **Blessed Spear: Dolgomernoye**, dealing AoE Cryo DMG that cannot be overridden by other Elemental Infusions. She cannot perform Charged Attacks in this mode.\n[[Radiance: Stellar Glimmer|@11500004]]: The final instance of DMG from each Normal Attack performed with the **Blessed Spear** becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
+           "icon": "Skill_S_Anastasya_01",
+           "rows": [
+             {
+@@ -410,12 +410,12 @@
+               1.216, 1.28, 1.36, 1.44, 1.52
+             ],
+             [
+-              0.4, 0.43, 0.46, 0.5, 0.53, 0.56, 0.6, 0.64, 0.68, 0.72, 0.76,
+-              0.8, 0.85, 0.9, 0.95
++              0.336, 0.3612, 0.3864, 0.42, 0.4452, 0.4704, 0.504, 0.5376,
++              0.5712, 0.6048, 0.6384, 0.672, 0.714, 0.756, 0.798
+             ],
+             [
+-              0.6, 0.645, 0.69, 0.75, 0.795, 0.84, 0.9, 0.96, 1.02, 1.08, 1.14,
+-              1.2, 1.275, 1.35, 1.425
++              0.504, 0.5418, 0.5796, 0.63, 0.6678, 0.7056, 0.756, 0.8064,
++              0.8568, 0.9072, 0.9576, 1.008, 1.071, 1.134, 1.197
+             ],
+             [
+               0.626984, 0.674008, 0.721032, 0.78373, 0.830754, 0.877778,
+@@ -499,7 +499,7 @@
+         },
+         "burst": {
+           "name": "To the New World",
+-          "description": "Anastasya's current [[Blessing|Transcendence and Blessings]] determines which Elemental Burst she can use and how she wields the power of [[Sealing]].\n\n**To the New World**\nCan be used while Anastasya holds the Blessing of **Love**. Deals AoE Cryo DMG and [[freezes|Freeze]] the Palestar Crown's duration.\nDuring this time, all nearby party members deal increased Stellar Glimmer reaction DMG, and the Palestar Crown deals 1 additional instance of AoE Cryo DMG that is considered Stellar-Conduct reaction DMG with each attack. Anastasya also [[Seals|Sealing]] herself when she switches off-field during this time. When her **Sealed** state ends, she can use the special unsealing Elemental Skill [[Palestar Edict: Triumph]].\n\n**The Evernight Yields to Dawn**\nCan be used while Anastasya holds the Blessing of **Honor**. Unleashes the power of the **Blessed Armament**, dealing AoE Cryo DMG considered Stellar-Conduct reaction DMG, and [[freezes|Freeze]] the Blessing's duration.\nAnastasya also [[Seals|Sealing]] up to 3 other party members. When the **Sealed** state ends, Anastasya can use the special unsealing Elemental Skill [[Palestar Edict: Doom]].\n\n[[Radiance: Stellar Glimmer|@11500004]]: All Stellar-Conduct reaction DMG described above is instead dealt as AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
++          "description": "Anastasya's current [[Blessing|Transcendence and Blessings]] determines which Elemental Burst she can use and how she wields the power of [[Sealing]].\n\n**To the New World**\nCan be used while Anastasya holds the Blessing of **Love**. Deals AoE Cryo DMG and [[freezes|Freeze]] the Palestar Crown's duration.\nDuring this time, all nearby party members deal increased Stellar Glimmer reaction DMG, and the Palestar Crown deals 1 additional instance of AoE Cryo DMG that is considered Stellar-Conduct reaction DMG with each attack. Anastasya also [[Seals|Sealing]] herself when she switches off-field during this time. When her **Sealed** state ends, she can use the special unsealing Elemental Skill [[Palestar Edict: Triumph]].\n\n**The Evernight Yields to Dawn**\nCan be used while Anastasya holds the Blessing of **Honor**. Unleashes the power of the **Blessed Spear**, dealing AoE Cryo DMG considered Stellar-Conduct reaction DMG, and [[freezes|Freeze]] the Blessing's duration.\nAnastasya also [[Seals|Sealing]] up to 3 other party members. When the **Sealed** state ends, Anastasya can use the special unsealing Elemental Skill [[Palestar Edict: Doom]].\n\n[[Radiance: Stellar Glimmer|@11500004]]: All Stellar-Conduct reaction DMG described above is instead dealt as AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
+           "icon": "Skill_E_Anastasya_01",
+           "rows": [
+             {
+@@ -691,8 +691,8 @@
+               3.4068, 3.6072, 3.8076, 4.008, 4.2585, 4.509, 4.7595
+             ],
+             [
+-              0.275, 0.3, 0.325, 0.35, 0.375, 0.4, 0.425, 0.45, 0.475, 0.5,
+-              0.53, 0.56, 0.59, 0.62, 0.65
++              0.165, 0.18, 0.195, 0.21, 0.225, 0.24, 0.255, 0.27, 0.285, 0.3,
++              0.318, 0.336, 0.354, 0.372, 0.39
+             ],
+             [
+               0.112, 0.1204, 0.1288, 0.14, 0.1484, 0.1568, 0.168, 0.1792,
+@@ -790,7 +790,7 @@
+       "constellations": [
+         {
+           "name": "To Years Past, To Hearts Still Alight",
+-          "description": "The Ascension Passive **The Radiant Reign of Night** is enhanced: **Accolades** also increase the ATK of Cryo characters by 15% and the Elemental Mastery of characters of other Elemental Types by 60.\nAdditionally, when a character is [[Sealed|Sealing]], the division of **Accolades** will not cause the sharing character's **Accolades** to be dispelled. When Anastasya is [[Sealed|Sealing]], the **Accolades** she grants to other characters will provide 300% of their original bonuses.",
++          "description": "The Ascension Passive **The Radiant Reign of Night** is enhanced: **Accolades** also increase the ATK of Cryo characters by 15% and the Elemental Mastery of characters of other Elemental Types by 60.\nAdditionally, when a character is [[Sealed|Sealing]], the equal division of **Accolades** will not cause the sharing character's **Accolades** to be dispelled. When Anastasya is [[Sealed|Sealing]], the **Accolades** she grants to other characters will provide 300% of their original bonuses.",
+           "icon": "UI_Talent_S_Anastasya_01",
+           "params": [0.15, 60, 3]
+         },
+@@ -1190,7 +1190,7 @@
+           "talent": "skill",
+           "match": "^\\d-Hit",
+           "value": 1.25,
+-          "name": "Blessed Armament Normal Attacks",
++          "name": "Blessed Spear Normal Attacks",
+           "condition": "Blessing (after Elemental Skill)",
+           "conditionState": "Honor (E hold)"
+         },
+@@ -1254,7 +1254,7 @@
+         },
+         {
+           "name": "Palestar Edict: Doom",
+-          "description": "For a limited time after another party member's Sealed state ends, selecting that character for the first time triggers this special Elemental Skill instead of switching them in.\n**Palestar Edict: Doom** has 3 stages, performed in sequence by selecting the corresponding characters for the first time or pressing the Elemental Skill.\n·Stage 1: Performs a series of slashes with the **Blessed Armament: Dekhomenon**, dealing multiple instances of AoE Cryo DMG that cannot be overridden by other Elemental Infusions and are considered Elemental Skill DMG, followed by a final instance of AoE Cryo DMG that is considered Stellar-Conduct reaction DMG;\n·Stage 2: Leaps forward and performs a slash, dealing AoE Cryo DMG that is considered Stellar-Conduct reaction DMG;\n·Stage 3: Fires the **Blessed Armament** as an arrow, dealing greater AoE Cryo DMG considered Stellar-Conduct reaction DMG and ending the effect of **The Evernight Yields to Dawn**.\n**Radiance: Stellar Glimmer**: The Stellar-Conduct reaction DMG described above is instead dealt as AoE Cryo DMG considered DMG from the corresponding Stellar Glimmer reaction."
++          "description": "For a limited time after another party member's Sealed state ends, selecting that character for the first time triggers this special Elemental Skill instead of switching them in.\n**Palestar Edict: Doom** has 3 stages, performed in sequence by selecting the corresponding characters for the first time or pressing the Elemental Skill.\n·Stage 1: Performs a series of slashes with the **Blessed Spear: Dolgomernoye**, dealing multiple instances of AoE Cryo DMG that cannot be overridden by other Elemental Infusions and are considered Elemental Skill DMG, followed by a final instance of AoE Cryo DMG that is considered Stellar-Conduct reaction DMG;\n·Stage 2: Leaps forward and performs a slash, dealing AoE Cryo DMG that is considered Stellar-Conduct reaction DMG;\n·Stage 3: Fires the **Blessed Spear** as an arrow, dealing greater AoE Cryo DMG considered Stellar-Conduct reaction DMG and ending the Blessed target's [[freeze|Freeze]] effect.\n**Radiance: Stellar Glimmer**: The Stellar-Conduct reaction DMG described above is instead dealt as AoE Cryo DMG considered DMG from the corresponding Stellar Glimmer reaction."
+         }
+       ]
+     }
+diff --git a/libs/gi/db/src/Database/DataManagers/ArtifactDataManager.ts b/libs/gi/db/src/Database/DataManagers/ArtifactDataManager.ts
+index 4ff735b4..af752eb5 100644
+--- a/libs/gi/db/src/Database/DataManagers/ArtifactDataManager.ts
++++ b/libs/gi/db/src/Database/DataManagers/ArtifactDataManager.ts
+@@ -9,6 +9,7 @@ import {
+   artSlotMainKeys,
+   artSubstatRollData,
+   charKeyToLocCharKey,
++  currentArtifactSetKey,
+ } from '@genshin-optimizer/gi/consts'
+ import type { IArtifact, IGOOD, ISubstat } from '@genshin-optimizer/gi/good'
+ import { parseArtifact, substatSchema } from '@genshin-optimizer/gi/good'
+@@ -594,7 +595,17 @@ export function validateArtifact(
+   obj: unknown,
+   allowZeroSub = false
+ ): IArtifact | undefined {
+-  const parsed = parseArtifact(obj)
++  // Artifacts saved with a set's old key get its current key
++  const raw = obj as { setKey?: unknown } | null
++  const renamed =
++    typeof raw?.setKey === 'string'
++      ? currentArtifactSetKey(raw.setKey)
++      : undefined
++  const parsed = parseArtifact(
++    renamed && renamed !== raw?.setKey
++      ? { ...(obj as object), setKey: renamed }
++      : obj
++  )
+   if (!parsed) return undefined
+ 
+   const {
+diff --git a/libs/gi/db/src/Database/DataManagers/BuildTcDataManager.ts b/libs/gi/db/src/Database/DataManagers/BuildTcDataManager.ts
+index 306ae351..ef1b03a6 100644
+--- a/libs/gi/db/src/Database/DataManagers/BuildTcDataManager.ts
++++ b/libs/gi/db/src/Database/DataManagers/BuildTcDataManager.ts
+@@ -21,6 +21,7 @@ import type {
+ import {
+   allArtifactRarityKeys,
+   allArtifactSetKeys,
++  currentArtifactSetKey,
+   allArtifactSlotKeys,
+   allAscensionKeys,
+   allCharacterKeys,
+@@ -84,7 +85,8 @@ const buildTcArtifactSetsSchema = z.preprocess(
+   (val) => {
+     if (typeof val !== 'object' || val === null) return {}
+     const result: Partial<Record<ArtifactSetKey, 1 | 2 | 4>> = {}
+-    for (const [key, value] of Object.entries(val)) {
++    for (const [rawKey, value] of Object.entries(val)) {
++      const key = currentArtifactSetKey(rawKey)
+       if (
+         allArtifactSetKeys.includes(key as ArtifactSetKey) &&
+         (value === 1 || value === 2 || value === 4)
+diff --git a/libs/gi/dm-localization/assets/locales/en/artifactNames_gen.json b/libs/gi/dm-localization/assets/locales/en/artifactNames_gen.json
+index cdc77219bcf770ccb587c2fc77815d231c02063a..2025d7d26b7561a1e0e15016c7c1071c264937c8 100644
+GIT binary patch
+delta 49
+vcmbO!)-AT-6_dPcL4I;ZVvb`<S!!O1l9hrIR6qeDviS+qF_z7D*=?8s#WxZ^
+
+delta 61
+zcmeAcn<=*871L&Z<^wF+xp|3sCB^<}AsMOuMVaZDc}i9aN<pa*VTJrOg_4X^1&GY%
+I<LoZX0JCHj`~Uy|
+
+diff --git a/libs/gi/dm-localization/assets/locales/en/artifact_RemnantsOfTheOrigin_gen.json b/libs/gi/dm-localization/assets/locales/en/artifact_EpochalAdvent_gen.json
+similarity index 52%
+rename from libs/gi/dm-localization/assets/locales/en/artifact_RemnantsOfTheOrigin_gen.json
+rename to libs/gi/dm-localization/assets/locales/en/artifact_EpochalAdvent_gen.json
+index b6c0d38330651ae75f0b01a11e4235b780a880cb..5dba577dd0a121e459c50f37aa6bef008ff0f8da 100644
+GIT binary patch
+delta 347
+zcmaLTK}rKL6vlBhf^;_BTC4Jzg>H(j+~`U~-HD(VNGES5fi#gMok65{gM!RS6p!F-
+zyo7JSO~IP=@BQB+AA`5S!Ak+iMEOq5NS;GpKZVjLhfCd%&+kWH8{OIF=j)9NEk%S1
+z*$`HdoN%LmQd27X$RitLYXd`yGYL~lnFAWigBprXrEGnT>No5Atc@Vwgy#t>jXDzh
+zR`GC%JHB77;A}-`Z8l+^8S9hoP#ll%-F!xW-_{KUx}_M6AGn$RG2dc$?>0;w<u&MZ
+U>tg@P#&W$FiqSUz#G+UfKkJ=yFaQ7m
+
+delta 340
+zcmZ{fKMKMy6o)BwQQXBvo<&3i7jf$9zon??31a(V15JWWYzHskDm{r#9>8OW;7v@6
+zqgmecec$7Et>5eYa|6Irs8@ue=YzLJE{M<yBn2HKtW$Pi;?{XOJ*EID#ZW_voG_t)
+zgqmdtn4y3?Hb)m9r`0r|q;y0XCQ<Qr9{vAO9~OzsF)d#OjAC)DwTp=hR(zA3IF|Gb
+ziH<A$;zG|>-w_d2JLXbU@XPHEZSYd=6Vzqg(9$gDl`^h*1Di5sY4~#jd63Eo@C98F
+Bb#wp#
+
+diff --git a/libs/gi/dm/src/mapping/artifact.ts b/libs/gi/dm/src/mapping/artifact.ts
+index ad76105f..d95cbbaa 100644
+--- a/libs/gi/dm/src/mapping/artifact.ts
++++ b/libs/gi/dm/src/mapping/artifact.ts
+@@ -64,7 +64,7 @@ export const artifactIdMap: Record<string | number, ArtifactSetKey> = {
+   15046: 'DisenchantmentInDeepShadow',
+   15047: 'ScarletProof',
+   15048: 'HeartOfTheFurnace',
+-  15049: 'RemnantsOfTheOrigin',
++  15049: 'EpochalAdvent',
+ } as const
+ 
+ export const artifactSlotMap = {
+diff --git a/libs/gi/sheets/src/Artifacts/RemnantsOfTheOrigin/index.tsx b/libs/gi/sheets/src/Artifacts/EpochalAdvent/index.tsx
+similarity index 83%
+rename from libs/gi/sheets/src/Artifacts/RemnantsOfTheOrigin/index.tsx
+rename to libs/gi/sheets/src/Artifacts/EpochalAdvent/index.tsx
+index b9a3a3c3..691b1219 100644
+--- a/libs/gi/sheets/src/Artifacts/RemnantsOfTheOrigin/index.tsx
++++ b/libs/gi/sheets/src/Artifacts/EpochalAdvent/index.tsx
+@@ -14,21 +14,26 @@ import { ArtifactSheet, setHeaderTemplate } from '../ArtifactSheet'
+ import { dataObjForArtifactSheet } from '../dataUtil'
+ import type { SetEffectSheet } from '../IArtifactSheet'
+ 
+-const key: ArtifactSetKey = 'RemnantsOfTheOrigin'
++const key: ArtifactSetKey = 'EpochalAdvent'
+ const setHeader = setHeaderTemplate(key)
+ 
+-const set2_atk_ = greaterEq(input.artSet.RemnantsOfTheOrigin, 2, percent(0.18))
++const set2_atk_ = greaterEq(input.artSet.EpochalAdvent, 2, percent(0.18))
+ 
+ // Undying Radiance: per Starspark (up to 2), Cryo DMG CRIT Rate +20%, and
+ // another +20% when that DMG is Stellar Glimmer reaction DMG. Only Cryo
+ // characters deal Cryo Stellar Glimmer DMG, so that part needs a Cryo wielder.
++// Only while the wielder is the active (on-field) character.
+ const [condStarsparkPath, condStarspark] = cond(key, 'starspark')
+ const stacksArr = range(1, 2)
+ const perStack = () =>
+-  lookup(
+-    condStarspark,
+-    objKeyMap(stacksArr, (stack) => percent(0.2 * stack)),
+-    naught
++  equal(
++    input.activeCharKey,
++    input.charKey,
++    lookup(
++      condStarspark,
++      objKeyMap(stacksArr, (stack) => percent(0.2 * stack)),
++      naught
++    )
+   )
+ const set4_cryo_critRate_ = greaterEq(input.artSet[key], 4, perStack())
+ const set4_stellarconduct_critRate_ = greaterEq(
+@@ -61,7 +66,7 @@ const sheet: SetEffectSheet = {
+         header: setHeader(4),
+         path: condStarsparkPath,
+         value: condStarspark,
+-        name: 'Starspark (Undying Radiance)',
++        name: 'Starspark (Undying Radiance, on-field)',
+         states: objKeyMap(stacksArr, (stack) => ({
+           name: st('stack', { count: stack }),
+           fields: [
+diff --git a/libs/gi/sheets/src/Artifacts/index.ts b/libs/gi/sheets/src/Artifacts/index.ts
+index d2558e51..10be05ff 100644
+--- a/libs/gi/sheets/src/Artifacts/index.ts
++++ b/libs/gi/sheets/src/Artifacts/index.ts
+@@ -19,6 +19,7 @@ import DesertPavilionChronicle from './DesertPavilionChronicle'
+ import DisenchantmentInDeepShadow from './DisenchantmentInDeepShadow'
+ import EchoesOfAnOffering from './EchoesOfAnOffering'
+ import EmblemOfSeveredFate from './EmblemOfSeveredFate'
++import EpochalAdvent from './EpochalAdvent'
+ import FinaleOfTheDeepGalleries from './FinaleOfTheDeepGalleries'
+ import FlowerOfParadiseLost from './FlowerOfParadiseLost'
+ import FragmentOfHarmonicWhimsy from './FragmentOfHarmonicWhimsy'
+@@ -47,7 +48,6 @@ import PrayersForDestiny from './PrayersForDestiny'
+ import PrayersForIllumination from './PrayersForIllumination'
+ import PrayersForWisdom from './PrayersForWisdom'
+ import PrayersToSpringtime from './PrayersToSpringtime'
+-import RemnantsOfTheOrigin from './RemnantsOfTheOrigin'
+ import ResolutionOfSojourner from './ResolutionOfSojourner'
+ import RetracingBolide from './RetracingBolide'
+ import ScarletProof from './ScarletProof'
+@@ -85,6 +85,7 @@ export const artifactSheets: Record<ArtifactSetKey, ArtifactSheet> = {
+   DisenchantmentInDeepShadow,
+   EchoesOfAnOffering,
+   EmblemOfSeveredFate,
++  EpochalAdvent,
+   FinaleOfTheDeepGalleries,
+   FlowerOfParadiseLost,
+   FragmentOfHarmonicWhimsy,
+@@ -113,7 +114,6 @@ export const artifactSheets: Record<ArtifactSetKey, ArtifactSheet> = {
+   PrayersForIllumination,
+   PrayersForWisdom,
+   PrayersToSpringtime,
+-  RemnantsOfTheOrigin,
+   ResolutionOfSojourner,
+   RetracingBolide,
+   ScarletProof,
+diff --git a/libs/gi/stats/src/allStat_gen.json b/libs/gi/stats/src/allStat_gen.json
+index d30f5fb16958184ac55f5391ff9820354985096c..33a6200fedfe2311fd1323f5540d2b549299eecf 100644
+GIT binary patch
+delta 131
+zcmZpe(9QU(znih4g|UUHg}H^Lg|&sPg}sHNg|mgLg}a5Pg|~&Tg}+6hMX*JvMYu(z
+zMYKh1i+FGZuWLbmaz<i~V@g?SUdi-Eb@9K`{Vqugv=>K;1F-}UO9HVJ5K9BG3=qo#
+Uu^bS~1F-@SD{e22RO-zG0CFBJzyJUM
+
+delta 131
+zcmey>-_6)C0f<`|TbNpyTUc6HTi9CITR2)cTew=dTX<S{TliY|TLfAJTZCGKTSQt!
+zTg0}A2S*46rRL@(=9Lutr-fvs`WI!UXHLHuDE_ZKHc}jjC4g8Gh^2s78i-|pSQd!o
+SfLI=g6@XZAdu*iA+&lnw%`IX8
+
+diff --git a/tools/custom-characters/buffs/10000149.json b/tools/custom-characters/buffs/10000149.json
+index 558f98e9..3c347496 100644
+--- a/tools/custom-characters/buffs/10000149.json
++++ b/tools/custom-characters/buffs/10000149.json
+@@ -4,10 +4,10 @@
+     "Written by hand from the passive and constellation descriptions and from how the kit plays.",
+     "Accolades: CRIT DMG 12% (A1), ATK 15% for Cryo / EM 60 for others (C1), all x1.3 at C4. Sealing divides them equally (party of 4 assumed); when Anastasya is Sealed at C1+, she grants 300%.",
+     "C1 and C4 entries add to the lower constellations, so totals match, e.g. C4 with Anastasya Sealed: others 62.4% CRIT DMG.",
+-    "C2 Honor: Blessed Armament Normal Attacks (skill rows), The Evernight Yields to Dawn and Doom deal 125% of their original DMG.",
++    "C2 Honor: Blessed Spear Normal Attacks (skill rows), The Evernight Yields to Dawn and Doom deal 125% of their original DMG.",
+     "C6 Honor extra Doom hit: Anastasya holds the Accolades of the 3 other members (+3 x 15.6% CRIT DMG, +3 x 19.5% ATK), assuming none is Sealed.",
+     "Not included: A4 (Stellar Swirl base reaction multiplier +15%, no matching GO stat).",
+-    "To the New World (Q in Blessing of Love): party Stellar-Conduct and Stellar Swirl DMG + the burst's Stellar Glimmer Reaction DMG Increase (50% at Lv10), behind its own toggle."
++    "To the New World (Q in Blessing of Love): party Stellar-Conduct and Stellar Swirl DMG + the burst's Stellar Glimmer Reaction DMG Increase (30% at Lv10 since v2), behind its own toggle."
+   ],
+   "buffs": [
+     {
+@@ -356,7 +356,7 @@
+       "talent": "skill",
+       "match": "^\\d-Hit",
+       "value": 1.25,
+-      "name": "Blessed Armament Normal Attacks",
++      "name": "Blessed Spear Normal Attacks",
+       "condition": "Blessing (after Elemental Skill)",
+       "conditionState": "Honor (E hold)"
+     },
+-- 
+2.43.0
+
