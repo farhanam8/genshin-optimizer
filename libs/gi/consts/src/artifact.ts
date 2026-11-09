@@ -17,6 +17,7 @@ export const allArtifactSetKeys = [
   'DisenchantmentInDeepShadow',
   'EchoesOfAnOffering',
   'EmblemOfSeveredFate',
+  'EpochalAdvent',
   'FinaleOfTheDeepGalleries',
   'FlowerOfParadiseLost',
   'FragmentOfHarmonicWhimsy',
@@ -45,7 +46,6 @@ export const allArtifactSetKeys = [
   'PrayersForIllumination',
   'PrayersForWisdom',
   'PrayersToSpringtime',
-  'RemnantsOfTheOrigin',
   'ResolutionOfSojourner',
   'RetracingBolide',
   'ScarletProof',
@@ -67,6 +67,19 @@ export const allArtifactSetKeys = [
   'WanderersTroupe',
 ] as const
 export type ArtifactSetKey = (typeof allArtifactSetKeys)[number]
+/**
+ * Set keys that were renamed, mapped to their current key, so artifacts and
+ * builds saved with the old key keep working.
+ */
+export const renamedArtifactSetKeys: Record<string, ArtifactSetKey> = {
+  RemnantsOfTheOrigin: 'EpochalAdvent',
+}
+/** The current key of a set saved as `key` (renamed sets get their new key). */
+export function currentArtifactSetKey(key: string): string {
+  return Object.prototype.hasOwnProperty.call(renamedArtifactSetKeys, key)
+    ? renamedArtifactSetKeys[key]
+    : key
+}
 
 export const allArtifactSlotKeys = [
   'flower',

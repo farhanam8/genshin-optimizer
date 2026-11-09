@@ -9,6 +9,7 @@ import {
   artSlotMainKeys,
   artSubstatRollData,
   charKeyToLocCharKey,
+  currentArtifactSetKey,
 } from '@genshin-optimizer/gi/consts'
 import type { IArtifact, IGOOD, ISubstat } from '@genshin-optimizer/gi/good'
 import { parseArtifact, substatSchema } from '@genshin-optimizer/gi/good'
@@ -594,7 +595,17 @@ export function validateArtifact(
   obj: unknown,
   allowZeroSub = false
 ): IArtifact | undefined {
-  const parsed = parseArtifact(obj)
+  // Artifacts saved with a set's old key get its current key
+  const raw = obj as { setKey?: unknown } | null
+  const renamed =
+    typeof raw?.setKey === 'string'
+      ? currentArtifactSetKey(raw.setKey)
+      : undefined
+  const parsed = parseArtifact(
+    renamed && renamed !== raw?.setKey
+      ? { ...(obj as object), setKey: renamed }
+      : obj
+  )
   if (!parsed) return undefined
 
   const {

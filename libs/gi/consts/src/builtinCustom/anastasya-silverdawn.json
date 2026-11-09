@@ -198,7 +198,7 @@
         },
         "skill": {
           "name": "Polestar's Divine Judgment",
-          "description": "Reveals the true nature of [[Transcendence|Transcendence and Blessings]], dealing AoE Cryo DMG and unleashing her power in different ways depending on whether the skill is tapped or held.\n\n**Tap**\nGains the Blessing of **Love** and throws the **Palestar Crown**, an heirloom of the imperial court.\nThe **Palestar Crown** follows the active character and deals 2 instances of AoE Cryo DMG to nearby opponents every 2s.\n[[Radiance: Stellar Glimmer|@11500004]]: The second instance of DMG dealt by each **Palestar Crown** attack becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.\n\n**Hold**\nGains the Blessing of **Honor** and demonstrates the consummate skill at arms passed down by the imperial court.\nIn this mode, Anastasya's Normal Attacks are replaced by a sequence of up to 5 attacks with the **Blessed Armament: Dekhomenon**, dealing AoE Cryo DMG that cannot be overridden by other Elemental Infusions. She cannot perform Charged Attacks in this mode.\n[[Radiance: Stellar Glimmer|@11500004]]: The final instance of DMG from each Normal Attack performed with the **Blessed Armament** becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
+          "description": "Reveals the true nature of [[Transcendence|Transcendence and Blessings]], dealing AoE Cryo DMG and unleashing her power in different ways depending on whether the skill is tapped or held.\n\n**Tap**\nGains the Blessing of **Love** and throws the **Palestar Crown**, an heirloom of the imperial court.\nThe **Palestar Crown** follows the active character and deals 2 instances of AoE Cryo DMG to nearby opponents every 2s.\n[[Radiance: Stellar Glimmer|@11500004]]: The second instance of DMG dealt by each **Palestar Crown** attack becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.\n\n**Hold**\nGains the Blessing of **Honor** and demonstrates the consummate skill at arms passed down by the imperial court.\nIn this mode, Anastasya's Normal Attacks are replaced by a sequence of up to 5 attacks with the **Blessed Spear: Dolgomernoye**, dealing AoE Cryo DMG that cannot be overridden by other Elemental Infusions. She cannot perform Charged Attacks in this mode.\n[[Radiance: Stellar Glimmer|@11500004]]: The final instance of DMG from each Normal Attack performed with the **Blessed Spear** becomes AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
           "icon": "Skill_S_Anastasya_01",
           "rows": [
             {
@@ -410,12 +410,12 @@
               1.216, 1.28, 1.36, 1.44, 1.52
             ],
             [
-              0.4, 0.43, 0.46, 0.5, 0.53, 0.56, 0.6, 0.64, 0.68, 0.72, 0.76,
-              0.8, 0.85, 0.9, 0.95
+              0.336, 0.3612, 0.3864, 0.42, 0.4452, 0.4704, 0.504, 0.5376,
+              0.5712, 0.6048, 0.6384, 0.672, 0.714, 0.756, 0.798
             ],
             [
-              0.6, 0.645, 0.69, 0.75, 0.795, 0.84, 0.9, 0.96, 1.02, 1.08, 1.14,
-              1.2, 1.275, 1.35, 1.425
+              0.504, 0.5418, 0.5796, 0.63, 0.6678, 0.7056, 0.756, 0.8064,
+              0.8568, 0.9072, 0.9576, 1.008, 1.071, 1.134, 1.197
             ],
             [
               0.626984, 0.674008, 0.721032, 0.78373, 0.830754, 0.877778,
@@ -499,7 +499,7 @@
         },
         "burst": {
           "name": "To the New World",
-          "description": "Anastasya's current [[Blessing|Transcendence and Blessings]] determines which Elemental Burst she can use and how she wields the power of [[Sealing]].\n\n**To the New World**\nCan be used while Anastasya holds the Blessing of **Love**. Deals AoE Cryo DMG and [[freezes|Freeze]] the Palestar Crown's duration.\nDuring this time, all nearby party members deal increased Stellar Glimmer reaction DMG, and the Palestar Crown deals 1 additional instance of AoE Cryo DMG that is considered Stellar-Conduct reaction DMG with each attack. Anastasya also [[Seals|Sealing]] herself when she switches off-field during this time. When her **Sealed** state ends, she can use the special unsealing Elemental Skill [[Palestar Edict: Triumph]].\n\n**The Evernight Yields to Dawn**\nCan be used while Anastasya holds the Blessing of **Honor**. Unleashes the power of the **Blessed Armament**, dealing AoE Cryo DMG considered Stellar-Conduct reaction DMG, and [[freezes|Freeze]] the Blessing's duration.\nAnastasya also [[Seals|Sealing]] up to 3 other party members. When the **Sealed** state ends, Anastasya can use the special unsealing Elemental Skill [[Palestar Edict: Doom]].\n\n[[Radiance: Stellar Glimmer|@11500004]]: All Stellar-Conduct reaction DMG described above is instead dealt as AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
+          "description": "Anastasya's current [[Blessing|Transcendence and Blessings]] determines which Elemental Burst she can use and how she wields the power of [[Sealing]].\n\n**To the New World**\nCan be used while Anastasya holds the Blessing of **Love**. Deals AoE Cryo DMG and [[freezes|Freeze]] the Palestar Crown's duration.\nDuring this time, all nearby party members deal increased Stellar Glimmer reaction DMG, and the Palestar Crown deals 1 additional instance of AoE Cryo DMG that is considered Stellar-Conduct reaction DMG with each attack. Anastasya also [[Seals|Sealing]] herself when she switches off-field during this time. When her **Sealed** state ends, she can use the special unsealing Elemental Skill [[Palestar Edict: Triumph]].\n\n**The Evernight Yields to Dawn**\nCan be used while Anastasya holds the Blessing of **Honor**. Unleashes the power of the **Blessed Spear**, dealing AoE Cryo DMG considered Stellar-Conduct reaction DMG, and [[freezes|Freeze]] the Blessing's duration.\nAnastasya also [[Seals|Sealing]] up to 3 other party members. When the **Sealed** state ends, Anastasya can use the special unsealing Elemental Skill [[Palestar Edict: Doom]].\n\n[[Radiance: Stellar Glimmer|@11500004]]: All Stellar-Conduct reaction DMG described above is instead dealt as AoE Cryo DMG that is considered DMG from the corresponding Stellar Glimmer reaction.",
           "icon": "Skill_E_Anastasya_01",
           "rows": [
             {
@@ -691,8 +691,8 @@
               3.4068, 3.6072, 3.8076, 4.008, 4.2585, 4.509, 4.7595
             ],
             [
-              0.275, 0.3, 0.325, 0.35, 0.375, 0.4, 0.425, 0.45, 0.475, 0.5,
-              0.53, 0.56, 0.59, 0.62, 0.65
+              0.165, 0.18, 0.195, 0.21, 0.225, 0.24, 0.255, 0.27, 0.285, 0.3,
+              0.318, 0.336, 0.354, 0.372, 0.39
             ],
             [
               0.112, 0.1204, 0.1288, 0.14, 0.1484, 0.1568, 0.168, 0.1792,
@@ -790,7 +790,7 @@
       "constellations": [
         {
           "name": "To Years Past, To Hearts Still Alight",
-          "description": "The Ascension Passive **The Radiant Reign of Night** is enhanced: **Accolades** also increase the ATK of Cryo characters by 15% and the Elemental Mastery of characters of other Elemental Types by 60.\nAdditionally, when a character is [[Sealed|Sealing]], the division of **Accolades** will not cause the sharing character's **Accolades** to be dispelled. When Anastasya is [[Sealed|Sealing]], the **Accolades** she grants to other characters will provide 300% of their original bonuses.",
+          "description": "The Ascension Passive **The Radiant Reign of Night** is enhanced: **Accolades** also increase the ATK of Cryo characters by 15% and the Elemental Mastery of characters of other Elemental Types by 60.\nAdditionally, when a character is [[Sealed|Sealing]], the equal division of **Accolades** will not cause the sharing character's **Accolades** to be dispelled. When Anastasya is [[Sealed|Sealing]], the **Accolades** she grants to other characters will provide 300% of their original bonuses.",
           "icon": "UI_Talent_S_Anastasya_01",
           "params": [0.15, 60, 3]
         },
@@ -1190,7 +1190,7 @@
           "talent": "skill",
           "match": "^\\d-Hit",
           "value": 1.25,
-          "name": "Blessed Armament Normal Attacks",
+          "name": "Blessed Spear Normal Attacks",
           "condition": "Blessing (after Elemental Skill)",
           "conditionState": "Honor (E hold)"
         },
@@ -1254,7 +1254,7 @@
         },
         {
           "name": "Palestar Edict: Doom",
-          "description": "For a limited time after another party member's Sealed state ends, selecting that character for the first time triggers this special Elemental Skill instead of switching them in.\n**Palestar Edict: Doom** has 3 stages, performed in sequence by selecting the corresponding characters for the first time or pressing the Elemental Skill.\n·Stage 1: Performs a series of slashes with the **Blessed Armament: Dekhomenon**, dealing multiple instances of AoE Cryo DMG that cannot be overridden by other Elemental Infusions and are considered Elemental Skill DMG, followed by a final instance of AoE Cryo DMG that is considered Stellar-Conduct reaction DMG;\n·Stage 2: Leaps forward and performs a slash, dealing AoE Cryo DMG that is considered Stellar-Conduct reaction DMG;\n·Stage 3: Fires the **Blessed Armament** as an arrow, dealing greater AoE Cryo DMG considered Stellar-Conduct reaction DMG and ending the effect of **The Evernight Yields to Dawn**.\n**Radiance: Stellar Glimmer**: The Stellar-Conduct reaction DMG described above is instead dealt as AoE Cryo DMG considered DMG from the corresponding Stellar Glimmer reaction."
+          "description": "For a limited time after another party member's Sealed state ends, selecting that character for the first time triggers this special Elemental Skill instead of switching them in.\n**Palestar Edict: Doom** has 3 stages, performed in sequence by selecting the corresponding characters for the first time or pressing the Elemental Skill.\n·Stage 1: Performs a series of slashes with the **Blessed Spear: Dolgomernoye**, dealing multiple instances of AoE Cryo DMG that cannot be overridden by other Elemental Infusions and are considered Elemental Skill DMG, followed by a final instance of AoE Cryo DMG that is considered Stellar-Conduct reaction DMG;\n·Stage 2: Leaps forward and performs a slash, dealing AoE Cryo DMG that is considered Stellar-Conduct reaction DMG;\n·Stage 3: Fires the **Blessed Spear** as an arrow, dealing greater AoE Cryo DMG considered Stellar-Conduct reaction DMG and ending the Blessed target's [[freeze|Freeze]] effect.\n**Radiance: Stellar Glimmer**: The Stellar-Conduct reaction DMG described above is instead dealt as AoE Cryo DMG considered DMG from the corresponding Stellar Glimmer reaction."
         }
       ]
     }

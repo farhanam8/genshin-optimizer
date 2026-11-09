@@ -14,21 +14,26 @@ import { ArtifactSheet, setHeaderTemplate } from '../ArtifactSheet'
 import { dataObjForArtifactSheet } from '../dataUtil'
 import type { SetEffectSheet } from '../IArtifactSheet'
 
-const key: ArtifactSetKey = 'RemnantsOfTheOrigin'
+const key: ArtifactSetKey = 'EpochalAdvent'
 const setHeader = setHeaderTemplate(key)
 
-const set2_atk_ = greaterEq(input.artSet.RemnantsOfTheOrigin, 2, percent(0.18))
+const set2_atk_ = greaterEq(input.artSet.EpochalAdvent, 2, percent(0.18))
 
 // Undying Radiance: per Starspark (up to 2), Cryo DMG CRIT Rate +20%, and
 // another +20% when that DMG is Stellar Glimmer reaction DMG. Only Cryo
 // characters deal Cryo Stellar Glimmer DMG, so that part needs a Cryo wielder.
+// Only while the wielder is the active (on-field) character.
 const [condStarsparkPath, condStarspark] = cond(key, 'starspark')
 const stacksArr = range(1, 2)
 const perStack = () =>
-  lookup(
-    condStarspark,
-    objKeyMap(stacksArr, (stack) => percent(0.2 * stack)),
-    naught
+  equal(
+    input.activeCharKey,
+    input.charKey,
+    lookup(
+      condStarspark,
+      objKeyMap(stacksArr, (stack) => percent(0.2 * stack)),
+      naught
+    )
   )
 const set4_cryo_critRate_ = greaterEq(input.artSet[key], 4, perStack())
 const set4_stellarconduct_critRate_ = greaterEq(
@@ -61,7 +66,7 @@ const sheet: SetEffectSheet = {
         header: setHeader(4),
         path: condStarsparkPath,
         value: condStarspark,
-        name: 'Starspark (Undying Radiance)',
+        name: 'Starspark (Undying Radiance, on-field)',
         states: objKeyMap(stacksArr, (stack) => ({
           name: st('stack', { count: stack }),
           fields: [

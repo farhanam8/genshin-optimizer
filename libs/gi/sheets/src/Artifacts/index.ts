@@ -19,6 +19,7 @@ import DesertPavilionChronicle from './DesertPavilionChronicle'
 import DisenchantmentInDeepShadow from './DisenchantmentInDeepShadow'
 import EchoesOfAnOffering from './EchoesOfAnOffering'
 import EmblemOfSeveredFate from './EmblemOfSeveredFate'
+import EpochalAdvent from './EpochalAdvent'
 import FinaleOfTheDeepGalleries from './FinaleOfTheDeepGalleries'
 import FlowerOfParadiseLost from './FlowerOfParadiseLost'
 import FragmentOfHarmonicWhimsy from './FragmentOfHarmonicWhimsy'
@@ -47,7 +48,6 @@ import PrayersForDestiny from './PrayersForDestiny'
 import PrayersForIllumination from './PrayersForIllumination'
 import PrayersForWisdom from './PrayersForWisdom'
 import PrayersToSpringtime from './PrayersToSpringtime'
-import RemnantsOfTheOrigin from './RemnantsOfTheOrigin'
 import ResolutionOfSojourner from './ResolutionOfSojourner'
 import RetracingBolide from './RetracingBolide'
 import ScarletProof from './ScarletProof'
@@ -85,6 +85,7 @@ export const artifactSheets: Record<ArtifactSetKey, ArtifactSheet> = {
   DisenchantmentInDeepShadow,
   EchoesOfAnOffering,
   EmblemOfSeveredFate,
+  EpochalAdvent,
   FinaleOfTheDeepGalleries,
   FlowerOfParadiseLost,
   FragmentOfHarmonicWhimsy,
@@ -113,7 +114,6 @@ export const artifactSheets: Record<ArtifactSetKey, ArtifactSheet> = {
   PrayersForIllumination,
   PrayersForWisdom,
   PrayersToSpringtime,
-  RemnantsOfTheOrigin,
   ResolutionOfSojourner,
   RetracingBolide,
   ScarletProof,

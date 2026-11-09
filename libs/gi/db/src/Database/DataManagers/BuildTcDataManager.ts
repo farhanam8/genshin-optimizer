@@ -21,6 +21,7 @@ import type {
 import {
   allArtifactRarityKeys,
   allArtifactSetKeys,
+  currentArtifactSetKey,
   allArtifactSlotKeys,
   allAscensionKeys,
   allCharacterKeys,
@@ -84,7 +85,8 @@ const buildTcArtifactSetsSchema = z.preprocess(
   (val) => {
     if (typeof val !== 'object' || val === null) return {}
     const result: Partial<Record<ArtifactSetKey, 1 | 2 | 4>> = {}
-    for (const [key, value] of Object.entries(val)) {
+    for (const [rawKey, value] of Object.entries(val)) {
+      const key = currentArtifactSetKey(rawKey)
       if (
         allArtifactSetKeys.includes(key as ArtifactSetKey) &&
         (value === 1 || value === 2 || value === 4)

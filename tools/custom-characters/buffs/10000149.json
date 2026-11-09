@@ -4,10 +4,10 @@
     "Written by hand from the passive and constellation descriptions and from how the kit plays.",
     "Accolades: CRIT DMG 12% (A1), ATK 15% for Cryo / EM 60 for others (C1), all x1.3 at C4. Sealing divides them equally (party of 4 assumed); when Anastasya is Sealed at C1+, she grants 300%.",
     "C1 and C4 entries add to the lower constellations, so totals match, e.g. C4 with Anastasya Sealed: others 62.4% CRIT DMG.",
-    "C2 Honor: Blessed Armament Normal Attacks (skill rows), The Evernight Yields to Dawn and Doom deal 125% of their original DMG.",
+    "C2 Honor: Blessed Spear Normal Attacks (skill rows), The Evernight Yields to Dawn and Doom deal 125% of their original DMG.",
     "C6 Honor extra Doom hit: Anastasya holds the Accolades of the 3 other members (+3 x 15.6% CRIT DMG, +3 x 19.5% ATK), assuming none is Sealed.",
     "Not included: A4 (Stellar Swirl base reaction multiplier +15%, no matching GO stat).",
-    "To the New World (Q in Blessing of Love): party Stellar-Conduct and Stellar Swirl DMG + the burst's Stellar Glimmer Reaction DMG Increase (50% at Lv10), behind its own toggle."
+    "To the New World (Q in Blessing of Love): party Stellar-Conduct and Stellar Swirl DMG + the burst's Stellar Glimmer Reaction DMG Increase (30% at Lv10 since v2), behind its own toggle."
   ],
   "buffs": [
     {
@@ -356,7 +356,7 @@
       "talent": "skill",
       "match": "^\\d-Hit",
       "value": 1.25,
-      "name": "Blessed Armament Normal Attacks",
+      "name": "Blessed Spear Normal Attacks",
       "condition": "Blessing (after Elemental Skill)",
       "conditionState": "Honor (E hold)"
     },

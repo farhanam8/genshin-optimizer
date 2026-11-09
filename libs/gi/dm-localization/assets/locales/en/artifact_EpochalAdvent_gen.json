@@ -1,0 +1,29 @@
+{
+  "setName": "Epochal Advent",
+  "setEffects": {
+    "2": "ATK +18%.",
+    "4": "The equipping character gains 1 Starspark when they use an Elemental Skill, Elemental Burst, or perform a Normal Attack. Up to 2 Starsparks can be held at once. The equipping character gains Undying Radiance while holding at least 1 Starspark. This effect increases the CRIT Rate of their <cryo>Cryo DMG</cryo> by 20%, with an additional 20% CRIT Rate if that DMG is Stellar Glimmer reaction DMG. The equipping character loses 1 Starspark every 3s while on the field. Undying Radiance ends when all Starsparks are extinguished."
+  },
+  "pieces": {
+    "flower": {
+      "name": "Flower of the Epochal Advent",
+      "desc": "The high heavens bestowed an everlasting flower on their envoy, and greed was born of a life without end."
+    },
+    "plume": {
+      "name": "Plume of the Epochal Advent",
+      "desc": ""
+    },
+    "sands": {
+      "name": "Sands of the Epochal Advent",
+      "desc": ""
+    },
+    "goblet": {
+      "name": "Goblet of the Epochal Advent",
+      "desc": ""
+    },
+    "circlet": {
+      "name": "Circlet of the Epochal Advent",
+      "desc": ""
+    }
+  }
+}
